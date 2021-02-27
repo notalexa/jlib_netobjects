@@ -18,6 +18,8 @@ package not.alexa.netobjects.utils;
 import java.util.Enumeration;
 import java.util.Iterator;
 
+import not.alexa.netobjects.BaseException;
+
 /**
  * Sequence is an alternative to the <code>Iterable</code> interface. In contrast to this interface, sequences can be implemented as
  * linked list and do not require object creation in a lot of cases reducing intermediate creation of interfaces. As a second advantage,
@@ -81,7 +83,7 @@ public interface Sequence<T> extends AutoCloseable,Iterable<T> {
 	 * 
 	 */
 	@Override
-	public default void close() {
+	public default void close() throws BaseException {
 	}
 	
 	/**

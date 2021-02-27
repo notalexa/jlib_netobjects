@@ -30,7 +30,7 @@ import not.alexa.netobjects.types.JavaClass.Type;
  * the specific context of evaluation.
  * <br>A type resolver supporting explicitly defined types using
  * the builder mechanism of {@link ClassTypeDefinition} is 
- * {@link not.alexa.coding.CodingTypeResolver}. More complex loaders
+ * {@link not.alexa.coding.xml.CodingTypeResolver}. More complex loaders
  * will follow in subsequent libraries. Possible mechanism of
  * providing such types are:
  * <ul>
@@ -41,7 +41,7 @@ import not.alexa.netobjects.types.JavaClass.Type;
  * 
  * @author notalexa
  * @see not.alexa.netobjects.Context
- * @see not.alexa.coding.CodingTypeResolver
+ * @see not.alexa.coding.xml.CodingTypeResolver
  */
 public interface TypeLoader {
 	/**
