@@ -88,7 +88,7 @@ public interface TypeLoader {
 	 * @return the corresponding type definition
 	 */
 	public default TypeDefinition resolveType(Class<?> clazz) {
-		return resolveType(ObjectType.createClassType(clazz.getName()));
+		return resolveType(ObjectType.createClassType(clazz));
 	}
 
 	/**
