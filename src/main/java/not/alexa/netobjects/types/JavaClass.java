@@ -65,7 +65,20 @@ public final class JavaClass extends Namespace {
 	JavaClass() {
 		super(Type.class);
 		register(this);
+		loadedTypes.put("not.alexa.netobjects.types.JavaClass$Type",new Type(ObjectType.class.getName()));
 	};
+	
+	/**
+	 * Classes representing an object type are special and registered while creating the 
+	 * namespace.
+	 * 
+	 * @param clazz the object type class to register (must implement {@link ObjectType})
+	 */
+	void registerObjectType(Class<?> clazz) {
+	    if(ObjectType.class.isAssignableFrom(clazz)&&!loadedTypes.containsKey(clazz.getName())) {
+	        loadedTypes.put(clazz.getName(),new Type(ObjectType.class.getName()));
+	    }
+	}
 		
 	public final class Type extends AbstractType implements ObjectType {
 		

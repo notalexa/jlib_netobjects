@@ -54,19 +54,20 @@ import not.alexa.netobjects.Adaptable;
  * @see ObjectType
  */
 public abstract class Namespace {
+    private static final JavaClass JAVA_CLASS_INSTANCE;
 	private static Namespace[] namespaces=new Namespace[0];
 	private static Map<String,Namespace> URN_MAP=new HashMap<>();
 	private static Set<Class<?>> TYPE_MAP=new HashSet<>();
 	int ordinal=-1;
 	Class<? extends ObjectType> typeClass;
 	static {
-		new JavaClass();
+		JAVA_CLASS_INSTANCE=new JavaClass();
 	}
 	
 	protected Namespace(Class<? extends ObjectType> typeClass) {
 		this.typeClass=typeClass;
 		if(namespaces.length>0&&!register(this)) {
-			throw new IllegalStateException("Already registered: Namspace "+getUrnPrefix());
+			throw new IllegalStateException("Already registered: Namespace "+getUrnPrefix());
 		}
 	}
 	
@@ -83,7 +84,9 @@ public abstract class Namespace {
 		namespaces[ns.ordinal]=ns;
 		URN_MAP.put(ns.getUrnPrefix(),ns);
 		TYPE_MAP.add(ns.typeClass);
-		PrimitiveTypeDefinition.registerObjectType(namespaces[0].create(ns.typeClass.getName()));
+		if(JAVA_CLASS_INSTANCE!=null) {
+		    JAVA_CLASS_INSTANCE.registerObjectType(ns.typeClass);
+		}
 		return true;
 	}
 	

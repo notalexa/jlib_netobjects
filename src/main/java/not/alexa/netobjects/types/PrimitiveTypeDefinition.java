@@ -97,11 +97,7 @@ public final class PrimitiveTypeDefinition extends TypeDefinition {
 		TYPE_MAP.put(ObjectType.createClassType(Float.class),getTypeDescription(Float.TYPE));
 		TYPE_MAP.put(ObjectType.createClassType(Double.class),getTypeDescription(Double.TYPE));
 	}
-	
-	static void registerObjectType(ObjectType type) {
-		TYPE_MAP.put(type,getTypeDescription(ObjectType.class));
-	}
-	
+
 	public static ClassTypeDefinition getTypeDescription() {
 		return Types.PRIMITIVE_TYPE;
 	}
