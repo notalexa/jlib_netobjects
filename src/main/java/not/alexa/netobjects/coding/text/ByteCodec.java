@@ -26,15 +26,29 @@ import not.alexa.netobjects.coding.Encoder.Buffer;
  *
  */
 public class ByteCodec implements Codec {
-    public static final ByteCodec INSTANCE=new ByteCodec();
+    public static final ByteCodec INSTANCE=new ByteCodec(16);
+    private int radix;
+    public ByteCodec(int radix) {
+        this.radix=radix;
+    }
 
     @Override
     public void encode(Buffer buffer, Object t) throws BaseException {
-        buffer.write(t.toString());
+        byte b=((Byte)t);
+        buffer.write(Integer.toString(b&0xff,radix));
     }
 
     @Override
     public Byte decode(not.alexa.netobjects.coding.Decoder.Buffer buffer) throws BaseException {
-        return new Byte(buffer.getCharContent().toString());
+        try {
+            return (byte)Integer.parseInt(buffer.getCharContent().toString(),radix);
+        } catch(Throwable t) {
+            return BaseException.throwException(t);
+        }
+   }
+    
+    @Override
+    public String toString() {
+        return "ByteCodec["+radix+"]";
     }
 }

@@ -26,15 +26,30 @@ import not.alexa.netobjects.coding.Encoder.Buffer;
  *
  */
 public class ShortCodec implements Codec {
-    public static final ShortCodec INSTANCE=new ShortCodec();
+    public static final ShortCodec INSTANCE=new ShortCodec(10);
 
+    protected int radix;
+    public ShortCodec(int radix) {
+        this.radix=radix;
+    }
+    
     @Override
     public void encode(Buffer buffer, Object t) throws BaseException {
-        buffer.write(t.toString());
+        buffer.write(Long.toString((Long)t,radix));
     }
 
     @Override
     public Short decode(not.alexa.netobjects.coding.Decoder.Buffer buffer) throws BaseException {
-        return new Short(buffer.getCharContent().toString());
+        try {
+            return Short.parseShort(buffer.getCharContent().toString(),radix);
+        } catch(Throwable t) {
+            return BaseException.throwException(t);
+        }
+    }
+    
+    
+    @Override
+    public String toString() {
+        return "ShortCodec["+radix+"]";
     }
 }

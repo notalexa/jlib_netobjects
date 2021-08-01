@@ -27,22 +27,29 @@ import not.alexa.netobjects.coding.Encoder;
  *
  */
 public class IntegerCodec implements Codec {
-	public static final IntegerCodec INSTANCE=new IntegerCodec();
-
-	public IntegerCodec() {
+	public static final IntegerCodec INSTANCE=new IntegerCodec(10);
+	
+	private int radix;
+	public IntegerCodec(int radix) {
+	    this.radix=radix;
 	}
 
 	@Override
 	public void encode(Encoder.Buffer buffer, Object o) throws BaseException {
-		buffer.write(Integer.toString((Integer)o));
+		buffer.write(Integer.toString((Integer)o,radix));
 	}
 
 	@Override
 	public Integer decode(Decoder.Buffer buffer) throws BaseException {
 		try {
-			return Integer.parseInt(buffer.getCharContent().toString());
+			return Integer.parseInt(buffer.getCharContent().toString(),radix);
 		} catch(Throwable t) {
 			return BaseException.throwException(t);
 		}
+	}
+	
+	@Override
+	public String toString() {
+	    return "IntegerCodec["+radix+"]";
 	}
 }

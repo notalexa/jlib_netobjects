@@ -15,32 +15,33 @@
  */
 package not.alexa.netobjects.coding.text;
 
-import java.math.BigDecimal;
-
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.coding.Codec;
 import not.alexa.netobjects.coding.Encoder.Buffer;
+import not.alexa.netobjects.types.JavaClass;
 
 /**
- * Codec for the primitive type {@link BigDecimal}. Use {@link BigDecimalCodec#INSTANCE}.
+ * Default codec for enumeration types. This codec assumes, that the type <b>is resolvable by the context class loader</b> for decoding
+ * and that the <code>toString()</code> method returns the correct text representation for encoding.
  * 
  * @author notalexa
- *
  */
-public class BigDecimalCodec implements Codec {
-    public static final BigDecimalCodec INSTANCE=new BigDecimalCodec();
-
+public class EnumCodec implements Codec {
+    JavaClass.Type type;
+    public EnumCodec(JavaClass.Type type) {
+        this.type=type;
+    }
     @Override
     public void encode(Buffer buffer, Object t) throws BaseException {
         buffer.write(t.toString());
     }
-
+    
+    /**
+     * The implemenation resolves the enumeration type using the class loader of the context obtained by {@link not.alexa.netobjects.coding.Decoder.Buffer#getContext()}.
+     */
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
-    public BigDecimal decode(not.alexa.netobjects.coding.Decoder.Buffer buffer) throws BaseException {
-        try {
-            return new BigDecimal(buffer.getCharContent().toString());
-        } catch(Throwable t) {
-            return BaseException.throwException(t);
-        }
+    public Object decode(not.alexa.netobjects.coding.Decoder.Buffer buffer) throws BaseException {
+        return Enum.valueOf((Class<Enum>)type.asClass(buffer.getContext().getTypeLoader().getClassLoader()),buffer.getCharContent().toString());
     }
 }

@@ -26,15 +26,29 @@ import not.alexa.netobjects.coding.Encoder.Buffer;
  *
  */
 public class LongCodec implements Codec {
-    public static final LongCodec INSTANCE=new LongCodec();
+    public static final LongCodec INSTANCE=new LongCodec(10);
+    
+    protected int radix;
+    public LongCodec(int radix) {
+        this.radix=radix;
+    }
 
     @Override
     public void encode(Buffer buffer, Object t) throws BaseException {
-        buffer.write(t.toString());
+        buffer.write(Long.toString((Long)t,radix));
     }
 
     @Override
     public Long decode(not.alexa.netobjects.coding.Decoder.Buffer buffer) throws BaseException {
-        return new Long(buffer.getCharContent().toString());
+        try {
+            return Long.parseLong(buffer.getCharContent().toString(),radix);
+        } catch(Throwable t) {
+            return BaseException.throwException(t);
+        }
+    }
+    
+    @Override
+    public String toString() {
+        return "LongCodec["+radix+"]";
     }
 }

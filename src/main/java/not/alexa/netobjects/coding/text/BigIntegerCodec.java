@@ -28,15 +28,28 @@ import not.alexa.netobjects.coding.Encoder.Buffer;
  * 
  */
 public class BigIntegerCodec implements Codec {
-    public static final BigIntegerCodec INSTANCE=new BigIntegerCodec();
+    public static final BigIntegerCodec INSTANCE=new BigIntegerCodec(10);
+    private int radix;
+    public BigIntegerCodec(int radix) {
+        this.radix=radix;
+    }
 
     @Override
     public void encode(Buffer buffer, Object t) throws BaseException {
-        buffer.write(t.toString());
+        buffer.write(((BigInteger)t).toString(radix));
     }
 
     @Override
     public BigInteger decode(not.alexa.netobjects.coding.Decoder.Buffer buffer) throws BaseException {
-        return new BigInteger(buffer.getCharContent().toString());
+        try {
+            return new BigInteger(buffer.getCharContent().toString(),radix);
+        } catch(Throwable t) {
+            return BaseException.throwException(t);
+        }
+    }
+    
+    @Override
+    public String toString() {
+        return "BigIntegerCodec["+radix+"]";
     }
 }

@@ -41,9 +41,7 @@ public interface AccessFactory extends Adaptable {
 	 * @param type the type
 	 * @return access for the given type in the given context
 	 */
-	public default Access resolve(Context context,TypeDefinition type) {
-		return type.getAdapter(Access.class);
-	}
+	public Access resolve(Context context,TypeDefinition type);
 	
 	/**
 	 * Resolve access for the type and referrer. In general,
@@ -53,7 +51,5 @@ public interface AccessFactory extends Adaptable {
 	 * @param type the tpe
 	 * @return access for the given type relative to the referrer
 	 */
-	public default Access resolve(Access referrer,TypeDefinition type) {
-		return type.getAdapter(Access.class);
-	}	
+	public Access resolve(Access referrer,TypeDefinition type);
 }

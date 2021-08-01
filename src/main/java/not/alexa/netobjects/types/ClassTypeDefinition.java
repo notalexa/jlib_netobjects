@@ -263,7 +263,6 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 	public static class ClassAccess extends AbstractClassAccess implements Access {
 		public ClassAccess(AccessFactory factory) {
 			super(factory,getTypeDescription());
-			Types.FIELD_TYPE.putAdapter(Access.class,new FieldAccess(factory));
 		}
 		
 		@Override
@@ -302,7 +301,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		public Access createFieldAccess(Field f) throws BaseException {
 			switch(f.getIndex()) {
 				case 0:return forArray(f.getType(),ObjectType[].class);
-				case 2:return new ArrayTypeAccess(f.getType(),factory.resolve(this, Types.FIELD_TYPE),Field[].class);
+				case 2:return new ArrayTypeAccess(f.getType(),new FieldAccess(factory),Field[].class);
 				case 3:return forArray(f.getType(),MethodTypeDefinition[].class);
 			}
 			return super.createFieldAccess(f);

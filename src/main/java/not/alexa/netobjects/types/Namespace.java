@@ -71,7 +71,7 @@ public abstract class Namespace {
 		}
 	}
 	
-	static Namespace getJavaNamespace() {
+	public static Namespace getJavaNamespace() {
 		return namespaces[0];
 	}
 		
