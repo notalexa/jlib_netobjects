@@ -16,6 +16,7 @@
 package not.alexa.netobjects.coding;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 
 /**
  * Interface representing a (low level) codec for specific types. All primitive types needs a specific codec for a given
@@ -42,4 +43,12 @@ public interface Codec {
 	 * @throws BaseException if an error occurs
 	 */
 	public Object decode(Decoder.Buffer buffer) throws BaseException;
+	
+	public default Codec getCodec(Field f) throws BaseException {
+	    throw new BaseException(BaseException.BAD_REQUEST, "Not a class codec.");	    
+	}
+	
+	public default Codec getComponentCodec() throws BaseException {
+       throw new BaseException(BaseException.BAD_REQUEST, "Not an array codec.");
+	}
 }
