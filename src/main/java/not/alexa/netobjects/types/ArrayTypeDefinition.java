@@ -15,6 +15,8 @@
  */
 package not.alexa.netobjects.types;
 
+import java.util.List;
+
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
@@ -106,7 +108,8 @@ public class ArrayTypeDefinition extends TypeDefinition {
 		public Object getField(Object o, int index) throws BaseException {
 			ArrayTypeDefinition def=(ArrayTypeDefinition)o;
 			switch(index) {
-				case 0:return def.getTypes().toArray(new ObjectType[0]);
+				case 0:List<ObjectType> types=def.getTypes();
+				    return types.size()==0?null:types.toArray(new ObjectType[types.size()]);
 				case 1:return def.componentType;
 			}
 			return null;

@@ -35,7 +35,7 @@ public class ShortCodec implements Codec {
     
     @Override
     public void encode(Buffer buffer, Object t) throws BaseException {
-        buffer.write(Long.toString((Long)t,radix));
+        buffer.write(Integer.toString((Short)t,radix));
     }
 
     @Override

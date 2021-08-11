@@ -30,6 +30,8 @@ import not.alexa.netobjects.types.access.ArrayTypeAccess;
 import not.alexa.netobjects.types.access.DefaultAccessibleObject;
 
 public class ClassTypeDefinition extends AbstractClassTypeDefinition {
+    private static final Field[] NO_FIELDS=new Field[0];
+    private static final MethodTypeDefinition[] NO_METHODS=new MethodTypeDefinition[0];
 	public static ClassTypeDefinition getTypeDescription() {
 		return Types.CLASS_TYPE;
 	}
@@ -274,10 +276,12 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		public Object getField(Object o, int index) throws BaseException {
 			ClassTypeDefinition def=(ClassTypeDefinition)o;
 			switch(index) {
-				case 0:return def.getTypes().toArray(new ObjectType[0]);
+				case 0:List<ObjectType> types=def.getTypes();
+                    return types.size()==0?null:types.toArray(new ObjectType[types.size()]);
+
 				case 1:return def.enableObjectRefs;
-				case 2:return def.fields;
-				case 3:return def.methods;
+				case 2:return def.fields.length==0?null:def.fields;
+				case 3:return def.methods.length==0?null:def.methods;
 			}
 			return null;
 		}
@@ -309,6 +313,12 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		
 		public Object finish(Object o) {
 			ClassTypeDefinition def=(ClassTypeDefinition)o;
+			if(def.fields==null) {
+			    def.fields=NO_FIELDS;
+			}
+			if(def.methods==null) {
+			    def.methods=NO_METHODS;
+			}
 			def.calculateHash();
 			return def.fix();
 		}

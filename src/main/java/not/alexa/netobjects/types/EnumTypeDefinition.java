@@ -15,6 +15,8 @@
  */
 package not.alexa.netobjects.types;
 
+import java.util.List;
+
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
@@ -32,6 +34,7 @@ import not.alexa.netobjects.types.access.DefaultAccessibleObject;
  *
  */
 public class EnumTypeDefinition extends TypeDefinition {
+    private static final Value[] NO_VALUES=new Value[0];
 	/**
 	 * 
 	 * @return the type definition of an enum type definition
@@ -40,7 +43,7 @@ public class EnumTypeDefinition extends TypeDefinition {
 		return Types.ENUM_TYPE;
 	}
 	private int h;
-	private Value[] values;
+	private Value[] values=NO_VALUES;
 	private EnumTypeDefinition() {}
 	
 	/**
@@ -229,8 +232,9 @@ public class EnumTypeDefinition extends TypeDefinition {
 		public Object getField(Object o, int index) throws BaseException {
 			EnumTypeDefinition def=(EnumTypeDefinition)o;
 			switch(index) {
-				case 0:return def.getTypes().toArray(new ObjectType[0]);
-				case 1:return def.values;
+				case 0:List<ObjectType> types=def.getTypes();
+                    return types.size()==0?null:types.toArray(new ObjectType[types.size()]);
+				case 1:return def.values.length==0?null:def.values;
 			}
 			return null;
 		}

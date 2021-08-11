@@ -38,6 +38,7 @@ import not.alexa.netobjects.coding.text.ShortCodec;
 import not.alexa.netobjects.coding.text.StringCodec;
 import not.alexa.netobjects.coding.text.UUIDCodec;
 import not.alexa.netobjects.types.ObjectType;
+import not.alexa.netobjects.types.access.Access;
 
 /**
  * Class representing a set of codecs by object type.
@@ -51,7 +52,7 @@ import not.alexa.netobjects.types.ObjectType;
 public class Codecs {
     private static Codecs DEFAULT_TEXT_CODECS=new Codecs() {
         @Override
-        public synchronized void put(ObjectType type, Codec codec) {
+        public synchronized void put(Object key, Codec codec) {
         }
     };
     static {
@@ -79,7 +80,7 @@ public class Codecs {
         return DEFAULT_TEXT_CODECS;
     }
     
-    private Map<ObjectType,Codec> codecs=new HashMap<>();
+    private Map<Object,Codec> codecs=new HashMap<>();
 
     private Codecs() {
     }
@@ -92,19 +93,19 @@ public class Codecs {
      * Register a new codec in this set. The method <b>doesn't check type consistency<b>
      * and <b>overrides older versions<b>.
      * 
-     * @param type the type of the codec
+     * @param key the key for this codec. Typically, the key is obtained by {@link Access#getAccessKey(ObjectType)}.
      * @param codec the codec
      */
-    public synchronized void put(ObjectType type, Codec codec) {
+    public synchronized void put(Object key, Codec codec) {
         if(codec!=null) {
-            codecs.put(type,codec);
+            codecs.put(key,codec);
         }
     }
     
     /**
-     * @return the codec for the given type or <code>null</code> if no codec is registered.
+     * @return the codec for the given key or <code>null</code> if no codec is registered.
      */
-    public synchronized Codec get(ObjectType type) {
+    public synchronized Codec get(Object type) {
         return codecs.get(type);
     }
     

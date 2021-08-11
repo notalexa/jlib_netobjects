@@ -20,6 +20,7 @@ import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.Flavour;
+import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.utils.Sequence;
 
@@ -52,6 +53,23 @@ public interface Access {
 	 */
 	public default ClassLoader getAccessLoader() {
 		return getClass().getClassLoader();
+	}
+	
+	/**
+	 * For a type representing the type of this access (that is the object type is contained in the set of {@link TypeDefinition#getTypes()},
+	 * the method should return a key representing this access. Typically, the access is unique with respect to the type and {@link #getAccessLoader()}.
+	 * For convenience, the method return the type itself if the loader is the class loader of the core library.
+	 * 
+	 * @param type the type we need the key for
+	 * @return a unique key for the access
+	 */
+	public default Object getAccessKey(ObjectType type) {
+	    ClassLoader accessLoader=getAccessLoader();
+	    if(accessLoader==Access.class.getClassLoader()) {
+	        return type;
+	    } else {
+	        return new AccessKey(type,accessLoader);
+	    }
 	}
 	
 	/**
@@ -167,7 +185,6 @@ public interface Access {
 	 * @author notalexa
 	 *
 	 */
-	// Primitiv and Enum Types
 	public static class SimpleTypeAccess implements Access, AccessibleObject,Sequence<AccessibleObject> {
 		private static final ClassTypeDefinition.Field[] NO_FIELDS=new ClassTypeDefinition.Field[0];
 		protected TypeDefinition type;
@@ -221,5 +238,34 @@ public interface Access {
 		public Sequence<AccessibleObject> asSequence() {
 			return this;
 		}
+	}
+	
+	/**
+	 * Class representing a key uniquely identifying access for a type.
+	 * 
+	 * @author notalexa
+	 *
+	 */
+	public class AccessKey {
+	    private ObjectType type;
+	    private ClassLoader loader;
+	    public AccessKey(ObjectType type,ClassLoader loader) {
+	        this.type=type;
+	        this.loader=loader;
+	    }
+        @Override
+        public boolean equals(Object obj) {
+            if(obj==this) {
+                return true;
+            } else if(obj instanceof AccessKey) {
+                AccessKey other=(AccessKey)obj;
+                return other.loader==loader&&other.type.equals(type);
+            }
+            return false;
+        }
+        @Override
+        public int hashCode() {
+            return type.hashCode()^loader.hashCode();
+        }
 	}
 }

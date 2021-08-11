@@ -117,14 +117,15 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
         return typeRef;
     }
     
-    protected Codec getCodec(Context context,ObjectType type,Access access) throws BaseException {
+    public Codec getCodec(Context context,ObjectType type,Access access) throws BaseException {
         if(access!=null) {
-            Codec codec=codecs.get(type);
+            Object key=access.getAccessKey(type);
+            Codec codec=codecs.get(key);
             if(codec==null) {
                 for(ObjectType ot:access.getType().getTypes()) {
-                    codec=codecs.get(ot);
+                    codec=codecs.get(access.getAccessKey(ot));
                     if(codec!=null) {
-                        codecs.put(type, codec);
+                        codecs.put(key, codec);
                         break;
                     }
                 }
@@ -145,7 +146,7 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
                     case UnknownType:return null;
                 }
                 if(codec!=null) {
-                    codecs.put(type, codec);
+                    codecs.put(key, codec);
                 }
             }
             return codec;
@@ -206,6 +207,15 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
             return null;
         }
         
+        /**
+         * The codec is registered for the given type. Using the general access
+         * keys, this implies restriction to access based on the class loader of the
+         * core library.
+         * 
+         * @param type (one) object type of the type the codec is intended for.
+         * @param codec the codec
+         * @return this builder for additional configuration
+         */
         public B addCodec(ObjectType type,Codec codec) {
             if(scheme.initialCodecs==savedInitialCodecs) {
                 savedInitialCodecs=savedInitialCodecs.copy();

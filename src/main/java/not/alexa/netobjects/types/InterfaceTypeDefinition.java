@@ -18,6 +18,7 @@ package not.alexa.netobjects.types;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import not.alexa.netobjects.BaseException;
@@ -198,9 +199,10 @@ public class InterfaceTypeDefinition extends AbstractClassTypeDefinition impleme
 		public Object getField(Object o, int index) throws BaseException {
 			InterfaceTypeDefinition def=(InterfaceTypeDefinition)o;
 			switch(index) {
-				case 0:return def.getTypes().toArray(new ObjectType[0]);
+				case 0:List<ObjectType> types=def.getTypes();
+                    return types.size()==0?null:types.toArray(new ObjectType[types.size()]);
 				case 1:return def.implementors;
-				case 2:return def.methods;
+				case 2:return def.methods.length==0?null:def.methods;
 			}
 			return null;
 		}

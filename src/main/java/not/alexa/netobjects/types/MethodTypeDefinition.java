@@ -16,6 +16,7 @@
 package not.alexa.netobjects.types;
 
 import java.util.Arrays;
+import java.util.List;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
@@ -182,10 +183,11 @@ public class MethodTypeDefinition extends TypeDefinition {
 		public Object getField(Object o, int index) throws BaseException {
 			MethodTypeDefinition def=(MethodTypeDefinition)o;
 			switch(index) {
-				case 0:return def.getTypes().toArray(new ObjectType[0]);
+				case 0:List<ObjectType> types=def.getTypes();
+                    return false&&types.size()==0?null:types.toArray(new ObjectType[types.size()]);
 				case 1:return def.name;
-				case 2:return def.parameterTypes;
-				case 3:return def.returnTypes;
+				case 2:return def.parameterTypes.length==0?null:def.parameterTypes;
+				case 3:return def.returnTypes.length==0?null:def.returnTypes;
 			}
 			return null;
 		}
