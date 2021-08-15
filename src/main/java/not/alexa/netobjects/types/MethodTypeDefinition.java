@@ -184,7 +184,7 @@ public class MethodTypeDefinition extends TypeDefinition {
 			MethodTypeDefinition def=(MethodTypeDefinition)o;
 			switch(index) {
 				case 0:List<ObjectType> types=def.getTypes();
-                    return false&&types.size()==0?null:types.toArray(new ObjectType[types.size()]);
+                    return types.size()==0?null:types.toArray(new ObjectType[types.size()]);
 				case 1:return def.name;
 				case 2:return def.parameterTypes.length==0?null:def.parameterTypes;
 				case 3:return def.returnTypes.length==0?null:def.returnTypes;

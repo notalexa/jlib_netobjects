@@ -1,4 +1,4 @@
-package not.alexa.coding;
+package not.alexa.netobjects.coding.text;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;

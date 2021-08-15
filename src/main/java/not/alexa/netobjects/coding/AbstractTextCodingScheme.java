@@ -314,4 +314,65 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
             return objId;
         }
     }
+    
+    /**
+     * For internal use only.
+     * 
+     * @author notalexa
+     *
+     * @param <S> the type of the (text) coding scheme
+     * @param <T> the extension of this class
+     */
+    public abstract static class TextCodingItem<S extends AbstractTextCodingScheme,T extends TextCodingItem<S,T>> {
+        protected final TextCodingSupport<S> root;
+        private T cachedChild;
+        protected final T parent;
+        protected String fieldName;
+        protected Access access;
+
+        protected TextCodingItem(TextCodingSupport<S> root) {
+            this.root=root;
+            parent=null;
+        }
+
+        protected TextCodingItem(T parent) {
+            this.root=parent.root;
+            this.parent=parent;
+        }
+
+        protected T init(String fieldName,Access access) {
+            this.fieldName=fieldName;
+            this.access=access;
+            return null;
+        }
+        
+        public  final T getChild() {
+            if(cachedChild==null) {
+                cachedChild=createChild();
+            }
+            return cachedChild;
+        }
+        
+        protected abstract T createChild();
+        
+        protected Codec resolveCodec(ObjectType type,Access access) throws BaseException {
+           Codec codec=root.getCodingScheme().getCodec(getContext(), type, access);
+           if(codec==null) {
+                  throw new BaseException(BaseException.NOT_FOUND,"Codec for "+type);
+           }
+           return codec;
+        }
+        
+        public S getCodingScheme() {
+            return root.getCodingScheme();
+        }
+        
+        public Context getContext() {
+            return root.getContext();
+        }
+        
+        public TypeDefinition getType() {
+            return access.getType();
+        }
+    }
 }

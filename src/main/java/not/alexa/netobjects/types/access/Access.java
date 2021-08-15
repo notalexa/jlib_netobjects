@@ -268,4 +268,34 @@ public interface Access {
             return type.hashCode()^loader.hashCode();
         }
 	}
+	
+	/**
+	 * Access for types which do not have access. A typical example are interface types which can't be instantiated.
+	 * Another example are types which are forbidden in the current context.
+	 * 
+	 * @author notalexa
+	 *
+	 */
+	public class IllegalAccess implements Access {
+	    private TypeDefinition type;
+	   
+	    /**
+	     * Create an illegal access for the given type.
+	     * 
+	     * @param type the type we need access for
+	     */
+	    public IllegalAccess(TypeDefinition type) {
+	        this.type=type;
+	    }
+
+        @Override
+        public TypeDefinition getType() {
+            return type;
+        }
+
+        @Override
+        public AccessibleObject newInstance(AccessContext context) throws BaseException {
+            throw new BaseException(BaseException.BAD_REQUEST,"Instance of type "+type);
+        }
+	}
 }
