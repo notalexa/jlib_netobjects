@@ -22,19 +22,17 @@ import not.alexa.netobjects.BaseException;
 
 /**
  * Sequence is an alternative to the <code>Iterable</code> interface. In contrast to this interface, sequences can be implemented as
- * linked list and do not require object creation in a lot of cases reducing intermediate creation of interfaces. As a second advantage,
+ * linked list and do not require object creation. In a lot of cases this approach reduces intermediate creation of objects. As a second advantage,
  * sequences respect the observation that resources may be closed after iteration over the sequence. Since it extends <code>AutoCloseable</code>
  * sequences can be used in <code>try</code> - <code>catch</code> blocks.
- * <br>As an optional operation, <code>Sequence</code> implementation may implement the {@link #remove()} method removing the current element
- * out of the sequence and indicating this by returning <code>true</code>. At the moment of deletion, the value of {@link #current()} is undefined.
- * The time of updating the underlying structures is undefined too. The implementation can update the structure in the {@link #close()} method
+ * <br>The time of updating the underlying structures is the case of a remove operation is undefined. The implementation can update the structure in the {@link #close()} method
  * realizing more efficient execution.
  * 
  * @author notalexa
  *
- * @param <T>
+ * @param <T> the type of the sequence
  */
-public interface Sequence<T> extends AutoCloseable,Iterable<T> {
+public interface Sequence<T> extends AutoCloseable,Iterable<T>, Cursor<T> {
 	
 	/**
 	 * Returns an empty sequence.
@@ -47,34 +45,35 @@ public interface Sequence<T> extends AutoCloseable,Iterable<T> {
 	}
 
 	/**
-	 * {@link #current()} may return <code>null</code> as a valid value. This method tells the sequence consumer if iteration
-	 * can be stopped.
 	 * 
-	 * @return <code>true</code> if the sequence is not totally consumed, <code>false</code> otherwise. After returning <code>false</code>
-	 * the sequence never returns <code>true</code> any more.
+	 * @param <T> the type of the sequence
+	 * @param i the iterable object
+	 * @return a sequence based on the iterable object
 	 */
-	public boolean busy();
-	
+	public static <T> Sequence<T> from(Iterable<T> i) {
+	    return from(i.iterator());
+	}
+
 	/**
 	 * 
-	 * @return the current value of this sequence. This method can be called more than once.
+     * @param <T> the type of the sequence
+	 * @param i the iterator
+	 * @return a sequence based on the iterator
 	 */
-	public T current();
-	
+	@SuppressWarnings("resource")
+    public static <T> Sequence<T> from(Iterator<T> i) {
+	    return new Itr<>(i).next();
+	}
+
 	/**
 	 * 
-	 * @return the sequence with the next current element.
+     * @param <T> the type of the sequence
+	 * @param e the enumeration
+	 * @return a sequence based on the given enumeration
 	 */
-	public Sequence<T> next();
-	
-	/**
-	 * Remove is an optional operation. The return value indicates if the operation can be performed in this sequence. Removing the element
-	 * can be performed in the {@link #close()} method generating a bulk operation.
-	 * 
-	 * @return <code>true</code> if the method is implemented and the value is removed. 
-	 */
-	public default boolean remove() {
-		return false;
+	@SuppressWarnings("resource")
+    public static <T> Sequence<T> from(Enumeration<T> e) {
+	    return new Enum<>(e).next();
 	}
 	
 	/**
@@ -127,20 +126,25 @@ public interface Sequence<T> extends AutoCloseable,Iterable<T> {
 			}
 		};
 		
-		private Sequence<T> seq;
-		public SequenceIterator(Sequence<T> seq) {
+		private Cursor<T> seq;
+		private boolean move;
+		private SequenceIterator(Sequence<T> seq) {
 			this.seq=seq;
 		}
 		
 		@Override
 		public boolean hasNext() {
+		    if(move) {
+		        seq=seq.next();
+		        move=false;
+		    }
 			return seq.busy();
 		}
 		
 		@Override
 		public T next() {
 			T t=seq.current();
-			seq=seq.next();
+			move=true;
 			return t;
 		}
 
@@ -152,79 +156,80 @@ public interface Sequence<T> extends AutoCloseable,Iterable<T> {
 		}
 	}
 	
-	/**
-	 * A sequence based on an iterator.
-	 * 
-	 * @author notalexa
-	 *
-	 * @param <T> the type of the sequence
-	 */
-	public class Itr<T> implements Sequence<T> {		
-		Iterator<T> itr;
-		T current;
-		public Itr(Iterator<T> itr) {
-			this.itr=itr;
-		}
-		
-		@Override
-		public T current() {
-			return current;
-		}
-		@Override
-		public Sequence<T> next() {
-			if(itr.hasNext()) {
-				current=itr.next();
-				return this;
-			} else {
-				return emptySequence();
-			}
-		}
+    /**
+   * A sequence based on an iterator.
+   * 
+   * @author notalexa
+   *
+   * @param <T> the type of the sequence
+   */
+   final class Itr<T> implements Sequence<T> {        
+      Iterator<T> itr;
+      T current;
+      private Itr(Iterator<T> itr) {
+          this.itr=itr;
+      }
+      
+      @Override
+      public T current() {
+          return current;
+      }
+      
+      @Override
+      public Sequence<T> next() {
+          if(itr.hasNext()) {
+              current=itr.next();
+              return this;
+          } else {
+              return emptySequence();
+          }
+      }
 
-		@Override
-		public boolean busy() {
-			return true;
-		}
+      @Override
+      public boolean busy() {
+          return true;
+      }
 
-		@Override
-		public boolean remove() {
-			try {
-				itr.remove();
-				return true;
-			} catch(Throwable t) {
-				return false;
-			}
-		}
-	}
+      @Override
+      public boolean remove() {
+          try {
+              itr.remove();
+              return true;
+          } catch(Throwable t) {
+              return false;
+          }
+      }
+  }
 
-	/**
-	 * A sequence based on an enumeration.
-	 * 
-	 * @author notalexa
-	 *
-	 * @param <T> the type of this sequence
-	 */
-	public class Enum<T> implements Sequence<T> {
-		Enumeration<T> e;
-		T current;
-		public Enum(Enumeration<T> e) {
-			this.e=e;
-		}
-		@Override
-		public T current() {
-			return current;
-		}
-		@Override
-		public Sequence<T> next() {
-			if(e.hasMoreElements()) {
-				current=e.nextElement();
-				return this;
-			} else {
-				return emptySequence();
-			}
-		}
-		@Override
-		public boolean busy() {
-			return true;
-		}
-	}
+  /**
+   * A sequence based on an enumeration.
+   * 
+   * @author notalexa
+   *
+   * @param <T> the type of this sequence
+   */
+  final class Enum<T> implements Sequence<T> {
+      Enumeration<T> e;
+      T current;
+      private Enum(Enumeration<T> e) {
+          this.e=e;
+      }
+      @Override
+      public T current() {
+          return current;
+      }
+      @Override
+      public Sequence<T> next() {
+          if(e.hasMoreElements()) {
+              current=e.nextElement();
+              return this;
+          } else {
+              return emptySequence();
+          }
+      }
+      @Override
+      public boolean busy() {
+          return true;
+      }
+  }
 }

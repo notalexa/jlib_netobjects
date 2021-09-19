@@ -193,7 +193,7 @@ public class ArrayTypeAccess implements Access {
 
 		@Override
 		public Sequence<AccessibleObject> asSequence() {
-			return new Sequence.Itr<AccessibleObject>(data.iterator());
+			return Sequence.<AccessibleObject>from(data.iterator());
 		}
 	}
 }
