@@ -23,6 +23,8 @@ import org.junit.runners.Parameterized.Parameters;
 import java.util.Arrays;
 import java.util.List;
 
+import not.alexa.netobjects.utils.Matcher.Equals;
+
 @RunWith(org.junit.runners.Parameterized.class)
 public class MatcherTest {
     @Parameter
@@ -30,6 +32,9 @@ public class MatcherTest {
     @Parameters
     public static List<TestCase> testCases() {
         return Arrays.asList(new TestCase[] {
+                new TestCase(new StringMatcher(null),null,true),
+                new TestCase(new StringMatcher(null),"b",false),
+                new TestCase(new StringMatcher("a"),null,false),
                 new TestCase(new StringMatcher("a"),"a",true),
                 new TestCase(new StringMatcher("a"),"b",false),
                 new TestCase(new Matcher.Not<String>(new StringMatcher("a")),"a",false),
@@ -50,14 +55,9 @@ public class MatcherTest {
         assertTrue(test.result==test.matcher.matches(test.s));
     }
 
-    public static class StringMatcher implements Matcher<String> {
-        String m;
+    public static class StringMatcher extends Equals<String> {
         public StringMatcher(String m) {
-            this.m=m;
-        }
-        @Override
-        public boolean matches(String t) {
-            return m.equals(t);
+            super(m);
         }
     }
     
