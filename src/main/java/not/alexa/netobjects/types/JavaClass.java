@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.utils.OverlayUtils;
 
 /**
  * This namespace represents the java class namespace. In general, a type is represented as a java class name. 
@@ -96,15 +97,14 @@ public final class JavaClass extends Namespace {
 			int p=className.indexOf(':');
 			if(p>0) {
 				this.className=className.substring(0,p);
-				version=className.substring(p+1);
+				this.version=className.substring(p+1);
 			} else {
 				this.className=className;
 				this.version="";
 			}
 			try {
-				preloaded=defineClass(Type.class.getClassLoader(),className);
+				preloaded=defineClass(Type.class.getClassLoader(),this.className);
 			} catch(Throwable t) {
-				t.printStackTrace();
 			}
 		}
 		
@@ -190,11 +190,22 @@ public final class JavaClass extends Namespace {
 	
 	@Override
 	public Type create(String urn) {
-		Type type=loadedTypes.get(urn);
-		if(type==null) {
-			type=new Type(urn);
-			loadedTypes.put(urn,type);
-		}
-		return type;
+	    return create(urn,null);
 	}
+	
+    Type create(String urn,Class<?> clazz) {
+        Type type=loadedTypes.get(urn);
+        if(type==null) {
+            String typeUrn=urn;
+            if(clazz!=null) {
+                Class<?> overloaded=OverlayUtils.resolve(clazz);
+                if(!overloaded.equals(clazz)) {
+                    typeUrn=Namespace.asString(overloaded);
+                }
+            }
+            type=new Type(typeUrn);
+            loadedTypes.put(urn,type);
+        }
+        return type;
+    }
 }

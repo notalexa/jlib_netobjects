@@ -71,8 +71,8 @@ public abstract class Namespace {
 		}
 	}
 	
-	public static Namespace getJavaNamespace() {
-		return namespaces[0];
+	public static JavaClass getJavaNamespace() {
+		return JAVA_CLASS_INSTANCE;
 	}
 		
 	synchronized static boolean register(Namespace ns) {

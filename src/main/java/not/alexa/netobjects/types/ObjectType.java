@@ -15,6 +15,8 @@
  */
 package not.alexa.netobjects.types;
 
+import not.alexa.netobjects.types.JavaClass.Type;
+
 /**
  * Inside the network object framework, types are represented by
  * object types. Each object type has a namespace it belongs to and two
@@ -49,18 +51,18 @@ public interface ObjectType {
 	 * @param className the class name of the type
 	 * @return an object type representing the java class
 	 */
-	public static ObjectType createClassType(String className) {
+	public static Type createClassType(String className) {
 		return Namespace.getJavaNamespace().create(className);
 	}
-	
+
 	/**
 	 * Convenience method returning a type for the given class in the default version.
 	 * 
 	 * @param clazz the class we need a type for
 	 * @return the type representing the class
 	 */
-	public static ObjectType createClassType(Class<?> clazz) {
-		return createClassType(Namespace.asString(clazz));
+	public static Type createClassType(Class<?> clazz) {
+		return Namespace.getJavaNamespace().create(Namespace.asString(clazz),clazz);
 	}
 
 	
