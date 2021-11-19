@@ -16,11 +16,14 @@
 package not.alexa.netobjects.coding;
 
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.text.EnumCodec;
 import not.alexa.netobjects.types.ClassTypeDefinition;
+import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.Namespace;
 import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
@@ -66,14 +69,12 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
     protected Namespace namespace=Namespace.getJavaNamespace();
     protected String typeRef="class";
     protected ReservedAttributes reservedAttributes=new ReservedAttributes("obj-ref","obj-id");
-    protected Codecs initialCodecs;
     protected Codecs codecs;
     protected AbstractTextCodingScheme(Charset charset,AccessFactory factory) {
         this.charset=charset;
         this.factory=factory;
         rootType=PrimitiveTypeDefinition.getTypeDescription(Object.class);
-        initialCodecs=Codecs.defaultTextCodecs();
-        codecs=initialCodecs.copy();
+        codecs=Codecs.defaultTextCodecs();
     }
     
     @Override
@@ -119,17 +120,7 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
     
     public Codec getCodec(Context context,ObjectType type,Access access) throws BaseException {
         if(access!=null) {
-            Object key=access.getAccessKey(type);
-            Codec codec=codecs.get(key);
-            if(codec==null) {
-                for(ObjectType ot:access.getType().getTypes()) {
-                    codec=codecs.get(access.getAccessKey(ot));
-                    if(codec!=null) {
-                        codecs.put(key, codec);
-                        break;
-                    }
-                }
-            }
+            Codec codec=codecs.get(access);
             if(codec==null) {
                 switch(access.getType().getFlavour()) {
                     case PrimitiveType:throw new BaseException(BaseException.NOT_FOUND,"Primitive type "+access.getType()+" has no predefined codec.");
@@ -146,7 +137,7 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
                     case UnknownType:return null;
                 }
                 if(codec!=null) {
-                    codecs.put(key, codec);
+                    codecs.put(access, codec);
                 }
             }
             return codec;
@@ -184,11 +175,10 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
      */
     public static abstract class Builder<T extends AbstractTextCodingScheme,B extends Builder<T,B>> {
         protected T scheme;
-        private Codecs savedInitialCodecs;
+        private Map<Type,Codec> primitiveTypeCodecs=new HashMap<>();
         
         public Builder(T scheme) {
             try {
-                savedInitialCodecs=scheme.initialCodecs;
                 this.scheme=cloneScheme(scheme);
             } catch(Throwable t) {
             }
@@ -197,9 +187,9 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
         @SuppressWarnings("unchecked")
         public T cloneScheme(T scheme) {
             try {
-                if(savedInitialCodecs!=scheme.initialCodecs) {
-                    scheme.initialCodecs=savedInitialCodecs;
-                    scheme.codecs=savedInitialCodecs.copy();
+                if(primitiveTypeCodecs.size()>0) {
+                    scheme.codecs=scheme.codecs.copy(primitiveTypeCodecs);
+                    primitiveTypeCodecs.clear();
                 }
                 return (T)scheme.clone();
             } catch(Throwable t) {
@@ -216,11 +206,8 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
          * @param codec the codec
          * @return this builder for additional configuration
          */
-        public B addCodec(ObjectType type,Codec codec) {
-            if(scheme.initialCodecs==savedInitialCodecs) {
-                savedInitialCodecs=savedInitialCodecs.copy();
-            }
-            savedInitialCodecs.put(type, codec);
+        public B addCodec(Type type,Codec codec) {
+            primitiveTypeCodecs.put(type,codec);
             return myself();
         }
         
@@ -262,10 +249,8 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
         }
         
         public B setAccessFctory(AccessFactory factory) {
-            // Codecs of different factories are different in general
-            if(savedInitialCodecs==scheme.initialCodecs) {
-                savedInitialCodecs=scheme.initialCodecs.copy();
-            }
+            scheme.codecs=scheme.codecs.copy(primitiveTypeCodecs);
+            primitiveTypeCodecs.clear();
             scheme.factory=factory;
             return myself();
         }

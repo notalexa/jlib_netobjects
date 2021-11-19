@@ -110,7 +110,7 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
     	    if(showType) {
                 ObjectType objectType=ObjectType.createClassType(o.getClass());
     	        type=getContext().getTypeLoader().resolveType(objectType);
-    	        access=getCodingScheme().getFactory().resolve(getContext(),type);
+    	        access=root.getFactory().resolve(getContext(),type);
     	        codec=resolveCodec(objectType, access);
     	    } else if(codec==null) {
     	        throw new BaseException(BaseException.BAD_REQUEST,"Codec unknown for "+type);

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.AccessContext;
@@ -29,6 +30,7 @@ import not.alexa.netobjects.types.access.AccessFactory;
 import not.alexa.netobjects.types.access.ArrayTypeAccess;
 import not.alexa.netobjects.types.access.DefaultAccessibleObject;
 
+@Final
 public class ClassTypeDefinition extends AbstractClassTypeDefinition {
     private static final Field[] NO_FIELDS=new Field[0];
     private static final MethodTypeDefinition[] NO_METHODS=new MethodTypeDefinition[0];
@@ -179,6 +181,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		}
 	}
 	
+	@Final
 	public class Field {
 		private int h;
 		protected int index;
@@ -268,7 +271,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		}
 		
 		@Override
-		public AccessibleObject newInstance(AccessContext context) throws BaseException {
+		public AccessibleObject newAccessible(AccessContext context) throws BaseException {
 			return new DefaultAccessibleObject(this,new ClassTypeDefinition());
 		}
 		
@@ -335,7 +338,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			super(factory,Types.FIELD_TYPE);
 		}
 		@Override
-		public AccessibleObject newInstance(AccessContext context) throws BaseException {
+		public AccessibleObject newAccessible(AccessContext context) throws BaseException {
 			ClassTypeDefinition classType=context.castTo(ClassTypeDefinition.class);
 			if(classType==null) {
 				throw new BaseException(BaseException.BAD_REQUEST,"No enclosing class type found.");

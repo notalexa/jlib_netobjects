@@ -28,7 +28,7 @@ import not.alexa.netobjects.utils.Sequence;
  * This is a special class implementing {@link Access}. The
  * type needs to be a class type with two entries. The first
  * entry is considered as the "key", the second as the "value".
- * The accessible object returned by {@link #newInstance(AccessContext)}
+ * The accessible object returned by {@link #newAccessible(AccessContext)}
  * implements the {@link Map.Entry} interface.
  * 
  * @author notalexa
@@ -52,7 +52,7 @@ public class MapEntryAccess implements Access {
 	}
 
 	@Override
-	public AccessibleObject newInstance(AccessContext context) throws BaseException {
+	public AccessibleObject newAccessible(AccessContext context) throws BaseException {
 		return new Instance();
 	}
 	
@@ -144,8 +144,8 @@ public class MapEntryAccess implements Access {
 		public AccessibleObject getField(Field f) throws BaseException {
 			Access fieldAccess=getFieldAccess(f);
 			switch(f.getIndex()) {
-				case 0:return fieldAccess.makeInstance(key);
-				case 1:return fieldAccess.makeInstance(value);
+				case 0:return fieldAccess.makeAccessible(key);
+				case 1:return fieldAccess.makeAccessible(value);
 			}
 			return null;
 		}

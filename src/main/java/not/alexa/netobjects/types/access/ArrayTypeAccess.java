@@ -94,7 +94,7 @@ public class ArrayTypeAccess implements Access {
 	 *  
 	 */
 	@Override
-	public AccessibleObject newInstance(AccessContext context) throws BaseException {
+	public AccessibleObject newAccessible(AccessContext context) throws BaseException {
 		return new AccessibleArray();
 	}
 	
@@ -103,7 +103,7 @@ public class ArrayTypeAccess implements Access {
 	 *  
 	 */
 	@Override
-	public AccessibleObject makeInstance(Object o) throws BaseException {
+	public AccessibleObject makeAccessible(Object o) throws BaseException {
 		return new AccessibleArray(o);
 	}
 	
@@ -120,7 +120,7 @@ public class ArrayTypeAccess implements Access {
 		
 		public AccessibleArray(Object data) throws BaseException {
 			for(Object o:canonicalize(data)) {
-				this.data.add(componentAccess.makeInstance(o));
+				this.data.add(componentAccess.makeAccessible(o));
 			}
 		}
 

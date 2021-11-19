@@ -23,9 +23,9 @@ import not.alexa.netobjects.types.ClassTypeDefinition.ClassAccess;
  * A class providing the access framework with dynamic data.
  * 
  * @author notalexa
- * @see Access#newInstance(AccessContext)
+ * @see Access#newAccessible(AccessContext)
  */
-public interface AccessContext extends Castable {
+public interface AccessContext extends Castable, AccessFactory {
 	/**
 	 * 
 	 * @return the current context

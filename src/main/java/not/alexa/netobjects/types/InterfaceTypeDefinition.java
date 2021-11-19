@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Set;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
 import not.alexa.netobjects.types.access.Access;
@@ -39,6 +40,7 @@ import not.alexa.netobjects.utils.Matcher;
  * @author notalexa
  *
  */
+@Final
 public class InterfaceTypeDefinition extends AbstractClassTypeDefinition implements Matcher<TypeDefinition> {
 	public static ClassTypeDefinition getTypeDescription() {
 		return Types.INTERFACE_TYPE;
@@ -191,7 +193,7 @@ public class InterfaceTypeDefinition extends AbstractClassTypeDefinition impleme
 		}
 		
 		@Override
-		public AccessibleObject newInstance(AccessContext context) throws BaseException {
+		public AccessibleObject newAccessible(AccessContext context) throws BaseException {
 			return new DefaultAccessibleObject(this,new InterfaceTypeDefinition());
 		}
 		

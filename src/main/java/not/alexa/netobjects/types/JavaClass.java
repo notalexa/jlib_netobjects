@@ -15,11 +15,15 @@
  */
 package not.alexa.netobjects.types;
 
+import java.lang.ref.PhantomReference;
+import java.lang.ref.ReferenceQueue;
 import java.lang.reflect.Array;
 import java.util.HashMap;
 import java.util.Map;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.api.Overlay;
+import not.alexa.netobjects.types.JavaClass.Type.InstanceSupport;
 import not.alexa.netobjects.utils.OverlayUtils;
 
 /**
@@ -50,6 +54,7 @@ import not.alexa.netobjects.utils.OverlayUtils;
  *
  */
 public final class JavaClass extends Namespace {
+    private static ReferenceQueue<InstanceSupport> OVERLAY_RECYCLER=new ReferenceQueue<InstanceSupport>();
 	private static Map<String,Class<?>> PRIMITIVE_TYPES=new HashMap<String, Class<?>>();
 	static {
 		PRIMITIVE_TYPES.put("boolean",Boolean.TYPE);
@@ -86,6 +91,7 @@ public final class JavaClass extends Namespace {
 		protected String className;
 		protected String version;
 		protected Class<?> preloaded;
+		protected OverlayRef overlayRefs;
 		
 		
 		/**
@@ -102,10 +108,13 @@ public final class JavaClass extends Namespace {
 				this.className=className;
 				this.version="";
 			}
-			try {
-				preloaded=defineClass(Type.class.getClassLoader(),this.className);
-			} catch(Throwable t) {
-			}
+		}
+		
+		private void preload() {
+            if(preloaded==null) try {
+                preloaded=defineClass(Type.class.getClassLoader(),this.className);
+            } catch(Throwable t) {
+            }
 		}
 		
 		/**
@@ -131,9 +140,12 @@ public final class JavaClass extends Namespace {
 		}
 		
 		public boolean equals(Object o) {
+		    if(o==this) {
+		        return true;
+		    }
 			if(o instanceof Type) {
 				Type t=(Type)o;
-				return version.equals(t.version)&&className.equals(t.className);
+				return className.equals(t.className)&&version.equals(t.version);
 			}
 			return false;
 		}
@@ -159,7 +171,7 @@ public final class JavaClass extends Namespace {
 		}
 		
 		/**
-		 * Define the class. This is not just a class loader operation but case has to be taken for arrays.
+		 * Define the class. This is not just a class loader operation but care has to be taken for arrays.
 		 * 
 		 * @param loader the class loader to use
 		 * @param s the class to load
@@ -177,7 +189,63 @@ public final class JavaClass extends Namespace {
 				throw new BaseException(BaseException.NOT_FOUND,"Class not found: "+s);
 			}
 		}
-
+		
+		public boolean hasOverlays() {
+		    return overlayRefs!=null;
+		}
+		
+		public InstanceSupport createInstanceSupport(ClassLoader loader,Class<?> overlay) {
+		    InstanceSupport support=new InstanceSupport(loader,overlay);
+		    OverlayRef ref;
+		    while((ref=(OverlayRef)OVERLAY_RECYCLER.poll())!=null) {
+		        ref.release();
+		    }
+            if(overlay.getAnnotation(Overlay.class)!=null) {
+                ref=new OverlayRef(support);
+                synchronized(this) {
+                    ref.next=overlayRefs;
+                    if(overlayRefs!=null) {
+                        overlayRefs.prev=ref;
+                    }
+                    overlayRefs=ref;
+                }
+            }
+		    return support;
+		}
+		
+        public class InstanceSupport {
+            ClassLoader loader;
+            Class<?> overlay;
+            public InstanceSupport(ClassLoader loader,Class<?> overlay) {
+                this.loader=loader;
+                this.overlay=overlay;
+            }
+            public Class<?> getOverlayClass() {
+                return overlay;
+            }
+        }
+        
+        private class OverlayRef extends PhantomReference<Type.InstanceSupport> {
+            private OverlayRef next;
+            private OverlayRef prev;
+            
+            public OverlayRef(InstanceSupport referent) {
+                super(referent, OVERLAY_RECYCLER);
+            }
+            
+            private void release() {
+                synchronized(Type.this) {
+                    if(next!=null) {
+                        next.prev=prev;
+                    }
+                    if(prev!=null) {
+                        prev.next=next;
+                    } else {
+                        overlayRefs=next;
+                    }
+                }
+            }
+        }
 	}
 
 	/**
@@ -201,10 +269,14 @@ public final class JavaClass extends Namespace {
                 Class<?> overloaded=OverlayUtils.resolve(clazz);
                 if(!overloaded.equals(clazz)) {
                     typeUrn=Namespace.asString(overloaded);
+                    type=create(typeUrn);
                 }
             }
-            type=new Type(typeUrn);
+            if(type==null) {
+                type=new Type(typeUrn);
+            }
             loadedTypes.put(urn,type);
+            type.preload();
         }
         return type;
     }

@@ -15,7 +15,6 @@
  */
 package not.alexa.netobjects.types.access;
 
-import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -24,11 +23,16 @@ import java.util.Map;
 import not.alexa.netobjects.Adaptable;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
+import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.JavaClass;
+import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.TypeDefinition;
+import not.alexa.netobjects.types.TypeLoader;
 import not.alexa.netobjects.types.access.Access.SimpleTypeAccess;
+import not.alexa.netobjects.utils.WeakKeyMap;
+import not.alexa.netobjects.utils.WeakValueMap;
 
 /**
  * Default implementation of {@link AccessFactory}. This access is suitable for type definitions which have a local java class representation. 
@@ -75,6 +79,8 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
     }
     
     protected AccessResolver[] resolvers;
+    private WeakValueMap<Class<?>,AccessHolder> loaded=new WeakValueMap<>();
+    private WeakKeyMap<TypeLoader,Map<Object,AccessHolder>> loadedTypeMaps=new WeakKeyMap<>();
 
 	public DefaultAccessFactory() {
 	    this(defaultResolvers);
@@ -86,12 +92,58 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
 
 	@Override
 	public final Access resolve(Context context,TypeDefinition type) {
-	    return resolve(context.getTypeLoader().getClassLoader(),type);
+	    Type javaType=type.getJavaClassType();
+	    if(javaType!=null) {
+	        Map<Object,AccessHolder> typeMap=getTypeMap(context.getTypeLoader());
+    	    AccessHolder accessHolder=typeMap.get(type.getJavaClassType());
+    	    if(accessHolder==null||!accessHolder.hasAccessCreated()) {
+    	        AccessHolder accessHolder2=resolve(context.getTypeLoader().getClassLoader(),type);
+    	        if(accessHolder2==null) {
+    	            accessHolder2=new AccessHolder(javaType.asClass(context.getTypeLoader().getClassLoader()),javaType).updateAccess(null);
+    	        }
+    	        if(accessHolder==null) {
+        	        Class<?> linkedLocalClass=context.getTypeLoader().getLinkedLocal(javaType);
+        	        if(!linkedLocalClass.equals(accessHolder2.getAccessClass())) {
+        	            accessHolder2=new AccessHolder(linkedLocalClass,javaType).updateAccess(accessHolder2.getAccess());
+        	        }
+        	        accessHolder=accessHolder2;
+                    typeMap.put(javaType,accessHolder);
+                    typeMap.put(accessHolder.getAccessClass(),accessHolder);
+    	        } else {
+    	            accessHolder.updateAccess(accessHolder2.getAccess());
+    	        }
+    	    }
+    	    return accessHolder.getAccess();
+	    }
+	    return null;
+	}
+	
+	
+
+    @Override
+    public Constructor resolve(Context context, Type javaType) {
+        Map<Object,AccessHolder> typeMap=getTypeMap(context.getTypeLoader());
+        AccessHolder accessHolder=typeMap.get(javaType);
+        if(accessHolder==null) {
+            accessHolder=new AccessHolder(context.getTypeLoader().getLinkedLocal(javaType), javaType);
+            typeMap.put(javaType,accessHolder);
+        }
+        return accessHolder.getConstructor();
+    }
+	
+	protected Map<Object,AccessHolder> getTypeMap(TypeLoader loader) {
+        Map<Object,AccessHolder> typeMap=loadedTypeMaps.get(loader);
+        if(typeMap==null) {
+            typeMap=new HashMap<Object, AccessHolder>();
+            loadedTypeMaps.put(loader,typeMap);
+        }
+        return typeMap;
 	}
 	
 	@Override
 	public final Access resolve(Access referrer,TypeDefinition type) {
-	    return resolve(referrer.getAccessLoader(),type);
+	    AccessHolder accessHolder=resolve(referrer.getAccessLoader(),type);
+	    return accessHolder==null?null:accessHolder.getAccess();
 	}
 
 	/**
@@ -100,12 +152,15 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
 	 * 
 	 * @param usedClassLoader the class loader to use
 	 * @param type the type to resolve
-	 * @return the access for the type or <code>null</code> if no access is provided.
+	 * @return the access holder for the type or <code>null</code> if no access is provided.
 	 */
-	public Access resolve(ClassLoader usedClassLoader,TypeDefinition type) {
-	    ClassAccessHolder accessHolder=type.getAdapter(ClassAccessHolder.class);
-	    Access access=accessHolder==null?null:accessHolder.get(usedClassLoader);
-		if(access==null) try {
+	protected AccessHolder resolve(ClassLoader usedClassLoader,TypeDefinition type) {
+	    Type classType=type.getJavaClassType();
+	    Class<?> clazz=classType==null?null:classType.asClass(usedClassLoader);
+	    AccessHolder accessHolder=clazz==null?null:loaded.get(clazz);
+		if((accessHolder==null||!accessHolder.hasAccessCreated())&&clazz!=null) try {
+		    Access access=null;
+		    Constructor factory=new Constructor.DefaultConstructor(classType, clazz);
 			switch(type.getFlavour()) {
 				case InterfaceType:
 				case EnumType:
@@ -117,10 +172,18 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
 					JavaClass.Type javaType=type.getJavaClassType();
 					if(javaType!=null) try {
 						Class<?> accessClass=Class.forName(javaType.getName()+"$ClassAccess",true,usedClassLoader);
-						Constructor<?> c=accessClass.getConstructor(AccessFactory.class);
-						if(Access.class.isAssignableFrom(accessClass)) {
-							access=(Access)c.newInstance(this);
-						}
+                        try {
+                            java.lang.reflect.Constructor<?> c=accessClass.getConstructor(AccessFactory.class,Constructor.class);
+                            if(Access.class.isAssignableFrom(accessClass)) {
+                                access=(Access)c.newInstance(this,clazz.getAnnotation(Final.class)==null?new Constructor.OverlayConstructor(classType,factory):factory);
+                            }
+                        } catch(Throwable t) {}
+						try {
+						    java.lang.reflect.Constructor<?> c=accessClass.getConstructor(AccessFactory.class);
+    						if(Access.class.isAssignableFrom(accessClass)) {
+    							access=(Access)c.newInstance(this);
+    						}
+						} catch(Throwable t) {}
 					} catch(Throwable t) {
 					}
 					if(access==null&&resolvers!=null) for(AccessResolver resolver:resolvers) {
@@ -133,16 +196,89 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
 					}
 					break;
 			}
-			if(accessHolder==null) {
-			    type.putAdapter(ClassAccessHolder.class,new ClassAccessHolder(usedClassLoader,access));
-			} else if(usedClassLoader!=null) {
-			    accessHolder.put(usedClassLoader, access);
+			if(access!=null) {
+			    loaded.put(clazz,accessHolder=new AccessHolder(clazz,factory).updateAccess(access));
 			}
 		} catch(Throwable t) {
 		}
-		return access;
+		return accessHolder;
 	}
 	
+	/**
+	 * For testing only
+	 */
+	protected int gc() {
+	    loaded.size();
+	    return loadedTypeMaps.size();
+	}
+
+    @Override
+    public AccessFactory forContext(Context context) {
+        return new AccessFactory() {
+            Map<Object,AccessHolder> typeMap;
+
+            @Override
+            public Access resolve(Context context, TypeDefinition type) {
+                if(typeMap==null) {
+                    typeMap=getTypeMap(context.getTypeLoader());
+                }
+                Type classType=type.getJavaClassType();
+                AccessHolder accessHolder=classType==null?null:typeMap.get(classType);
+                return accessHolder==null?DefaultAccessFactory.this.resolve(context, type):accessHolder.getAccess();
+            }
+
+            @Override
+            public Access resolve(Access referrer, TypeDefinition type) {
+                return DefaultAccessFactory.this.resolve(referrer, type);
+            }
+
+            @Override
+            public Constructor resolve(Context context, Type classType) {
+                if(typeMap==null) {
+                    typeMap=getTypeMap(context.getTypeLoader());
+                }
+                AccessHolder accessHolder=classType==null?null:typeMap.get(classType);
+                return accessHolder==null?DefaultAccessFactory.this.resolve(context, classType):accessHolder.getConstructor();
+            }
+        };
+    }
+
+    private static class AccessHolder {
+        Class<?> clazz;
+        boolean accessCreated;
+        Access access;
+        Constructor constructor;
+        private AccessHolder(Class<?> clazz,Type type) {
+            this(clazz,new Constructor.DefaultConstructor(type, clazz));
+        }
+        
+        private AccessHolder(Class<?> clazz,Constructor constructor) {
+            this.clazz=clazz;
+            this.constructor=constructor;
+        }
+        
+        public boolean hasAccessCreated() {
+            return accessCreated;
+        }
+        public Access getAccess() {
+            return access;
+        }
+        
+        public AccessHolder updateAccess(Access access) {
+            this.access=access;
+            this.accessCreated=true;
+            return this;
+        }
+        
+        Class<?> getAccessClass() {
+            return clazz;
+        }
+        
+        public Constructor getConstructor() {
+            return constructor;
+        }
+    }
+
 	private class AnonymousClassAccess implements Access {
 		private TypeDefinition type;
 		private ClassLoader loader;
@@ -162,12 +298,12 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
 		}
 
 		@Override
-		public AccessibleObject newInstance(AccessContext context) throws BaseException {
+		public AccessibleObject newAccessible(AccessContext context) throws BaseException {
 			throw new BaseException(BaseException.BAD_REQUEST,"No instance of anonymous type "+type.toString());
 		}
 		
 		@Override
-		public AccessibleObject makeInstance(Object v) throws BaseException {
+		public AccessibleObject makeAccessible(Object v) throws BaseException {
 			return new DefaultAccessibleObject(this, v);
 		}
 
@@ -175,32 +311,6 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
 		public Access getFieldAccess(Field f) throws BaseException {
 			return resolve(this,f.getType());
 		}	
-	}
-	
-	private class ClassAccessHolder {
-	    Access defaultAccess;
-	    Map<ClassLoader,Access> loaderAccess;
-	    private ClassAccessHolder(ClassLoader loader,Access access) {
-	        if(loader!=null&&loader!=ClassAccessHolder.class.getClassLoader()) {
-    	        loaderAccess=new HashMap<ClassLoader, Access>();
-    	        loaderAccess.put(loader,access);
-	        } else {
-	            defaultAccess=access;
-	        }
-	    }
-	    
-	    private Access put(ClassLoader loader,Access access) {
-	        if(loaderAccess==null) {
-	        } else {
-	            loaderAccess.put(loader,access);
-	            return access;
-	        }
-            return access;
-	    }
-	    
-	    public Access get(ClassLoader loader) {
-	        return loaderAccess==null?defaultAccess:loaderAccess.get(loader);
-	    }
 	}
 	
 	public interface AccessResolver {

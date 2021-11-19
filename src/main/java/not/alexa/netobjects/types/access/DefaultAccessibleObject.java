@@ -69,7 +69,7 @@ public class DefaultAccessibleObject implements AccessibleObject,Sequence<Access
 
 	@Override
 	public AccessibleObject getField(Field f) throws BaseException {
-		return access.makeInstance(access.getField(o,f));
+		return access.makeAccessible(access.getField(o,f));
 	}
 	
 	@Override

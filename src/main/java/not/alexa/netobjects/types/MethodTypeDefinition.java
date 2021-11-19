@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
 import not.alexa.netobjects.types.access.Access;
@@ -26,6 +27,7 @@ import not.alexa.netobjects.types.access.AccessContext;
 import not.alexa.netobjects.types.access.AccessFactory;
 import not.alexa.netobjects.types.access.DefaultAccessibleObject;
 
+@Final
 public class MethodTypeDefinition extends TypeDefinition {
 	private static final TypeDefinition[] NO_TYPES=new TypeDefinition[0];
 	
@@ -175,7 +177,7 @@ public class MethodTypeDefinition extends TypeDefinition {
 		}
 		
 		@Override
-		public AccessibleObject newInstance(AccessContext context) throws BaseException {
+		public AccessibleObject newAccessible(AccessContext context) throws BaseException {
 			return new DefaultAccessibleObject(this,new MethodTypeDefinition());
 		}
 		

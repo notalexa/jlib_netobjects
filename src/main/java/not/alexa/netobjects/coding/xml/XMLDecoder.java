@@ -26,6 +26,7 @@ import java.util.Map;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
+import not.alexa.netobjects.Adaptable;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.AbstractTextCodingScheme.TextCodingItem;
@@ -37,9 +38,11 @@ import not.alexa.netobjects.types.ArrayTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.Flavour;
+import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.Access.IllegalAccess;
+import not.alexa.netobjects.types.access.Constructor;
 import not.alexa.netobjects.utils.Sequence;
 
 /**
@@ -64,7 +67,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 		try {
 			SAXParser parser=FACTORY.newSAXParser();
 			top=new XMLContentHandler(this, root.getContext())
-					.init("",root.getCodingScheme().getRootDecoder(root.getContext()));
+					.init("",root.getCodingScheme().getRootDecoder(root));
 			parser.parse(stream, this);
 			return (T)top.pop().castTo(root.getContext(), clazz);
 		} catch(Throwable t) {
@@ -105,6 +108,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	    Field field;
 	    AccessibleObject delegator;
 	    Map<String,ArrayBuilder> arrays;
+	    Adaptable.Default adaptable;
 
 	    public XMLContentHandler(XMLDecoder decoder, Context context) {
 	        super(decoder.root);
@@ -178,7 +182,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	                    consumed++;
 	                    try {
 	                        fieldType=getContext().getTypeLoader().resolveType(getCodingScheme().getNamespace().create(clazz));
-	                        tagAccess=getCodingScheme().getFactory().resolve(getContext(),fieldType);
+	                        tagAccess=root.getFactory().resolve(getContext(),fieldType);
 	                    } catch(Throwable t) {
 	                        return BaseException.throwException(t);
 	                    }
@@ -216,7 +220,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	        }
 	        ArrayBuilder builder=arrays.get(f.getName());
 	        if(builder==null) {
-	            arrays.put(f.getName(),builder=new ArrayBuilder(f,access.newInstance(this)));
+	            arrays.put(f.getName(),builder=new ArrayBuilder(f,access.newAccessible(this)));
 	        }
 	    }
 
@@ -273,7 +277,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	        TypeDefinition resolvedType=access.getType();
 	        switch(resolvedType.getFlavour()) {
 	            case ClassType:
-	                delegator=access.newInstance(this);
+	                delegator=access.newAccessible(this);
 	                break;
 	            case ArrayType:
 	                defineArray(f, access);
@@ -385,6 +389,21 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	        }
 	        return parent==null?context.castTo(context, clazz):parent.castTo(context, clazz);
 	    }
+
+        @Override
+        public Access resolve(Context context, TypeDefinition type) {
+            return root.getFactory().resolve(context, type);
+        }
+
+        @Override
+        public Constructor resolve(Context context, Type type) {
+            return root.getFactory().resolve(context, type);
+        }
+
+        @Override
+        public Access resolve(Access referrer, TypeDefinition type) {
+            return root.getFactory().resolve(referrer, type);
+        }
 	}
 
 }

@@ -17,11 +17,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
-import not.alexa.coding.xml.CodingTypeResolver;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.Decoder;
 import not.alexa.netobjects.coding.Encoder;
 import not.alexa.netobjects.coding.xml.XMLCodingScheme;
+import not.alexa.netobjects.types.DefaultTypeLoader;
 import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.TypeLoader;
 
@@ -58,7 +58,7 @@ public class PrimitiveTypeCodingTest {
     @Test
     public void checkEncoding() {
         XMLCodingScheme scheme=XMLCodingScheme.DEFAULT_SCHEME;
-        CodingTypeResolver resolver=new CodingTypeResolver();
+        DefaultTypeLoader resolver=new DefaultTypeLoader();
         Context context=new Context.Root() {
             @Override
             public TypeLoader getTypeLoader() {

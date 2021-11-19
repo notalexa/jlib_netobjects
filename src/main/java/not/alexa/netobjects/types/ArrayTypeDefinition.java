@@ -18,6 +18,7 @@ package not.alexa.netobjects.types;
 import java.util.List;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
 import not.alexa.netobjects.types.access.Access;
@@ -39,6 +40,7 @@ import not.alexa.netobjects.types.access.DefaultAccessibleObject;
  * @author notalexa
  *
  */
+@Final
 public class ArrayTypeDefinition extends TypeDefinition {
 	public static ClassTypeDefinition getTypeDescription() {
 		return Types.ARRAY_TYPE;
@@ -100,7 +102,7 @@ public class ArrayTypeDefinition extends TypeDefinition {
 		}
 		
 		@Override
-		public AccessibleObject newInstance(AccessContext context) throws BaseException {
+		public AccessibleObject newAccessible(AccessContext context) throws BaseException {
 			return new DefaultAccessibleObject(this,new ArrayTypeDefinition());
 		}
 		

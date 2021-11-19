@@ -25,6 +25,7 @@ import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ClassTypeDefinition;
+import not.alexa.netobjects.types.access.AccessFactory;
 
 /**
  * Basic text coding support. This class ensures
@@ -48,10 +49,12 @@ public class TextCodingSupport<S extends AbstractTextCodingScheme> {
     private List<AccessibleObject> objRefs;
     private Map<String,AccessibleObject> externalRefs;
     private Context context;
+    private AccessFactory accessFactory;
     
     public TextCodingSupport(S scheme,Context context) {
         this.context=context;
         this.scheme=scheme;
+        this.accessFactory=scheme.getFactory().forContext(context);
     }
     
     public S getCodingScheme() {
@@ -60,6 +63,10 @@ public class TextCodingSupport<S extends AbstractTextCodingScheme> {
     
     public Context getContext() {
         return context;
+    }
+    
+    public AccessFactory getFactory() {
+        return accessFactory;
     }
     
     /**

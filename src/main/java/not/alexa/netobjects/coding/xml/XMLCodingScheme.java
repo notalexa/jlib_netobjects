@@ -113,8 +113,9 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 	@SuppressWarnings("resource")
 	@Override
 	public Encoder createEncoder(Context context, OutputStream stream) {
-		return new XMLEncoder(new TextCodingSupport<XMLCodingScheme>(this,context),stream)
-		        .init(rootTag,false,getFactory().resolve(context,rootType));
+	    TextCodingSupport<XMLCodingScheme> support=new TextCodingSupport<XMLCodingScheme>(this,context);
+		return new XMLEncoder(support,stream)
+		        .init(rootTag,false,support.getFactory().resolve(context,rootType));
 	}
 
 	@Override
@@ -185,7 +186,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
     }
     
     
-    public Access getRootDecoder(Context context) {
+    public Access getRootDecoder(TextCodingSupport<XMLCodingScheme> root) {
         TypeDefinition anonymous=new ClassTypeDefinition().createBuilder().addField(getRootTag(), getRootType()).build();
         return new Access() {
 
@@ -195,13 +196,13 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
             }
 
             @Override
-            public AccessibleObject newInstance(AccessContext context) throws BaseException {
+            public AccessibleObject newAccessible(AccessContext context) throws BaseException {
                 return null;
             }
 
             @Override
             public Access getFieldAccess(Field f) throws BaseException {
-                return getFactory().resolve(context, getRootType());
+                return root.getFactory().resolve(root.getContext(), getRootType());
             }
             
         };
@@ -234,7 +235,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         
         @Override
         public Object decode(not.alexa.netobjects.coding.Decoder.Buffer buffer) throws BaseException {
-            return access.newInstance(buffer);
+            return access.newAccessible(buffer);
         }
         @Override
         public Codec getCodec(Field f) throws BaseException {
@@ -244,7 +245,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
                     case InterfaceType:
                     case UnknownType:
                     case MethodType:return null;
-                    case PrimitiveType:codec=pool.get(f.getType().getJavaClassType());
+                    case PrimitiveType:codec=pool.get(access.getFieldAccess(f));
                         break;
                     default:codec=createCodec(f.getTag("XML"),f.getType(), access.getFieldAccess(f));
                         break;
@@ -255,7 +256,6 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         }
         
         protected Codec createCodec(String tagName,TypeDefinition type,Access access) throws BaseException {
-            Object key=access.getAccessKey(type.getJavaClassType());
             switch(type.getFlavour()) {
                 case ArrayType:return new Codec() {
                     Access componentAccess=access.getComponentAccess();
@@ -277,11 +277,11 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
                         return componentCodec;
                     }
                 };
-                case PrimitiveType:return pool.get(key);
-                case EnumType:Codec codec=pool.get(key);
+                case PrimitiveType:return pool.get(access);
+                case EnumType:Codec codec=pool.get(access);
                     if(codec==null) {
                         codec=new EnumCodec(type.getJavaClassType());
-                        pool.put(key, codec);
+                        pool.put(access, codec);
                     }
                     return codec;
                 case ClassType:if(type.isAnonymous()) {
@@ -291,10 +291,10 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
                             throw new BaseException(BaseException.BAD_REQUEST,"Anonymous type not defining a map");
                         }
                     } else {
-                        codec=pool.get(key);
+                        codec=pool.get(access);
                         if(codec==null) {
                             codec=new AccessCodec(((ClassTypeDefinition)type).enableObjectRefs(),access, pool);
-                            pool.put(key, codec);
+                            pool.put(access, codec);
                         }
                     }
                     return codec;

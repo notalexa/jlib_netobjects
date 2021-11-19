@@ -56,23 +56,6 @@ public interface Access {
 	}
 	
 	/**
-	 * For a type representing the type of this access (that is the object type is contained in the set of {@link TypeDefinition#getTypes()},
-	 * the method should return a key representing this access. Typically, the access is unique with respect to the type and {@link #getAccessLoader()}.
-	 * For convenience, the method return the type itself if the loader is the class loader of the core library.
-	 * 
-	 * @param type the type we need the key for
-	 * @return a unique key for the access
-	 */
-	public default Object getAccessKey(ObjectType type) {
-	    ClassLoader accessLoader=getAccessLoader();
-	    if(accessLoader==Access.class.getClassLoader()) {
-	        return type;
-	    } else {
-	        return new AccessKey(type,accessLoader);
-	    }
-	}
-	
-	/**
 	 * Finalize construction of o. The default implementation
 	 * returns the object itself.
 	 * 
@@ -130,7 +113,7 @@ public interface Access {
 	 * @return an accessible object
 	 * @throws BaseException if an error occurs
 	 */
-	public AccessibleObject newInstance(AccessContext context) throws BaseException;
+	public AccessibleObject newAccessible(AccessContext context) throws BaseException;
 	
 	/**
 	 * Construct an accessible object for the provided base object
@@ -139,12 +122,12 @@ public interface Access {
 	 * @return an accessible object
 	 * @throws BaseException if an error occurs
 	 */
-	public default AccessibleObject makeInstance(Object o) throws BaseException {
+	public default AccessibleObject makeAccessible(Object o) throws BaseException {
 		return new DefaultAccessibleObject(this, o);
 	}
 	
 	/**
-	 * The counterpart of {@link #newInstance(AccessContext)} and {@link #makeInstance(Object)}.
+	 * The counterpart of {@link #newAccessible(AccessContext)} and {@link #makeAccessible(Object)}.
 	 * This method should return a finalized object, see {@link #finish(Object)}.
 	 * <br>The default implementation returns {@link AccessibleObject#getAssignable()}
 	 * 
@@ -180,7 +163,7 @@ public interface Access {
 
 	/**
 	 * Class suitable for primitive and enumeration types. This class implements {@link Access} and {@link AccessibleObject}. Viewed
-	 * as an access, the value is the default value of the access (and used for {@link #newInstance(AccessContext)}.
+	 * as an access, the value is the default value of the access (and used for {@link #newAccessible(AccessContext)}.
 	 * 
 	 * @author notalexa
 	 *
@@ -205,12 +188,12 @@ public interface Access {
 		}
 		
 		@Override
-		public AccessibleObject newInstance(AccessContext context) {
+		public AccessibleObject newAccessible(AccessContext context) {
 			return this;
 		}
 		
 		@Override
-		public AccessibleObject makeInstance(Object v) {
+		public AccessibleObject makeAccessible(Object v) {
 			return new SimpleTypeAccess(type, v);
 		}
 
@@ -294,7 +277,7 @@ public interface Access {
         }
 
         @Override
-        public AccessibleObject newInstance(AccessContext context) throws BaseException {
+        public AccessibleObject newAccessible(AccessContext context) throws BaseException {
             throw new BaseException(BaseException.BAD_REQUEST,"Instance of type "+type);
         }
 	}

@@ -15,8 +15,8 @@
  */
 package not.alexa.netobjects.types.access;
 
-import not.alexa.netobjects.Adaptable;
 import not.alexa.netobjects.Context;
+import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.TypeDefinition;
 
 /**
@@ -31,7 +31,7 @@ import not.alexa.netobjects.types.TypeDefinition;
  * @author notalexa
  *
  */
-public interface AccessFactory extends Adaptable {
+public interface AccessFactory {
 	
 	/**
 	 * Resolve access for the given type and context. In general,
@@ -43,6 +43,8 @@ public interface AccessFactory extends Adaptable {
 	 */
 	public Access resolve(Context context,TypeDefinition type);
 	
+	public Constructor resolve(Context context,Type type);
+	
 	/**
 	 * Resolve access for the type and referrer. In general,
 	 * the access depends on the class loader of the referrer.
@@ -52,4 +54,18 @@ public interface AccessFactory extends Adaptable {
 	 * @return access for the given type relative to the referrer
 	 */
 	public Access resolve(Access referrer,TypeDefinition type);
+	
+	/**
+	 * Optional operation for optimizing lookup of internal structures
+	 * for a given context.
+	 * The result of the call to the created factory should be <b>exactly the same</b> as the
+	 * result of a call to this factory.
+	 * 
+	 * <br>The implementation should be lightweight.
+	 * @param context the context we need a factory for
+	 * @return an optimized factory for the given context
+	 */
+	public default AccessFactory forContext(Context context) {
+	    return this;
+	}
 }

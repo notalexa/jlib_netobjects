@@ -15,7 +15,12 @@
  */
 package not.alexa.netobjects.types;
 
+import java.util.Arrays;
+import java.util.Collection;
+
+import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.types.JavaClass.Type;
+import not.alexa.netobjects.utils.OverlayTypeLoader;
 
 /**
  * A type loader is responsible for maintaining types
@@ -101,17 +106,46 @@ public interface TypeLoader {
 	 * <br>The default implementation assumes a sorted array of types returned by {@link TypeDefinition#getTypes()} and examines the first
 	 * one. If this is a class, the class is returned. If this is a {@link JavaClass} type, the class is resolved with the current class loader.
 	 * Otherwise the network type is not linked to a local class.
+	 * <br>In the default implementation the type is resolved using the class type of the type definition (and <code>null</code> if the class type is not present which implies that
+	 * no local base type is present for the type definition.
 	 * 
 	 * @param type the type we need a link for
 	 * @return the corresponding class or <code>null</code> if the type is not linked.
 	 */
 	public default Class<?> getLinkedLocal(TypeDefinition type) {
-		if(type!=null) {
-			JavaClass.Type t=type.getJavaClassType();
-			if(t!=null) {
-				return t.asClass(getClassLoader());
-			}
-		}
-		return null;
-	}	
+		return type==null?null:getLinkedLocal(type.getJavaClassType());
+	}
+	
+	/**
+	 * Resolve the class for a {@link JavaClass.Type}. This can be the type itself or an overlay defined in this type loader.
+	 * 
+	 * @param type the type to resolve
+	 * @return the corresponding class as defined in this loader
+	 */
+    public default Class<?> getLinkedLocal(Type type) {
+        return type==null?null:type.asClass(getClassLoader());
+    }
+	
+	/**
+	 * Define the classes as overlays. Classes which doesn't define an overlay or classes which define an
+	 * overlay for a base class which is defined as {@link Final} <b>must</b> be ignored.
+	 * 
+	 * @param overlays the overlays
+     * @return The type loader with the given overlays. 
+	 */
+	public default TypeLoader overlay(Class<?>...overlays) {
+        return overlay(Arrays.asList(overlays));
+	}
+	
+	/**
+	 * 
+     * Define the classes as overlays. Classes which doesn't define an overlay or classes which define an
+     * overlay for a base class which is defined as {@link Final} <b>must</b> be ignored.
+     * 
+	 * @param overlays the overlays
+     * @return The type loader with the given overlays. 
+	 */
+    public default TypeLoader overlay(Collection<Class<?>> overlays) {
+        return new OverlayTypeLoader(this, overlays);
+    }    
 }

@@ -18,6 +18,7 @@ package not.alexa.netobjects.types;
 import java.util.List;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
 import not.alexa.netobjects.types.access.Access;
@@ -33,6 +34,7 @@ import not.alexa.netobjects.types.access.DefaultAccessibleObject;
  * @author notalexa
  *
  */
+@Final
 public class EnumTypeDefinition extends TypeDefinition {
     private static final Value[] NO_VALUES=new Value[0];
 	/**
@@ -185,7 +187,7 @@ public class EnumTypeDefinition extends TypeDefinition {
 			}
 			
 			@Override
-			public AccessibleObject newInstance(AccessContext context) throws BaseException {
+			public AccessibleObject newAccessible(AccessContext context) throws BaseException {
 				return new DefaultAccessibleObject(this,new Value());
 			}
 			
@@ -224,7 +226,7 @@ public class EnumTypeDefinition extends TypeDefinition {
 		}
 		
 		@Override
-		public AccessibleObject newInstance(AccessContext context) throws BaseException {
+		public AccessibleObject newAccessible(AccessContext context) throws BaseException {
 			return new DefaultAccessibleObject(this,new EnumTypeDefinition());
 		}
 		

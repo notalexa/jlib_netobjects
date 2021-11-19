@@ -17,6 +17,7 @@ package not.alexa.netobjects.coding;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,8 +38,11 @@ import not.alexa.netobjects.coding.text.ObjectTypeCodec;
 import not.alexa.netobjects.coding.text.ShortCodec;
 import not.alexa.netobjects.coding.text.StringCodec;
 import not.alexa.netobjects.coding.text.UUIDCodec;
+import not.alexa.netobjects.types.Flavour;
+import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.access.Access;
+import not.alexa.netobjects.utils.WeakKeyMap;
 
 /**
  * Class representing a set of codecs by object type.
@@ -52,40 +56,47 @@ import not.alexa.netobjects.types.access.Access;
 public class Codecs {
     private static Codecs DEFAULT_TEXT_CODECS=new Codecs() {
         @Override
-        public synchronized void put(Object key, Codec codec) {
+        public synchronized void put(Access key, Codec codec) {
         }
     };
     static {
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(ObjectType.class),ObjectTypeCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(String.class),StringCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(Integer.TYPE),IntegerCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(Boolean.TYPE),BooleanCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(Character.TYPE),CharacterCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(Byte.TYPE),ByteCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(Short.TYPE),ShortCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(Long.TYPE),LongCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(Float.TYPE),FloatCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(Double.TYPE),DoubleCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(UUID.class),UUIDCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(BigInteger.class),BigIntegerCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(BigDecimal.class),BigDecimalCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(Date.class),DateCodec.INSTANCE);
-        DEFAULT_TEXT_CODECS.codecs.put(ObjectType.createClassType(byte[].class),ByteArrayCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(ObjectType.class),ObjectTypeCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(String.class),StringCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(Integer.TYPE),IntegerCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(Boolean.TYPE),BooleanCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(Character.TYPE),CharacterCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(Byte.TYPE),ByteCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(Short.TYPE),ShortCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(Long.TYPE),LongCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(Float.TYPE),FloatCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(Double.TYPE),DoubleCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(UUID.class),UUIDCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(BigInteger.class),BigIntegerCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(BigDecimal.class),BigDecimalCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(Date.class),DateCodec.INSTANCE);
+        DEFAULT_TEXT_CODECS.primitiveTypeCodecs.put(ObjectType.createClassType(byte[].class),ByteArrayCodec.INSTANCE);
     }
    
     /**
      * @return The default text codecs
      */
     public static Codecs defaultTextCodecs() {
-        return DEFAULT_TEXT_CODECS;
+        return DEFAULT_TEXT_CODECS.copy(Collections.emptyMap());
     }
-    
-    private Map<Object,Codec> codecs=new HashMap<>();
+
+    Map<Type,Codec> primitiveTypeCodecs;
+    private WeakKeyMap<Access,Codec> codecs=new WeakKeyMap<>();
 
     private Codecs() {
+        primitiveTypeCodecs=new HashMap<>();
     }
     
-    private Codecs(Codecs codecs) {
+    private Codecs(Map<Type,Codec> primitiveTypeCodecs) {
+        this.primitiveTypeCodecs=primitiveTypeCodecs;
+    }
+    
+    private Codecs(Codecs codecs,Map<Type,Codec> primitiveTypeCodecs) {
+        this.primitiveTypeCodecs=codecs.primitiveTypeCodecs;
         this.codecs.putAll(codecs.codecs);
     }
     
@@ -96,7 +107,7 @@ public class Codecs {
      * @param key the key for this codec. Typically, the key is obtained by {@link Access#getAccessKey(ObjectType)}.
      * @param codec the codec
      */
-    public synchronized void put(Object key, Codec codec) {
+    public synchronized void put(Access key, Codec codec) {
         if(codec!=null) {
             codecs.put(key,codec);
         }
@@ -105,15 +116,26 @@ public class Codecs {
     /**
      * @return the codec for the given key or <code>null</code> if no codec is registered.
      */
-    public synchronized Codec get(Object type) {
-        return codecs.get(type);
+    public synchronized Codec get(Access type) {
+        Codec codec=codecs.get(type);
+        if(codec==null&&type.getType().getFlavour()==Flavour.PrimitiveType) {
+            codec=primitiveTypeCodecs.get(type.getType().getJavaClassType());
+            if(codec!=null) {
+                codecs.put(type,codec);
+            }
+        }
+        return codec;
     }
     
     /**
-     * Copy this set of codecs. This is the only way to obtain a new codec set. The new
-     * set can be modified but modification are restricted to the new set.
+     * Method to create a new set of codecs with the given set of primitive type codecs.
+     * 
+     * @param primitiveTypeCodes the set of primitive type codecs
+     * @return a new set of codecs
      */
-    public Codecs copy() {
-        return new Codecs(this);
+    public final Codecs copy(Map<Type,Codec> primitiveTypeCodes) {
+        Map<Type,Codec> initialCodecs=new HashMap<>(this.primitiveTypeCodecs);
+        initialCodecs.putAll(primitiveTypeCodes);
+        return new Codecs(initialCodecs);
     }
 }
