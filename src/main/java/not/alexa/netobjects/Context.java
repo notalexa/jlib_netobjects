@@ -122,6 +122,27 @@ public interface Context extends Adaptable {
 	}
 
 	/**
+	 * Cast this context to the given class
+	 * @param <T> the requested type
+	 * @param clazz the requested type
+	 * @return this context casted to the requested class if possible or <code>null</code> if this is not possible
+	 */
+	public default <T> T castTo(Class<T> clazz) {
+	    return castTo(this,clazz);
+	}
+	
+    /**
+     * Cast this context to the given class
+     * @param <T> the requested type
+     * @param clazz the requested type
+     * @return this context casted to the requested class if possible
+     * @throws BaseException if this context is not castable
+     */
+    public default <T> T fallibleCastTo(Class<T> clazz) throws BaseException {
+        return fallibleCastTo(this,clazz);
+    }
+
+	/**
 	 * Basic implementation of a context serving as a root context.
 	 * 
 	 * @author notalexa

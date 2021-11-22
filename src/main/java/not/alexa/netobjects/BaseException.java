@@ -69,6 +69,12 @@ public class BaseException extends Exception {
 	 * 
 	 */
 	public static final int NOT_AUTHORIZED=403;
+	
+	/**
+	 * General error.
+	 * 
+	 */
+	public static final int GENERAL=500;
 
 	/**
 	 * 
@@ -81,6 +87,7 @@ public class BaseException extends Exception {
 	private int code;
 	
 	public BaseException() {
+	    this(GENERAL,(String)null);
 	}
 
 	public BaseException(int code,String s) {
