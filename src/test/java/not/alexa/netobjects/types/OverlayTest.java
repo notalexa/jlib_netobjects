@@ -14,17 +14,12 @@ public class OverlayTest {
     }
     
     @Test public void registerTest() {
-        Context context=new Context.Root() {
-            TypeLoader loader=new DefaultTypeLoader();
-            public TypeLoader getTypeLoader() {
-                return loader;
-            }
-        };
+        Context context=Context.createRootContext(new DefaultTypeLoader());
         TypeLoader overlayLoader=context.getTypeLoader().overlay(O1.class).overlay(O2.class);
         assertEquals(overlayLoader.getLinkedLocal(overlayLoader.resolveType(Data.class)),overlayLoader.getLinkedLocal(overlayLoader.resolveType(O1.class)));
-        assertEquals(O1.class,overlayLoader.getLinkedLocal(overlayLoader.resolveType(Data.class)));
-        assertEquals(O1.class,overlayLoader.getLinkedLocal(overlayLoader.resolveType(O1.class)));
-        assertEquals(PrimitiveTypeDefinition.class, overlayLoader.getLinkedLocal(PrimitiveTypeDefinition.getTypeDescription()));
+        assertEquals(O1.class,overlayLoader.getLinkedLocal(overlayLoader.resolveType(Data.class)).asClass());
+        assertEquals(O1.class,overlayLoader.getLinkedLocal(overlayLoader.resolveType(O1.class)).asClass());
+        assertEquals(PrimitiveTypeDefinition.class, overlayLoader.getLinkedLocal(PrimitiveTypeDefinition.getTypeDescription()).asClass());
     }
 
     public static class A1 {}

@@ -29,6 +29,7 @@ import not.alexa.netobjects.types.access.DefaultAccessibleObject;
 
 @Final
 public class MethodTypeDefinition extends TypeDefinition {
+    static final MethodTypeDefinition[] NO_METHODS=new MethodTypeDefinition[0];
 	private static final TypeDefinition[] NO_TYPES=new TypeDefinition[0];
 	
 	public static ClassTypeDefinition getTypeDescription() {

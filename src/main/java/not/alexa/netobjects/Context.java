@@ -20,6 +20,7 @@ import java.util.Locale;
 import java.util.logging.Logger;
 
 import not.alexa.netobjects.types.TypeLoader;
+import not.alexa.netobjects.types.access.AccessFactory;
 
 /**
  * In many situations, the behavior of a class depends on a context in which methods
@@ -38,6 +39,29 @@ import not.alexa.netobjects.types.TypeLoader;
  *
  */
 public interface Context extends Adaptable {
+    
+    /**
+     * Create a root context with default values.
+     * @return a root context
+     */
+    public static Context createRootContext() {
+        return new Root();
+    }
+    
+    /**
+     * Create a root context with the given type loader (and default values otherwise)
+     * @param loader the type loader to use
+     * @return a root context with the provided type loader
+     */
+    public static Context createRootContext(TypeLoader loader) {
+        return new Root() {
+            @Override
+            public TypeLoader getTypeLoader() {
+                return loader;
+            }
+        };
+    }
+    
 	/**
 	 * The type system defined in this library is essential for communication.
 	 * <br>A context specific classloader can be obtained using {@link TypeLoader#getClassLoader()}.
@@ -140,6 +164,10 @@ public interface Context extends Adaptable {
      */
     public default <T> T fallibleCastTo(Class<T> clazz) throws BaseException {
         return fallibleCastTo(this,clazz);
+    }
+    
+    public default <T> T upcast(T o) {
+        return AccessFactory.getDefault().upcast(this,o);
     }
 
 	/**

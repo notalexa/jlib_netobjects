@@ -83,6 +83,11 @@ public class ArrayTypeAccess implements Access {
 		this.componentAccess=componentAccess;
 		this.targetClass=targetClass;
 	}
+    
+    @Override
+    public AccessFactory getFactory() {
+        return componentAccess.getFactory();
+    }
 	
 	@Override
 	public TypeDefinition getType() {

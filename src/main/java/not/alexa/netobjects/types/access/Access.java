@@ -20,7 +20,6 @@ import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.Flavour;
-import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.utils.Sequence;
 
@@ -34,6 +33,11 @@ import not.alexa.netobjects.utils.Sequence;
  *
  */
 public interface Access {
+    
+    /**
+     * @return the factory which created this access
+     */
+    public AccessFactory getFactory();
 	
 	/**
 	 * 
@@ -170,17 +174,24 @@ public interface Access {
 	 */
 	public static class SimpleTypeAccess implements Access, AccessibleObject,Sequence<AccessibleObject> {
 		private static final ClassTypeDefinition.Field[] NO_FIELDS=new ClassTypeDefinition.Field[0];
+		protected AccessFactory factory;
 		protected TypeDefinition type;
 		protected Object value;
 		
-		public SimpleTypeAccess(TypeDefinition type) {
-			this(type,null);
+		public SimpleTypeAccess(AccessFactory factory,TypeDefinition type) {
+			this(factory,type,null);
 		}
 		
-		public SimpleTypeAccess(TypeDefinition type,Object value) {
+		public SimpleTypeAccess(AccessFactory factory,TypeDefinition type,Object value) {
+		    this.factory=factory;
 			this.type=type;
 			this.value=value;
 		}
+		
+        @Override
+        public AccessFactory getFactory() {
+            return factory;
+        }
 		
 		@Override
 		public TypeDefinition getType() {
@@ -194,7 +205,7 @@ public interface Access {
 		
 		@Override
 		public AccessibleObject makeAccessible(Object v) {
-			return new SimpleTypeAccess(type, v);
+			return new SimpleTypeAccess(factory,type, v);
 		}
 
 		@Override
@@ -223,34 +234,34 @@ public interface Access {
 		}
 	}
 	
-	/**
-	 * Class representing a key uniquely identifying access for a type.
-	 * 
-	 * @author notalexa
-	 *
-	 */
-	public class AccessKey {
-	    private ObjectType type;
-	    private ClassLoader loader;
-	    public AccessKey(ObjectType type,ClassLoader loader) {
-	        this.type=type;
-	        this.loader=loader;
-	    }
-        @Override
-        public boolean equals(Object obj) {
-            if(obj==this) {
-                return true;
-            } else if(obj instanceof AccessKey) {
-                AccessKey other=(AccessKey)obj;
-                return other.loader==loader&&other.type.equals(type);
-            }
-            return false;
-        }
-        @Override
-        public int hashCode() {
-            return type.hashCode()^loader.hashCode();
-        }
-	}
+//	/**
+//	 * Class representing a key uniquely identifying access for a type.
+//	 * 
+//	 * @author notalexa
+//	 *
+//	 */
+//	public class AccessKey {
+//	    private ObjectType type;
+//	    private ClassLoader loader;
+//	    public AccessKey(ObjectType type,ClassLoader loader) {
+//	        this.type=type;
+//	        this.loader=loader;
+//	    }
+//        @Override
+//        public boolean equals(Object obj) {
+//            if(obj==this) {
+//                return true;
+//            } else if(obj instanceof AccessKey) {
+//                AccessKey other=(AccessKey)obj;
+//                return other.loader==loader&&other.type.equals(type);
+//            }
+//            return false;
+//        }
+//        @Override
+//        public int hashCode() {
+//            return type.hashCode()^loader.hashCode();
+//        }
+//	}
 	
 	/**
 	 * Access for types which do not have access. A typical example are interface types which can't be instantiated.
@@ -260,16 +271,23 @@ public interface Access {
 	 *
 	 */
 	public class IllegalAccess implements Access {
+        private AccessFactory factory;
 	    private TypeDefinition type;
 	   
 	    /**
 	     * Create an illegal access for the given type.
 	     * 
+	     * @param factory the access factory which creates this access
 	     * @param type the type we need access for
 	     */
-	    public IllegalAccess(TypeDefinition type) {
+	    public IllegalAccess(AccessFactory factory,TypeDefinition type) {
 	        this.type=type;
 	    }
+
+        @Override
+        public AccessFactory getFactory() {
+            return factory;
+        }
 
         @Override
         public TypeDefinition getType() {

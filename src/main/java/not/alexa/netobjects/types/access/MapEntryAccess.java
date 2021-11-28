@@ -46,6 +46,11 @@ public class MapEntryAccess implements Access {
 		fieldAccess=new Access[2];
 	}
 
+    @Override
+    public AccessFactory getFactory() {
+        return factory;
+    }
+
 	@Override
 	public TypeDefinition getType() {
 		return type;

@@ -142,6 +142,10 @@ public abstract class Namespace {
 	 */
 	public abstract ObjectType create(String urn);
 	
+	public ObjectType createMethodType(MethodTypeDefinition m) {
+	    return null;
+	}
+	
 	/**
 	 * Base class for types
 	 * 
@@ -215,11 +219,13 @@ public abstract class Namespace {
 		 */
 		public void addTypes(ObjectType...objectTypes) {
 			if(objectTypes!=null&&objectTypes.length>0) for(ObjectType type:objectTypes) {
-				ObjectType old=getType(type.getNamespace());
-				if(old==null) {
-					firstIndex=Math.min(firstIndex, type.getNamespace().ordinal);
-					types[type.getNamespace().ordinal]=type;
-				}
+			    if(type!=null) {
+    				ObjectType old=getType(type.getNamespace());
+    				if(old==null) {
+    					firstIndex=Math.min(firstIndex, type.getNamespace().ordinal);
+    					types[type.getNamespace().ordinal]=type;
+    				}
+			    }
 			}
 		}
 		
@@ -248,7 +254,7 @@ public abstract class Namespace {
 		 */
 		public Class<?> asClass(ClassLoader classLoader) {
 			if(types[0]!=null) {
-				((JavaClass.Type)types[0]).asClass(classLoader);
+				((JavaClass.Type)types[0]).asLinkedLocal(classLoader);
 			}
 			return null;
 		}
@@ -353,19 +359,23 @@ public abstract class Namespace {
 			private Type(String urn) {
 				this.urn=urn;
 			}
-			@Override
+
+            @Override
 			public String getName() {
 				return urn;
 			}
 			
+            @Override
 			public String toString() {
 				return getUrn();
 			}
 			
+            @Override
 			public int hashCode() {
 				return ordinal^urn.hashCode();
 			}
-			
+
+			@Override
 			public boolean equals(Object other) {
 				if(other instanceof Type) {
 					Type t=(Type)other;
@@ -373,6 +383,11 @@ public abstract class Namespace {
 				}
 				return false;
 			}
+			
+            @Override
+            public TypeDefinition resolveDefault(TypeLoader loader) {
+                return null;
+            }
 		}
 	}
 

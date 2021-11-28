@@ -58,13 +58,7 @@ public class PrimitiveTypeCodingTest {
     @Test
     public void checkEncoding() {
         XMLCodingScheme scheme=XMLCodingScheme.DEFAULT_SCHEME;
-        DefaultTypeLoader resolver=new DefaultTypeLoader();
-        Context context=new Context.Root() {
-            @Override
-            public TypeLoader getTypeLoader() {
-                return resolver;
-            }
-        };
+        Context context=Context.createRootContext(new DefaultTypeLoader());
         try(ByteArrayOutputStream out=new ByteArrayOutputStream();
             Encoder encoder=scheme.createEncoder(context, out)) {
             encoder.encode(o).flush();

@@ -15,6 +15,7 @@
  */
 package not.alexa.netobjects.types;
 
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -112,18 +113,47 @@ public interface TypeLoader {
 	 * @param type the type we need a link for
 	 * @return the corresponding class or <code>null</code> if the type is not linked.
 	 */
-	public default Class<?> getLinkedLocal(TypeDefinition type) {
+	public default LinkedLocal getLinkedLocal(TypeDefinition type) {
 		return type==null?null:getLinkedLocal(type.getJavaClassType());
 	}
 	
 	/**
-	 * Resolve the class for a {@link JavaClass.Type}. This can be the type itself or an overlay defined in this type loader.
+	 * Resolve the locally linked object for a {@link JavaClass.Type}. This can be
+	 * <ul>
+	 * <li>A class representing the type or and overlay if this class defined in this type loader.
+	 * <li>A method linked to the type. Methods itself cannot be overlayed directly. Instead, the class implementing the overlay should be
+	 * registered as an overlay of the corresponding base class.
+	 * </ul>
 	 * 
 	 * @param type the type to resolve
-	 * @return the corresponding class as defined in this loader
+	 * @return the corresponding locally linked object as defined in this loader
 	 */
-    public default Class<?> getLinkedLocal(Type type) {
-        return type==null?null:type.asClass(getClassLoader());
+    public default LinkedLocal getLinkedLocal(Type type) {
+        return type==null?null:type.asLinkedLocal(getClassLoader());
+    }
+    
+    /**
+     * Convenience method to return the locally linked class object for class related types.
+     * 
+     * @param type the type to resolve
+     * @return the corresponding locally linked class
+     * @see #getLinkedLocal(Type)
+     */
+    public default Class<?> getLinkedClass(Type type) {
+        LinkedLocal linked=getLinkedLocal(type);
+        return linked!=null&&linked.isClass()?linked.asClass():null;
+    }
+    
+    /**
+     * Convenience method to return the locally linked method for method related types.
+     * 
+     * @param type the type to resolve
+     * @return the corresponding locally linked method
+     * @see #getLinkedLocal(Type)
+     */
+    public default Method getLinkedMethod(Type type) {
+        LinkedLocal linked=getLinkedLocal(type);
+        return linked!=null&&linked.isMethod()?linked.asMethod():null;
     }
 	
 	/**
@@ -147,5 +177,87 @@ public interface TypeLoader {
 	 */
     public default TypeLoader overlay(Collection<Class<?>> overlays) {
         return new OverlayTypeLoader(this, overlays);
-    }    
+    }
+    
+    /**
+     * Lazy method to check if classes have overlays in this type loader. The check should return {@code true}
+     * if the class is
+     * <ul>
+     * <li>has a direct overlay (that is there exist an existing overlay for the given class)
+     * <li>the class represents an interface and there exist an overlay of a class which implements this interface.
+     * </ul
+     * The method should <i>not return {@code true} if the class is an array with a component class which is overlayed.
+     * The same is true if the class represents a generic type and the parameter type may be overlayed.
+     * 
+     * @param class the class in question
+     * @return <code>true</code> if the class has overlays
+     */
+    public default boolean hasOverlays(Class<?> clazz) {
+        return false;
+    }
+    
+    /**
+     * Class representing a locally linked object. This object can be either a class or a method.
+     * 
+     * @author notalexa
+     *
+     */
+    public abstract class LinkedLocal {
+        private Class<?> clazz;
+        private Method method;
+        protected LinkedLocal() {
+        }
+        protected LinkedLocal(Method method) {
+            this.method=method;
+        }
+        protected LinkedLocal(Class<?> clazz) {
+            this.clazz=clazz;
+        }
+        
+        /**
+         * 
+         * @return the type of this linked local
+         */
+        public abstract ObjectType getType();
+        
+        /**
+         * 
+         * @return the locally linked class if the type represents a class
+         */
+        public Class<?> asClass() {
+            return clazz;
+        }
+        
+        /**
+         * 
+         * @return the locally linked method if the tYpe represents a method
+         */
+        public Method asMethod() {
+            return method;
+        }
+        
+        /**
+         * 
+         * @return {@code true} if the type is locally linked to a method
+         */
+        public boolean isMethod() {
+            return method!=null;
+        }
+        
+        /**
+         * 
+         * @return {@code gtrue} if the type is locally linked to a class
+         */
+        public boolean isClass() {
+            return clazz!=null;
+        }
+        
+        /**
+         * 
+         * @return {@code true} if the type is locally linked (either to a class or a method)
+         */
+        public boolean isLocallyLinked() {
+            return isClass()||isMethod();
+        }
+    }
 }

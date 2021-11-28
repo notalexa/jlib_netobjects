@@ -16,9 +16,14 @@
 package not.alexa.netobjects.types.access;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.Context;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
+import not.alexa.netobjects.types.JavaClass.Type;
+import not.alexa.netobjects.types.Lambda;
+import not.alexa.netobjects.types.MethodTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
+import not.alexa.netobjects.utils.Cursor;
 import not.alexa.netobjects.utils.Sequence;
 
 /**
@@ -101,4 +106,70 @@ public class DefaultAccessibleObject implements AccessibleObject,Sequence<Access
 	public Sequence<AccessibleObject> asSequence() {
 		return this;
 	}
+
+    @Override
+    public AccessibleObject getMethod(MethodTypeDefinition method) throws BaseException {
+        return new AccessibleMethod(method);
+    }
+    
+    class AccessibleMethod implements AccessibleObject,Sequence<AccessibleObject> {
+        MethodTypeDefinition methodType;
+        AccessibleMethod(MethodTypeDefinition methodType) {
+            this.methodType=methodType;
+        }
+        
+        @Override
+        public TypeDefinition getType() {
+            return methodType;
+        }
+
+        @Override
+        public Object getObject() {
+            return null;
+        }
+
+        @Override
+        public Sequence<AccessibleObject> asSequence() {
+            return this;
+        }
+
+        @Override
+        public AccessibleObject[] call(Context context, AccessibleObject... params) throws BaseException {
+            Type methodId=methodType.getJavaClassType();
+            if(methodId!=null) {
+                TypeDefinition[] returnTypes=methodType.getReturnTypes();
+                if(returnTypes.length<=1) {
+                    Object[] args=new Object[params.length];
+                    for(int i=0;i<params.length;i++) {
+                        args[i]=params[i].getObject();
+                    }
+                    Lambda l=new Lambda(getObject(),methodId,args);
+                    Object result=l.call(context);
+                    if(returnTypes.length==0) {
+                        return new AccessibleObject[0];
+                    }
+                    Access resultAccess=access.getFactory().resolve(context,returnTypes[0]);
+                    return new AccessibleObject[] { resultAccess.makeAccessible(result) };
+                } else {
+                    throw new BaseException(BaseException.BAD_REQUEST,"Unsupported: Methods with return more than one return values");
+                }
+            }
+            throw new BaseException(BaseException.BAD_REQUEST,"Method has no id");
+        }
+
+        @Override
+        public boolean busy() {
+            return true;
+        }
+
+        @Override
+        public AccessibleObject current() {
+            return this;
+        }
+
+        @Override
+        public Cursor<AccessibleObject> next() {
+            return Sequence.emptySequence();
+        }
+    }
 }

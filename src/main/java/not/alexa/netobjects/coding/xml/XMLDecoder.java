@@ -173,7 +173,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	                String ref=atts.getValue(root.getCodingScheme().getReservedAttributes().getObjRefName());
 	                if(ref!=null) try {
 	                    AccessibleObject o=root.resolveObjectReference(ref);
-	                    return getChild().init(qName,new IllegalAccess(fieldType)).setField(f,o);
+	                    return getChild().init(qName,new IllegalAccess(getCodingScheme().getFactory(),fieldType)).setField(f,o);
 	                } catch(Throwable t) {
 	                    BaseException.throwException(t);
 	                }
@@ -323,8 +323,9 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	        } else if(type.getFlavour()==Flavour.ArrayType) {
 	            return arrays.get(field.getName());
 	        } else try {
-	            Codec codec=resolveCodec(type.getJavaClassType(),new Access.SimpleTypeAccess(type));
-	            return new Access.SimpleTypeAccess(type,codec.decode(this));
+	            Access simpleAccess=new Access.SimpleTypeAccess(getCodingScheme().getFactory(),type);
+	            Codec codec=resolveCodec(type.getJavaClassType(),simpleAccess);
+	            return simpleAccess.makeAccessible(codec.decode(this));
 	        } catch(Throwable t) {
 	            return BaseException.throwException(t);
 	        }

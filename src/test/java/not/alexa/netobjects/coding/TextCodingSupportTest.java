@@ -45,7 +45,7 @@ public class TextCodingSupportTest {
     public void testDecodingSupport() {
         Context context=new Context.Root();
         TextCodingSupport<TestScheme> support=new TextCodingSupport<TestScheme>(TestScheme.DEFAULT_INSTANCE, context);
-        AccessibleObject o=new SimpleTypeAccess(PrimitiveTypeDefinition.getTypeDescription(String.class),"");// Object();
+        AccessibleObject o=new SimpleTypeAccess(new AbstractTextCodingSchemeTest.DummyAccessFactory(),PrimitiveTypeDefinition.getTypeDescription(String.class),"");// Object();
         support.addObjectReference(true, "my-ref", o);
         assertSame(support.resolveObjectReference("0"),o);
         assertSame(support.resolveObjectReference("my-ref"),o);

@@ -67,7 +67,7 @@ public class ClassLoaderTest {
     public ClassLoaderTest() {
     }
     
-    private ClassLoader createClassLoader() {
+    static ClassLoader createClassLoader() {
         try {
             File f=new File("src/test/libs/loadertest.jar");
             if(f.exists()) {
@@ -81,7 +81,7 @@ public class ClassLoaderTest {
         return null;
     }
 
-    private Class<?> defineOverlayClass() {
+    static Class<?> defineOverlayClass() {
         try {
             return Class.forName("not.alexa.netobjects.types.overlay.DataOverlay",true,createClassLoader());
         } catch(Throwable t) {
@@ -104,13 +104,7 @@ public class ClassLoaderTest {
         TestAccessFactory factory=new TestAccessFactory();
         XMLCodingScheme scheme=XMLCodingScheme.builder().setAccessFctory(factory).setIndent("  ","\r\n").setRootTag("root").build();
         for(int i=0;i<ITERATIONS;i++) {
-            TypeLoader resolver=new DefaultTypeLoader();
-            Context context=new Context.Root() {
-                @Override
-                public TypeLoader getTypeLoader() {
-                    return resolver;
-                }
-            };
+            Context context=Context.createRootContext(new DefaultTypeLoader());
             try(Decoder decoder=scheme.createDecoder(context, object1.getBytes())) {
                 Object decoded=decoder.decode(Object.class);
                 try(ByteArrayOutputStream out=new ByteArrayOutputStream();
@@ -134,24 +128,15 @@ public class ClassLoaderTest {
         TestAccessFactory factory=new TestAccessFactory();
         XMLCodingScheme scheme=XMLCodingScheme.builder().setAccessFctory(factory).setIndent("  ","\r\n").setRootTag("root").build();
         DefaultTypeLoader resolver=new DefaultTypeLoader();
-        Context context=new Context.Root() {
-            @Override
-            public TypeLoader getTypeLoader() {
-                return resolver;
-            }
-        };
+        Context context=Context.createRootContext(resolver);
         Type type=ObjectType.createClassType(Data.class);
         for(int i=0;i<ITERATIONS;i++) {
             Class<?> overlayClass=defineOverlayClass();
             TypeLoader loader=resolver.overlay(overlayClass);
-            Context overlayContext=new Context.Root() {
-                @Override
-                public TypeLoader getTypeLoader() {
-                    return loader;
-                }
-            };
+            Context overlayContext=Context.createRootContext(loader);
+            assertTrue(loader.hasOverlays(Data.class));
             assertTrue(type.hasOverlays());
-            assertEquals(overlayClass, overlayContext.getTypeLoader().getLinkedLocal(type));
+            assertEquals(overlayClass, overlayContext.getTypeLoader().getLinkedClass(type));
             try(Decoder decoder=scheme.createDecoder(overlayContext, object1.getBytes())) {
                 Object decoded=decoder.decode(Object.class);
                 assertEquals(overlayClass,decoded.getClass());
@@ -160,7 +145,7 @@ public class ClassLoaderTest {
                     encoder.encode(decoded).flush();
                     assertEquals(object1.trim(),out.toString().trim());
                 }
-            }
+            }           
         }
         for(int i=0;i<3;i++) {
             factory.update();
@@ -180,12 +165,7 @@ public class ClassLoaderTest {
         XMLCodingScheme scheme=XMLCodingScheme.builder().setAccessFctory(factory).setIndent("  ","\r\n").setRootTag("root").build();
         for(int i=0;i<ITERATIONS;i++) {
             TypeLoader resolver=new DefaultTypeLoader(createClassLoader());
-            Context context=new Context.Root() {
-                @Override
-                public TypeLoader getTypeLoader() {
-                    return resolver;
-                }
-            };
+            Context context=Context.createRootContext(resolver);
             try(Decoder decoder=scheme.createDecoder(context, object2.getBytes())) {
                 Object decoded=decoder.decode(Object.class);
                 try(ByteArrayOutputStream out=new ByteArrayOutputStream();
@@ -211,21 +191,11 @@ public class ClassLoaderTest {
         Type type=ObjectType.createClassType("not.alexa.netobjects.types.overlay.Data2");
         for(int i=0;i<ITERATIONS;i++) {
             TypeLoader resolver=new DefaultTypeLoader(createClassLoader());//resolver.overlay(overlayClass);
-            Context context=new Context.Root() {
-                @Override
-                public TypeLoader getTypeLoader() {
-                    return resolver;
-                }
-            };
+            Context context=Context.createRootContext(resolver);
             Class<?> overlayClass=defineOverlayClass2(context.getTypeLoader().getClassLoader());
             TypeLoader loader=resolver.overlay(overlayClass);
-            Context overlayContext=new Context.Root() {
-                @Override
-                public TypeLoader getTypeLoader() {
-                    return loader;
-                }
-            };
-            assertEquals(type.getClassName(), context.getTypeLoader().getLinkedLocal(type).getName());
+            Context overlayContext=Context.createRootContext(loader);
+            assertEquals(type.getClassName(), context.getTypeLoader().getLinkedClass(type).getName());
             assertTrue(type.hasOverlays());
             try(Decoder decoder=scheme.createDecoder(overlayContext, object2.getBytes())) {
                 Object decoded=decoder.decode(Object.class);

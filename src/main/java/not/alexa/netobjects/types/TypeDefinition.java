@@ -62,6 +62,10 @@ public abstract class TypeDefinition extends Namespace.Types {
 	public TypeDefinition fix() {
 		return this;
 	}
+	
+	public MethodTypeDefinition[] getMethods() {
+	    return MethodTypeDefinition.NO_METHODS;
+	}
 
 
 	/**

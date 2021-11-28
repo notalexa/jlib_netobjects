@@ -5,6 +5,7 @@ import static org.junit.Assert.assertNotEquals;
 
 import org.junit.Test;
 
+import not.alexa.coding.Data;
 import not.alexa.netobjects.api.Overlay;
 import not.alexa.netobjects.types.JavaClass.Type;
 
@@ -21,6 +22,10 @@ public class JavaClassTest {
         assertEquals(A1.class.getName(), Namespace.asString(A1.class));
         assertEquals(A1.class.getName()+"[]", Namespace.asString(A1[].class));
         assertEquals(A1.class.getName()+"[][]", Namespace.asString(A1[][].class));
+        TypeDefinition def=Data.getTypeDescription();
+        for(MethodTypeDefinition m:def.getMethods()) {
+            System.out.println(m.getJavaClassType());
+        }
     }
 
     @Test
@@ -56,8 +61,8 @@ public class JavaClassTest {
         assertEquals(A1.class.getName(),t2.getName());
         // Version
         assertNotEquals(t1,t2);
-        assertEquals(A1.class,t1.asClass(A1.class.getClassLoader()));
-        assertEquals(A1.class,t2.asClass(A1.class.getClassLoader()));
+        assertEquals(A1.class,t1.asLinkedLocal(A1.class.getClassLoader()).asClass());
+        assertEquals(A1.class,t2.asLinkedLocal(A1.class.getClassLoader()).asClass());
     }
 
     public static class A1 {}

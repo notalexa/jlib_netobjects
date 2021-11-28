@@ -51,6 +51,11 @@ public abstract class AbstractClassAccess implements Access {
 		this.factory=factory;
 		fieldAccess=new Access[classType.getFields().length];
 	}
+	
+	@Override
+	public AccessFactory getFactory() {
+	    return factory;
+	}
 
 	@Override
 	public ClassTypeDefinition getType() {

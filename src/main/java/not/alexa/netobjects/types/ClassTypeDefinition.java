@@ -118,7 +118,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			return this;
 		}
 		
-		protected Builder that() {
+		protected Builder self() {
 			return this;
 		}
 		

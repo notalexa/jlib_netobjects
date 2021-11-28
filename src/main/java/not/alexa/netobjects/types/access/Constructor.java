@@ -15,8 +15,12 @@
  */
 package not.alexa.netobjects.types.access;
 
+import java.lang.reflect.Modifier;
+
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.api.Overlay;
 import not.alexa.netobjects.types.JavaClass.Type;
+import not.alexa.netobjects.types.TypeLoader;
 
 /**
  * Constructor interface for the access framework. The constructor gets an {@link AccessContext}
@@ -35,6 +39,15 @@ public interface Constructor {
      * @throws BaseException if an error occurs
      */
     public Object newInstance(AccessContext context) throws BaseException;
+    
+    /**
+     * Does this constructor represents an overlay type. If {@code true}, the
+     * class is either itself an overlay or inner class of a class which has an overlay.
+     *  
+     * @param loader the loader to resolve overlays for outer classes if needed
+     * @return {@code true} if the constructor constructs an object of an overlay
+     */
+    public boolean isOverlay(TypeLoader loader);
    
     /**
      * The default constructor calls the {@link Class#newInstance()} method to
@@ -57,6 +70,15 @@ public interface Constructor {
             } catch(Throwable t) {
                 return BaseException.throwException(t);
             }
+        }
+        @Override
+        public boolean isOverlay(TypeLoader loader) {
+            if(clazz.getAnnotation(Overlay.class)!=null) {
+                return true;
+            } else if(clazz.getEnclosingClass()!=null&&loader.hasOverlays(clazz.getEnclosingClass())) {
+                return Modifier.isStatic(clazz.getModifiers());
+            }
+            return false;
         }
     }
     
@@ -82,6 +104,12 @@ public interface Constructor {
             } else {
                 return delegate.newInstance(context);
             }
+        }
+        
+        @Override
+        public boolean isOverlay(TypeLoader loader) {
+            // Should be called
+            return false;
         }
     }
 }

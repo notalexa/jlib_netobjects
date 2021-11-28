@@ -150,7 +150,7 @@ public class InterfaceTypeDefinition extends AbstractClassTypeDefinition impleme
 		protected Set<ObjectType> allowedTypes=new HashSet<ObjectType>();
 		
 		@Override
-		protected InterfaceBuilder that() {
+		protected InterfaceBuilder self() {
 			return this;
 		}
 		

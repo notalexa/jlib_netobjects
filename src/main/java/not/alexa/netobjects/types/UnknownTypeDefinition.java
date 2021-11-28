@@ -49,6 +49,19 @@ public class UnknownTypeDefinition extends TypeDefinition {
 		return Flavour.UnknownType;
 	}
 	
+	public int hashCode() {
+	    return getJavaClassType()==null?0:getJavaClassType().hashCode();
+	}
+	
+	public boolean equals(Object other) {
+	    if(other instanceof UnknownTypeDefinition) {
+	        UnknownTypeDefinition e=(UnknownTypeDefinition)other;
+	        return check(e)==0;
+	    }
+	    return false;
+	}
+
+	
 	/**
 	 * Class access for unknown type definition
 	 * 

@@ -88,4 +88,13 @@ public interface ObjectType {
 	 * 
 	 */
 	public String getUrn();
+	
+	/**
+	 * Provide a default resolution of this type.
+	 * 
+	 * @param loader the type loader to resolve referenced types
+	 * @return the type represented by this object type or {@code null} if the type cannot be resolved
+	 */
+	public TypeDefinition resolveDefault(TypeLoader loader);
+	
 }

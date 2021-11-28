@@ -42,6 +42,6 @@ public class EnumCodec implements Codec {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
     public Object decode(not.alexa.netobjects.coding.Decoder.Buffer buffer) throws BaseException {
-        return Enum.valueOf((Class<Enum>)type.asClass(buffer.getContext().getTypeLoader().getClassLoader()),buffer.getCharContent().toString());
+        return Enum.valueOf((Class<Enum>)type.asLinkedLocal(buffer.getContext().getTypeLoader().getClassLoader()).asClass(),buffer.getCharContent().toString());
     }
 }

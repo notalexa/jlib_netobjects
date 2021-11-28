@@ -44,6 +44,7 @@ public abstract class AbstractClassTypeDefinition extends TypeDefinition {
 		super(types);
 	}
 	
+	@Override
 	public MethodTypeDefinition[] getMethods() {
 		return allMethods;
 	}
@@ -169,7 +170,7 @@ public abstract class AbstractClassTypeDefinition extends TypeDefinition {
 					methods.add(m);
 				}
 			}
-			return that();
+			return self();
 		}
 		
 		/**
@@ -180,9 +181,10 @@ public abstract class AbstractClassTypeDefinition extends TypeDefinition {
 			return AbstractClassTypeDefinition.this.isImmutable();
 		}
 		
-		protected abstract T that();
+		protected abstract T self();
 		
 		public class MethodBuilder {
+		    private List<ObjectType> types=new ArrayList<ObjectType>();
 			private MethodTypeDefinition.Builder builder;
 			
 			private MethodBuilder(String name) {
@@ -193,10 +195,26 @@ public abstract class AbstractClassTypeDefinition extends TypeDefinition {
 			 * @return a method type definition build from the builders material
 			 */
 			public T build() {
-				methods.add(builder.build());
-				return that();
+			    MethodTypeDefinition m=builder.build();
+                for(ObjectType t:types) {
+                    m.addTypes(t);
+                }
+			    for(ObjectType t:getTypes()) {
+			        m.addTypes(t.getNamespace().createMethodType(m));
+			    }
+				methods.add(m);
+				return self();
 			}
 			
+            public MethodBuilder setTypes(ObjectType...types) {
+                for(ObjectType t:types) {
+                    if(t!=null) {
+                        this.types.add(t);
+                    }
+                }
+                return this;
+            }
+            
 			/**
 			 * Modify the parameter types of this method
 			 * @param parameterTypes the new parameter types

@@ -29,7 +29,7 @@ import not.alexa.netobjects.types.EnumTypeDefinition.Value;
 class Types {
 	static TypeDefinition TYPE=new InterfaceTypeDefinition(TypeDefinition.class);
 
-	static final ClassTypeDefinition UNKNOWN_TYPE=new ClassTypeDefinition(PrimitiveTypeDefinition.class)
+	static final ClassTypeDefinition UNKNOWN_TYPE=new ClassTypeDefinition(UnknownTypeDefinition.class)
 			.createBuilder()
 				.setEnableObjectRefs(true)
 				.createField("types",new ArrayTypeDefinition(PrimitiveTypeDefinition.getTypeDescription(ObjectType.class)))
@@ -116,8 +116,14 @@ class Types {
 				.createField("methods",new ArrayTypeDefinition(METHOD_TYPE))
 					.addTag("XML","method").build()
 				.build();
+	
+	static final ClassTypeDefinition LAMBDA=new ClassTypeDefinition(Lambda.class)
+	        .createBuilder()
+	            .addField("method", PrimitiveTypeDefinition.getTypeDescription(ObjectType.class))
+                .addField("self", PrimitiveTypeDefinition.getTypeDescription(Object.class))
+                .addField("args", new ArrayTypeDefinition(PrimitiveTypeDefinition.getTypeDescription(Object.class)))
+                .build();
 
 	private Types() {
 	}
-
 }

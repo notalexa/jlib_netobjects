@@ -25,6 +25,11 @@ public class WeakKeyMapTest {
         }
         assertEquals(100000,weakMap.size());
         refKeeper=new ArrayList<Object>();
+        gc();
+        assertEquals(0,weakMap.size());
+    }
+    
+    private void gc() {
         for(int i=0;i<3;i++) {
             System.gc();
             try {
@@ -32,7 +37,6 @@ public class WeakKeyMapTest {
             } catch(Throwable t) {
             }
         }
-        assertEquals(0,weakMap.size());
     }
     
     @Test
@@ -45,6 +49,22 @@ public class WeakKeyMapTest {
         weakMap.remove(o);
         assertNull(weakMap.get(o));
         assertEquals(0,weakMap.size());
+    }
+    
+    @Test
+    public void putAllTest() {
+        WeakKeyMap<Object,Object> weakMap=new WeakKeyMap<>();
+        WeakKeyMap<Object,Object> weakMap2=new WeakKeyMap<>();
+        Object o=new Object();
+        Object v=new Object();
+        weakMap.put(o,v);
+        weakMap2.putAll(weakMap);
+        assertEquals(1, weakMap.size());
+        assertEquals(1, weakMap2.size());
+        o=null;
+        gc();
+        assertEquals(0, weakMap.size());
+        assertEquals(0, weakMap2.size());
     }
 
 }

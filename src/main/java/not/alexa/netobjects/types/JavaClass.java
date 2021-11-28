@@ -18,13 +18,18 @@ package not.alexa.netobjects.types;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.reflect.Array;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.Context;
+import not.alexa.netobjects.api.NetworkObject;
 import not.alexa.netobjects.api.Overlay;
 import not.alexa.netobjects.types.JavaClass.Type.InstanceSupport;
-import not.alexa.netobjects.utils.OverlayUtils;
+import not.alexa.netobjects.types.TypeLoader.LinkedLocal;
+import not.alexa.netobjects.utils.TypeUtils;
+import not.alexa.netobjects.utils.TypeUtils.NameBuilder;
 
 /**
  * This namespace represents the java class namespace. In general, a type is represented as a java class name. 
@@ -89,8 +94,9 @@ public final class JavaClass extends Namespace {
 	public final class Type extends AbstractType implements ObjectType {
 		
 		protected String className;
+		protected String method;
 		protected String version;
-		protected Class<?> preloaded;
+		protected LinkedLocal preloaded;
 		protected OverlayRef overlayRefs;
 		
 		
@@ -101,9 +107,15 @@ public final class JavaClass extends Namespace {
 		 */
 		public Type(String className) {
 			int p=className.indexOf(':');
+			method="";
 			if(p>0) {
 				this.className=className.substring(0,p);
 				this.version=className.substring(p+1);
+				p=version.indexOf(':');
+				if(p>=0) {
+				    method=version.substring(p+1);
+				    version=version.substring(0,p);
+				}
 			} else {
 				this.className=className;
 				this.version="";
@@ -111,8 +123,8 @@ public final class JavaClass extends Namespace {
 		}
 		
 		private void preload() {
-            if(preloaded==null) try {
-                preloaded=defineClass(Type.class.getClassLoader(),this.className);
+            if(preloaded==null&&!isMethod()) try {
+                preloaded=new InstanceSupport(defineClass(Type.class.getClassLoader(),this.className));
             } catch(Throwable t) {
             }
 		}
@@ -125,9 +137,15 @@ public final class JavaClass extends Namespace {
 		 * @param loader the class loader to use for loading the class
 		 * @return the resolved class or <code>null</code> if the class is unknown
 		 */
-		public Class<?> asClass(ClassLoader loader) {
+		public LinkedLocal asLinkedLocal(ClassLoader loader) {
 			if(preloaded==null) try {
-				return defineClass(loader,className);
+			    Class<?> clazz=defineClass(loader,className);
+			    if(isMethod()) {
+			      Method m=findMethod(clazz,method);
+			      return new InstanceSupport(m);  
+			    } else {
+			        return new InstanceSupport(clazz);
+			    }
 			} catch(Throwable t) {
 				return null;
 			} else {
@@ -136,7 +154,7 @@ public final class JavaClass extends Namespace {
 		}
 				
 		public int hashCode() {
-			return className.hashCode()^version.hashCode();
+			return className.hashCode()^version.hashCode()^method.hashCode();
 		}
 		
 		public boolean equals(Object o) {
@@ -145,7 +163,7 @@ public final class JavaClass extends Namespace {
 		    }
 			if(o instanceof Type) {
 				Type t=(Type)o;
-				return className.equals(t.className)&&version.equals(t.version);
+				return className.equals(t.className)&&version.equals(t.version)&&method.equals(t.method);
 			}
 			return false;
 		}
@@ -156,9 +174,9 @@ public final class JavaClass extends Namespace {
 
 		public String getName() {
 			if(version.length()>0) {
-				return className+":"+version;
+				return className+":"+version+(method.length()>0?":"+method:"");
 			} else {
-				return className;
+				return className+(method.length()>0?"::"+method:"");
 			}
 		}
 		
@@ -168,6 +186,14 @@ public final class JavaClass extends Namespace {
 		
 		public String getVersion() {
 			return version;
+		}
+		
+		public String getMethod() {
+		    return method;
+		}
+		
+		public boolean isMethod() {
+		    return method.length()>0;
 		}
 		
 		/**
@@ -195,7 +221,7 @@ public final class JavaClass extends Namespace {
 		}
 		
 		public InstanceSupport createInstanceSupport(ClassLoader loader,Class<?> overlay) {
-		    InstanceSupport support=new InstanceSupport(loader,overlay);
+		    InstanceSupport support=new InstanceSupport(overlay);
 		    OverlayRef ref;
 		    while((ref=(OverlayRef)OVERLAY_RECYCLER.poll())!=null) {
 		        ref.release();
@@ -212,16 +238,46 @@ public final class JavaClass extends Namespace {
             }
 		    return support;
 		}
+			    
+	    private Method findMethod(Class<?> clazz, String method) {
+	        if(clazz.equals(Object.class)) {
+	            return null;
+	        }
+	        for(Method m:clazz.getMethods()) {
+	            Class<?>[] parameterTypes=m.getParameterTypes();
+	            if(parameterTypes.length==0||!Context.class.isAssignableFrom(parameterTypes[0])) {
+	                continue;
+	            }
+	            Class<?>[] exceptionTypes=m.getExceptionTypes();
+	            boolean exceptionVerified=false;
+	            for(Class<?> exceptionType:exceptionTypes) {
+	                if(exceptionType.isAssignableFrom(BaseException.class)) {
+	                    exceptionVerified=true;
+	                    break;
+	                }
+	            }
+	            if(!exceptionVerified) {
+	                continue;
+	            }
+	            String id=resolveId(m);
+	            if(id!=null&&id.equals(method)) {
+	                return m;
+	            }
+	        }
+	        return findMethod(clazz.getSuperclass(),method);
+	    }
+
 		
-        public class InstanceSupport {
-            ClassLoader loader;
-            Class<?> overlay;
-            public InstanceSupport(ClassLoader loader,Class<?> overlay) {
-                this.loader=loader;
-                this.overlay=overlay;
+        public class InstanceSupport extends LinkedLocal {
+            public InstanceSupport(Class<?> overlay) {
+                super(overlay);
             }
-            public Class<?> getOverlayClass() {
-                return overlay;
+            public InstanceSupport(Method m) {
+                super(m);
+            }
+            @Override
+            public ObjectType getType() {
+                return Type.this;
             }
         }
         
@@ -246,6 +302,31 @@ public final class JavaClass extends Namespace {
                 }
             }
         }
+
+        @Override
+        public TypeDefinition resolveDefault(TypeLoader loader) {
+            if(isMethod()) {
+                TypeDefinition classType=loader.resolveType(create(className));
+                if(classType!=null) for(MethodTypeDefinition m:classType.getMethods()) {
+                    if(m.getType(getNamespace()).equals(this)) {
+                        return m;
+                    }
+                }
+            } else {
+                Class<?> clazz=asLinkedLocal(loader.getClassLoader()).asClass();
+                if(clazz!=null) {
+                    if(clazz.isEnum()) {
+                        return new EnumTypeDefinition((Class<? extends Enum<?>>)clazz);
+                    } else if(clazz.isArray()) {
+                        return new ArrayTypeDefinition(loader.resolveType(ObjectType.createClassType(clazz.getComponentType().getName())));
+                    } else try {
+                        return (TypeDefinition)clazz.getMethod("getTypeDescription").invoke(null);
+                    } catch(Throwable t) {
+                    }
+                }
+            }
+            return null;
+        }
 	}
 
 	/**
@@ -261,12 +342,35 @@ public final class JavaClass extends Namespace {
 	    return create(urn,null);
 	}
 	
-    Type create(String urn,Class<?> clazz) {
+    public Type createMethodType(Method m) {
+        Type type=create(Namespace.asString(m.getDeclaringClass()),m.getDeclaringClass());
+        String name=resolveId(m);
+        return create(type.className+":"+type.version+":"+name,null);
+    }
+    
+	public Type createMethodType(MethodTypeDefinition m) {
+	    NameBuilder identifier=TypeUtils.createNameBuilder();
+	    identifier.add(m.getName());
+        for(TypeDefinition r:m.getParameterTypes()) {
+            Type t=r.getJavaClassType();
+            if(t==null) {
+                return null;
+            }
+            identifier.add(t.getName());
+        }
+	    Type type=m.getClassType().getJavaClassType();
+	    if(type==null) {
+	        return null;
+	    }
+	    return create(type.className+":"+type.version+":"+identifier.asUUID(),null);
+	}
+	
+	Type create(String urn,Class<?> clazz) {
         Type type=loadedTypes.get(urn);
         if(type==null) {
             String typeUrn=urn;
             if(clazz!=null) {
-                Class<?> overloaded=OverlayUtils.resolve(clazz);
+                Class<?> overloaded=TypeUtils.resolve(clazz);
                 if(!overloaded.equals(clazz)) {
                     typeUrn=Namespace.asString(overloaded);
                     type=create(typeUrn);
@@ -280,4 +384,18 @@ public final class JavaClass extends Namespace {
         }
         return type;
     }
+	
+    private String resolveId(Method m) {
+        NetworkObject objId=TypeUtils.getNetworkObject(JavaClass.this, m);
+        if(objId!=null&&"jvm".equals(objId.ns())&&!"##id".contentEquals(objId.id())) {
+            return objId.id();
+        }
+        NameBuilder builder=TypeUtils.createNameBuilder().add(m.getName());
+        Class<?>[] parameterTypes=m.getParameterTypes();
+        for(int i=1;i<parameterTypes.length;i++) {
+            builder.add(ObjectType.createClassType(parameterTypes[i]).getName());
+        }
+        return builder.asUUID().toString();
+    }
+
 }

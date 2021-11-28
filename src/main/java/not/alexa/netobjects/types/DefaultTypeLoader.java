@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import not.alexa.netobjects.Adaptable;
+import not.alexa.netobjects.types.JavaClass.Type;
 
 /**
  * The default implementation of a type loader. This loader tries to resolve a type definition as follows:
@@ -46,7 +47,8 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
         }
     };
     
-	private Map<ObjectType,TypeDefinition> resolved=new HashMap<ObjectType, TypeDefinition>();
+    private Map<Type,LinkedLocal> linkedLocals=new HashMap<>();
+	private Map<ObjectType,TypeDefinition> resolved=new HashMap<>();
 	protected ClassLoader loader;
 	protected TypeLoader parent;
 	private TypeResolver[] resolvers;
@@ -106,20 +108,10 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 				type=resolved.get(t);
 				if(type==null) {
 					type=TypeLoader.super.resolveType(t);
-					if(type==null&&t instanceof JavaClass.Type) try {
-						Class<?> clazz=((JavaClass.Type)t).asClass(getClassLoader());
-						if(clazz!=null) {
-						    if(clazz.isEnum()) {
-    							type=new EnumTypeDefinition((Class<? extends Enum<?>>)clazz);
-    						} else if(clazz.isArray()) {
-    							type=new ArrayTypeDefinition(resolveType(ObjectType.createClassType(clazz.getComponentType().getName())));
-    						} else {
-    							type=(TypeDefinition)clazz.getMethod("getTypeDescription").invoke(null);
-    						}
-						}
-					} catch(Throwable t0) {
+					if(type==null) {
+	                    type=t.resolveDefault(this);
 					}
-					if(resolvers!=null) for(TypeResolver r:resolvers) {
+					if(type==null&&resolvers!=null) for(TypeResolver r:resolvers) {
 					    if((type=r.resolve(this, t))!=null) {
 					        break;
 					    }
@@ -133,7 +125,36 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 		}
 		return type==NULL_TYPE?null:type;
 	}
-	
+    
+    /**
+     * The method caches the resolved locally linked objects since this is an expensive lookup.
+     * 
+     */
+    @Override
+    public LinkedLocal getLinkedLocal(Type type) {
+        LinkedLocal linkedLocal=linkedLocals.get(type);
+        if(linkedLocal==null) {
+            synchronized(linkedLocals) {
+                linkedLocal=linkedLocals.get(type);
+                if(linkedLocal==null) {
+                    linkedLocal=TypeLoader.super.getLinkedLocal(type);
+                }
+                if(linkedLocal==null) {
+                    linkedLocal=new LinkedLocal() {
+                        @Override
+                        public ObjectType getType() {
+                            return type;
+                        }
+                    };
+                }
+                linkedLocals.put(type,linkedLocal);
+            }
+        }
+        return linkedLocal.isLocallyLinked()?linkedLocal:null;
+    }
+
+
+
     /**
      * Interface for type resolution extensions. Typical examples are resolvers for namespaces different from the normal java namespace or
      * resolvers using annotation schemes like <a href="https://www.oracle.com/technical-resources/articles/javase/jaxb.html">JAXB</a>.

@@ -32,6 +32,38 @@ import not.alexa.netobjects.types.TypeDefinition;
  *
  */
 public interface AccessFactory {
+    
+    /**
+     * 
+     * @return the default access factory
+     * @see DefaultAccessFactory#getDefault()
+     */
+    public static AccessFactory getDefault() {
+        return DefaultAccessFactory.getDefault();
+    }
+    
+    /**
+     * Upcast the object {@code t} depending of the given context. The result is
+     * an object of a class extending {@code T} with all fields replaced by objects overloading
+     * the objects in {@link t}. 
+     *  
+     * @param <T> the type of the object
+     * @param context the context
+     * @param t the object to upcast
+     * @return the upcasted object
+     */
+    public default <T> T upcast(Context context,T t) {
+        return t;
+    }
+    
+    /**
+     * Resolve a constructor for the given type.
+     * 
+     * @param context the context to use for resolving the linked local class
+     * @param type the type for which a constructor is needed
+     * @return the constructor of the given type in the provided context
+     */
+    public Constructor resolve(Context context,Type type);
 	
 	/**
 	 * Resolve access for the given type and context. In general,
@@ -42,9 +74,7 @@ public interface AccessFactory {
 	 * @return access for the given type in the given context
 	 */
 	public Access resolve(Context context,TypeDefinition type);
-	
-	public Constructor resolve(Context context,Type type);
-	
+		
 	/**
 	 * Resolve access for the type and referrer. In general,
 	 * the access depends on the class loader of the referrer.

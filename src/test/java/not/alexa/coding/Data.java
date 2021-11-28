@@ -1,4 +1,4 @@
-package not.alexa.netobjects.types.overlay;
+package not.alexa.coding;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,11 +19,13 @@ import not.alexa.netobjects.types.access.DefaultAccessibleObject;
 import not.alexa.netobjects.types.access.Constructor;
 import not.alexa.netobjects.utils.ArrayUtils;
 import not.alexa.netobjects.types.EnumTypeDefinition;
+import not.alexa.netobjects.types.Namespace;
+import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
 
-public class Data2 {
-	private static ClassTypeDefinition DESCR=new ClassTypeDefinition(Data2.class);
+public class Data {
+	private static ClassTypeDefinition DESCR=new ClassTypeDefinition(Data.class);
 	static {
 		DESCR.createBuilder()
 			.setEnableObjectRefs(true)
@@ -35,10 +37,18 @@ public class Data2 {
 			.addField("list", new ArrayTypeDefinition(PrimitiveTypeDefinition.getTypeDescription(String.class)))
 			.addField("matrix", new ArrayTypeDefinition(new ArrayTypeDefinition(PrimitiveTypeDefinition.getTypeDescription(String.class))))
 			.addField("map",new ArrayTypeDefinition(new ClassTypeDefinition().createBuilder()
-					.addField("@k", PrimitiveTypeDefinition.getTypeDescription(String.class))
-					.addField("v", PrimitiveTypeDefinition.getTypeDescription(Integer.class))
-					.build()))
-				.build();
+				.addField("@k", PrimitiveTypeDefinition.getTypeDescription(String.class))
+				.addField("v", PrimitiveTypeDefinition.getTypeDescription(Integer.class))
+				.build()))
+			.createMethod("helloWorld")
+			    .setReturnTypes(PrimitiveTypeDefinition.getTypeDescription(String.class))
+			    .build()
+	        .createMethod("helloUniverse")
+	            .setTypes(ObjectType.resolve("jvm:"+Data.class.getName()+"::hello-universe"))
+                .setParameterTypes(PrimitiveTypeDefinition.getTypeDescription(String.class))
+                .setReturnTypes(PrimitiveTypeDefinition.getTypeDescription(String.class))
+                .build()
+			.build();
 	}
 	public static TypeDefinition getTypeDescription() {
 		return DESCR;
@@ -46,16 +56,16 @@ public class Data2 {
 	protected String text;
 	protected int index;
 	protected State state;
-	protected Data2 data;
+	protected Data data;
 	protected Object ref;
 	protected String[] list;
 	protected String[][] matrix;
 	protected Map<String,Integer> map;
 	
-	public Data2() {
+	public Data() {
 	}
 
-	public Data2(String text,int index,String...list) {
+	public Data(String text,int index,String...list) {
 		this.text=text;
 		this.index=index;
 		state=State.active;
@@ -69,6 +79,12 @@ public class Data2 {
 		}
 	}
 	
+	@NetworkObject
+	@NetworkObject(ns="test",id="test")
+	public String test(Context context,String msg) throws BaseException {
+	    return msg;
+	}
+	
 	public static class ClassAccess extends AbstractClassAccess implements Access {
 		public ClassAccess(AccessFactory factory,Constructor constructor) {
 			super(factory,DESCR,constructor);
@@ -76,13 +92,13 @@ public class Data2 {
 
 		@Override
 		public Object getField(Object o, int index) throws BaseException {
-			Data2 d=(Data2)o;
+			Data d=(Data)o;
 			switch(index) {
 				case 0:return d.text;
 				case 1:return d.index;
 				case 2:return d.state;
-				case 3:return d.data;
-				case 4:return d.ref;
+				case 3:return d.ref;
+				case 4:return d.data;
 				case 5:return ArrayUtils.nullIfEmpty(d.list);
 				case 6:return ArrayUtils.nullIfEmpty(d.matrix);
 				case 7:return ArrayUtils.nullIfEmpty(d.map);
@@ -103,7 +119,7 @@ public class Data2 {
 
 		@Override
 		public void setField(Object o,int index, Object v) throws BaseException {
-			Data2 d=(Data2)o;
+			Data d=(Data)o;
 			switch(index) {
 				case 0:d.text=(String)v;
 					break;
@@ -111,9 +127,9 @@ public class Data2 {
 					break;
 				case 2:d.state=(State)v;
 					break;
-				case 3:d.data=(Data2)v;
-					break;
-				case 4:d.ref=v;
+                case 3:d.ref=v;
+                    break;
+				case 4:d.data=(Data)v;
 					break;
 				case 5:d.list=(String[])v;
 					break;
@@ -123,15 +139,25 @@ public class Data2 {
 					break;
 			}
 		}
+//
+//		@Override
+//		public AccessibleObject newInstance(AccessContext context) {
+//			return new DefaultAccessibleObject(this,new Data());
+//		}
 	}
-
-   public String helloWorld(Context context) throws Throwable {
-        return "Hello World (2)";
-    }
-	    
-    @NetworkObject(id="hello-universe")
+	
+	public Data setRef(Object ref) {
+	    this.ref=ref;
+	    return this;
+	}
+	
+	public String helloWorld(Context context) throws Throwable {
+	    return "Hello World";
+	}
+	
+	@NetworkObject(id="hello-universe")
     public String helloUniverse(Context context) throws Throwable {
-        return "Hello Universe (2)";
+        return "Hello Universe";
     }
 
 	enum State {

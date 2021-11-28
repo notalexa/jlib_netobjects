@@ -191,6 +191,11 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         return new Access() {
 
             @Override
+            public AccessFactory getFactory() {
+                return root.getFactory();
+            }
+            
+            @Override
             public TypeDefinition getType() {
                 return anonymous;
             }
