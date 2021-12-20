@@ -70,7 +70,7 @@ public class EnumTypeTest {
 	
 	@Test
 	public void checkEncoding() {
-		XMLCodingScheme scheme=XMLCodingScheme.DEFAULT_SCHEME;
+		XMLCodingScheme scheme=XMLCodingScheme.DEFAULT_SCHEME;//.newBuilder().setIndent("  ", "\n").build();
 		DefaultTypeLoader resolver=new DefaultTypeLoader();
 		Context context=Context.createRootContext(resolver);
 		try(ByteArrayOutputStream out=new ByteArrayOutputStream();

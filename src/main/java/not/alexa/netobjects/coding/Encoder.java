@@ -71,11 +71,13 @@ public interface Encoder extends AutoCloseable {
 	    /**
 	     * Push a field and return an encoder for the given {@link Field#getType()}.
 	     * 
+         * @param ctx an additional (and optional) context object. This object is typically implementation dependent and can
+         * be used to do some optimization.
 	     * @param f the field to push
 	     * @return an encoder for the content of the field
          * @throws BaseException if an error occurs (for example, if the underlying coding scheme encoded into a text)
 	     */
-		public Encoder push(Field f) throws BaseException;
+		public Encoder push(Object ctx,Field f) throws BaseException;
 		
 		/**
 		 * For simple types, specific codecs directly writes the encoded form into the buffer.

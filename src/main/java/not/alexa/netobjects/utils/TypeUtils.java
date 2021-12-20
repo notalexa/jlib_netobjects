@@ -16,11 +16,25 @@
 package not.alexa.netobjects.utils;
 
 import java.io.ByteArrayOutputStream;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedArrayType;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.AnnotatedParameterizedType;
+import java.lang.reflect.AnnotatedType;
+import java.lang.reflect.AnnotatedTypeVariable;
+import java.lang.reflect.AnnotatedWildcardType;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.TypeVariable;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import not.alexa.netobjects.Context;
+import not.alexa.netobjects.api.Abstract;
 import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.api.NetworkObject;
 import not.alexa.netobjects.api.Overlay;
@@ -60,7 +74,7 @@ public class TypeUtils {
             }
         }
         if(!clazz.equals(clazz0)) {
-            if(clazz.getAnnotation(Final.class)!=null) {
+            if(isFinal(clazz)) {
                 throw new RuntimeException("Final class "+clazz+" cannot be overloaded");
             }
             if(!clazz.isAssignableFrom(clazz0)||clazz.isInterface()) {
@@ -141,6 +155,10 @@ public class TypeUtils {
             }
         }
     }
+    
+    public static ClassResolver createClassResolver(Class<?> type) {
+        return new ClassResolver(type);
+    }
 
     /**
      * Resolve the (java class) type of the given object type
@@ -188,5 +206,273 @@ public class TypeUtils {
             }
         }
         return null;
+    }
+    
+    /**
+     * Class Resolver for a given class. Types referenced in the class can be resolved (that is type variables are replaced by there type for example)
+     * using {@link #resolve(AnnotatedType)}. Outcome is always a {@link ResolvedClass} with a Java class as main type and parameters (empty if no
+     * parameteres are present) of type {@link ResolvedClass}. Since {@code ResolvedClass} implements {@code AnnotatedElement} annotations for parameter
+     * types can be resolved via the outcome.
+     * 
+     * @author notalexa
+     *
+     */
+    public static final class ClassResolver {
+        private Class<?> clazz;
+        private Map<java.lang.reflect.Type,AnnotatedType> resolvedVariables=new HashMap<>();
+        ClassResolver(Class<?> clazz) {
+            this.clazz=clazz;
+            init(clazz);
+        }
+       
+        /**
+         * 
+         * @return the root class of this resolver
+         */
+        public Class<?> getRootClass() {
+            return clazz;
+        }
+        
+        private Class<?> resolve(AnnotatedParameterizedType type) {
+            java.lang.reflect.Type rawType=((ParameterizedType)type.getType()).getRawType();
+            AnnotatedType[] resolved=type.getAnnotatedActualTypeArguments();
+            if(rawType instanceof Class) {
+                Class<?> clazz=(Class<?>)rawType;
+                TypeVariable<?>[] typeVars=clazz.getTypeParameters();
+                if(typeVars.length==resolved.length) {
+                    for(int i=0;i<typeVars.length;i++) {
+                        resolvedVariables.put(typeVars[i],resolved[i]);
+                    }
+                }
+                return clazz;
+            }
+            return null;
+        }
+        
+        private void init(java.lang.reflect.Type cl) {
+            if(cl!=null) {
+                if(cl instanceof Class) {
+                    Class<?> clazz=(Class<?>)cl;
+                    init(clazz.getAnnotatedSuperclass());
+                    for(AnnotatedType type:clazz.getAnnotatedInterfaces()) {
+                        init(type);
+                    }
+                }
+            }
+        }
+
+        private void init(AnnotatedType cl) {
+            if(cl!=null) {
+                if(cl instanceof AnnotatedParameterizedType) {
+                    init(resolve((AnnotatedParameterizedType)cl));
+                } else {
+                    init(cl.getType());
+                }
+            }
+        }
+
+        /**
+         * Resolve the (annotated) type. 
+         * 
+         * @param annotatedType The annotated type to resolve
+         * @return an object with the
+         * <ul>
+         * <li>The type resolved to a class
+         * <li>Annotations attatched to the type
+         * <li>Resolved parameter types (with annotations attached)
+         * </ul>
+         * @throws RuntimeException if the type cannot be completely resolved (including the parameter types).
+         * This can happen if the root class has parameters for example (or the type is a parameter or argument of
+         * a method of the class with individual type variable).
+         * 
+         */
+        public ResolvedClass resolve(AnnotatedType annotatedType) {
+            AnnotatedType type=resolvedVariables.getOrDefault(annotatedType.getType(),annotatedType);
+            if(type instanceof AnnotatedTypeVariable) {
+                throw new RuntimeException("Unresolved type variable: "+type);
+            } else if(type instanceof AnnotatedParameterizedType) {
+                AnnotatedParameterizedType p=(AnnotatedParameterizedType)type;
+                java.lang.reflect.Type rawType=((ParameterizedType)p.getType()).getRawType();
+                AnnotatedType[] parameters=p.getAnnotatedActualTypeArguments();
+                ResolvedClass[] resolvedParameters=new ResolvedClass[parameters.length];
+                for(int i=0;i<parameters.length;i++) {
+                    resolvedParameters[i]=resolve(parameters[i]);
+                }
+                if(rawType instanceof Class) {
+                    return new ResolvedClass((Class<?>)rawType,annotatedType,resolvedParameters);
+                }
+            } else if(type instanceof AnnotatedArrayType) {
+                AnnotatedArrayType array=(AnnotatedArrayType)type;
+                return new ResolvedClass(Object[].class,new ResolvedClass[] { resolve(array.getAnnotatedGenericComponentType())});
+            } else if(type instanceof AnnotatedWildcardType) {
+                AnnotatedWildcardType wildcardType=(AnnotatedWildcardType)type;
+                AnnotatedType[] bounds=wildcardType.getAnnotatedUpperBounds();
+                if(bounds.length!=1) {
+                    throw new RuntimeException("Unsupported multiple bounds");
+                }
+                return resolve(bounds[0]);
+            } else if(type.getType() instanceof Class) {
+                Class<?> clazz=(Class<?>)type.getType();
+                if(clazz.isArray()) {
+                    return new ResolvedClass(Object[].class,annotatedType,new ResolvedClass[] { resolve(new AnnotatedType() {
+                        @Override
+                        public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+                            return type.getAnnotation(annotationClass);
+                        }
+
+                        @Override
+                        public Annotation[] getAnnotations() {
+                            return type.getAnnotations();
+                        }
+
+                        @Override
+                        public Annotation[] getDeclaredAnnotations() {
+                            return type.getDeclaredAnnotations();
+                        }
+
+                        @Override
+                        public java.lang.reflect.Type getType() {
+                            return clazz.getComponentType();
+                        }
+                    })});
+                } else {
+                    return new ResolvedClass((Class<?>)type.getType(),annotatedType,null);
+                }
+            }
+            throw new RuntimeException("Unresolved type: "+type);
+        }
+    }
+    
+    /**
+     * Resolved class for a given type. This class and it's constructors are public since type resolvers may modify the
+     * outcome of class reflection (for example {@code ByteArray} or {@code Optional} may be resolved to the byte array or
+     * parameter type introducing additional annotations to reflect the optional character of the field.
+     * <br>Arrays are a little bit special. In this case the resolved class is <b>always {@code Object[].class} and the
+     * parameter represents the component type</b>. Consistent with the mapping and representation of arrays a class is
+     * mapped to an array if
+     * <ul>
+     * <li>It is an array
+     * <li>Implements (or extends) the {@code Collection} interface.
+     * <li>Implements (or extends) the {@code Map} interface.
+     * </ul>
+     * 
+     * @author notalexa
+     *
+     */
+    public static class ResolvedClass implements AnnotatedElement {
+        private static final ResolvedClass[] NO_PARAMETERS=new ResolvedClass[0];
+        private Class<?> clazz;
+        private ResolvedClass[] parameters;
+        private AnnotatedElement annotationSource;
+        
+        /**
+         * 
+         * @param clazz the resolved type (also used as the source of annotations)
+         * @param parameters the parameters of the class
+         */
+        public ResolvedClass(Class<?> clazz, ResolvedClass[] parameters) {
+            this(clazz,clazz,parameters);
+        }
+        
+        /**
+         * 
+         * @param clazz the resolved type
+         * @param annotationHolder the annotation source of the resolved class
+         * @param parameters the parameters of the resolved type
+         */
+        public ResolvedClass(Class<?> clazz, AnnotatedElement annotationSource, ResolvedClass[] parameters) {
+            this.clazz=clazz;
+            this.annotationSource=annotationSource;
+            this.parameters=parameters==null?NO_PARAMETERS:parameters;
+        }
+        
+        /**
+         * @return The resolved class of the type
+         */
+        public Class<?> getResolvedClass() {
+            return clazz;
+        }
+        
+        /**
+         * 
+         * @return {@code true} if this class has parameters
+         */
+        public boolean hasParameters() {
+            return parameters.length>0;
+        }
+        
+        /**
+         * 
+         * @return the parameters of the resolved type
+         */
+        public ResolvedClass[] getParameters() {
+            return parameters;
+        }
+        
+        public String toString() {
+            if(parameters.length>0) {
+                StringBuilder s=new StringBuilder(clazz.getName()).append('<').append(parameters[0].toString());
+                for(int i=1;i<parameters.length;i++) {
+                    s.append(',').append(parameters[i]);
+                }
+                return s.append('>').toString();
+            } else {
+                return clazz.getName();
+            }
+        }
+        
+        /**
+         * @return {@code true} if the resolved class represents an array. This is true if the class itself is an
+         * array or a collection or a map.
+         */
+        public boolean isArray() {
+            return clazz.isArray()||Map.class.isAssignableFrom(clazz)||Collection.class.isAssignableFrom(clazz);
+        }
+        
+        @Override
+        public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+            return annotationSource.getAnnotation(annotationClass);
+        }
+        @Override
+        public Annotation[] getAnnotations() {
+            return annotationSource.getAnnotations();
+        }
+        
+        @Override
+        public Annotation[] getDeclaredAnnotations() {
+            return annotationSource.getDeclaredAnnotations();
+        }
+    }
+    
+    /**
+     * Is the class final (as a network object)? For final network types overlays are
+     * forbidden (but extensions are allowed).
+     * <br>A class is final if it is final as a java class (since in this case it cannot
+     * be overridden) or marked as final using the {@link Final} annotation
+     * @param clazz the class to check
+     * @return {@code true} if the class is final
+     * @see Final
+     */
+    public static boolean isFinal(Class<?> clazz) {
+        return Modifier.isFinal(clazz.getModifiers())||clazz.getAnnotation(Final.class)!=null;
+    }
+    
+    /**
+     * Is this class abstract (as a network object)? Abstract classes can be overridden with
+     * different (network) types. Therefore, additional type information must be included for
+     * abstract types.
+     * <br>Abstract types are interfaces and classes which are either declared as abstract (in the java
+     * sense) or marked as abstract using the {@link Abstract} annotation.
+     * <br>Typically abstract classes are avoided if possible since extra information is needed
+     * (and breaks the "character" of serialized objects). The framework introduce the
+     * notation of "abstract" fields which allows the architect to choose abstraction with
+     * a better granularity. Coding schemes typically generates additional type information if either
+     * the field is abstract or the type of the field is abstract (or both).
+     * 
+     * @param clazz the class to check
+     * @return {@code true} code if the class is abstract
+     */
+    public static boolean isAbstract(Class<?> clazz) {
+        return Modifier.isAbstract(clazz.getModifiers())||clazz.getAnnotation(Abstract.class)!=null;
     }
 }

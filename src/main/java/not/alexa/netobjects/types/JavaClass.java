@@ -77,6 +77,14 @@ public final class JavaClass extends Namespace {
 		super(Type.class);
 		register(this);
 		loadedTypes.put("not.alexa.netobjects.types.JavaClass$Type",new Type(ObjectType.class.getName()));
+		loadedTypes.put(Boolean.class.getName(),create(Boolean.TYPE.getName()));
+        loadedTypes.put(Character.class.getName(),create(Character.TYPE.getName()));
+        loadedTypes.put(Byte.class.getName(),create(Byte.TYPE.getName()));
+        loadedTypes.put(Short.class.getName(),create(Short.TYPE.getName()));
+        loadedTypes.put(Integer.class.getName(),create(Integer.TYPE.getName()));
+        loadedTypes.put(Long.class.getName(),create(Long.TYPE.getName()));
+        loadedTypes.put(Float.class.getName(),create(Float.TYPE.getName()));
+        loadedTypes.put(Double.class.getName(),create(Double.TYPE.getName()));
 	};
 	
 	/**

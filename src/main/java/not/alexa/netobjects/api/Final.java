@@ -22,6 +22,17 @@ import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
+import not.alexa.netobjects.utils.TypeUtils;
+
+/**
+ * Opposite to {@link Overlay}. Classes annotated as final cannot be overlayed and
+ * should be considered as structured data only. Use of this annotation should not
+ * be checked directly but {@link TypeUtils#isFinal(Class)} should be used (since 
+ * classes which are declared as finally cannot be overridden and therefore not overlayed).
+ * 
+ * @author notalexa
+ * @see TypeUtils#isFinal(Class)
+ */
 @Documented
 @Retention(RUNTIME)
 @Target(TYPE)

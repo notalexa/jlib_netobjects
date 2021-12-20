@@ -26,13 +26,13 @@ import java.util.Map;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
-import not.alexa.netobjects.Adaptable;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.AbstractTextCodingScheme.TextCodingItem;
 import not.alexa.netobjects.coding.Codec;
 import not.alexa.netobjects.coding.Decoder;
 import not.alexa.netobjects.coding.TextCodingSupport;
+import not.alexa.netobjects.coding.xml.XMLCodingScheme.XMLCodingExtraInfo;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ArrayTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition;
@@ -106,30 +106,11 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	public static class XMLContentHandler extends TextCodingItem<XMLCodingScheme,XMLContentHandler> implements Decoder.Buffer {
 	    StringBuilder content=new StringBuilder();
 	    Field field;
-	    AccessibleObject delegator;
+	    XMLCodingExtraInfo.Runtime current;
 	    Map<String,ArrayBuilder> arrays;
-	    Adaptable.Default adaptable;
 
 	    public XMLContentHandler(XMLDecoder decoder, Context context) {
 	        super(decoder.root);
-	        delegator=new AccessibleObject.Adapter() {
-	            Object val;
-	            
-	            @Override
-	            public Object getObject() {
-	                return val;
-	            }
-	            
-	            @Override
-	            public TypeDefinition getType() {
-	                return root.getCodingScheme().getRootType();
-	            }
-	            
-	            @Override
-	            public void setField(Field f, AccessibleObject value) throws BaseException {
-	                this.val=value.getAssignable();
-	            }
-	        };
 	    }
 
 	    public XMLContentHandler(XMLContentHandler parent) {
@@ -198,17 +179,15 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	            if(ref!=null) {
 	                consumed++;
 	            }
-	            root.addObjectReference(objRefs,ref,handler.delegator);                     
+	            root.addObjectReference(objRefs,ref,handler.current.obj/*delegator*/);                     
 	        }
-	        if(classType!=null&&atts.getLength()>consumed) for(Field f0:classType.getFields()) {
-	            String name=f0.getTag("XML");
-	            if(name.startsWith("@")) {
-	                String value=atts.getValue(name.substring(1));
-	                if(value!=null) {
-	                    XMLContentHandler sub=handler.getChild().init(name,handler.access.getFieldAccess(f0)).setField(f0,handler.access.getFieldAccess(f0));
-	                    sub.content.append(value);
-	                    handler.addField(f0,sub.pop());
-	                }
+	        if(handler.current!=null&&atts.getLength()>consumed) for(String attr:handler.current.getAttributes()) {
+	            String value=atts.getValue(attr);
+                if(value!=null) {
+                    Field f0=handler.current.get(attr);
+                    XMLContentHandler sub=handler.getChild().init(f0.getName(),handler.access.getFieldAccess(f0)).setField(f0,handler.access.getFieldAccess(f0));
+                    sub.content.append(value);
+                    handler.addField(f0,sub.pop());
 	            }
 	        }
 	        return handler;     
@@ -225,6 +204,18 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	    }
 
 	    public XMLContentHandler startElement(String uri, String localName, String qName, Attributes atts) throws SAXException {
+	        if(current!=null) try {
+	            Field f=current.get(qName);
+	            if(f!=null) {
+                    Access fieldAccess=access.getFieldAccess(f);
+                    if(fieldAccess==null) {
+                        throw new BaseException();
+                    }
+                    return start(fieldAccess,f,qName,atts);	                
+	            }
+            } catch(BaseException e) {
+                throw new SAXException(e);
+	        }
 	        TypeDefinition type=getType();
 	        if(type.getFlavour()==Flavour.ClassType) for(Field f:((ClassTypeDefinition)type).getFields()) try {
 	            if(qName.equals(f.getTag("XML"))) {
@@ -245,7 +236,29 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	                throw new SAXException(e);
 	            }
 	        }
-	        throw new SAXException();
+	        return new XMLContentHandler(this) {
+	            private int depth=1;
+                @Override
+                public void characters(char[] ch, int start, int length) throws SAXException {
+                }
+
+                @Override
+                public XMLContentHandler endElement(String uri, String localName, String qName) throws SAXException, BaseException {
+                    depth--;
+                    return depth==0?parent:this;
+                }
+
+                @Override
+                public XMLContentHandler startElement(String uri, String localName, String qName, Attributes atts) throws SAXException {
+                    depth++;
+                    return this;
+                }
+
+                @Override
+                AccessibleObject pop() throws BaseException {
+                    return null;
+                }
+	        };
 	    }
 
 	    @Override
@@ -258,7 +271,26 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	        super.init(fieldName,access);
 	        content.setLength(0);
 	        if(parent!=null) {
-	            delegator=null;
+	            current=null;
+	        } else {
+	            current=XMLCodingScheme.getExtraInfo(access.getType()).createRuntime(/*delegator=*/new AccessibleObject.Adapter() {
+	                Object val;
+	                
+	                @Override
+	                public Object getObject() {
+	                    return val;
+	                }
+	                
+	                @Override
+	                public TypeDefinition getType() {
+	                    return access.getType();
+	                }
+	                
+	                @Override
+	                public void setField(Field f, AccessibleObject value) throws BaseException {
+	                    this.val=value.getAssignable();
+	                }
+	            });
 	        }
 	        field=null;
 	        arrays=null;
@@ -267,7 +299,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	    
         public XMLContentHandler setField(Field f,AccessibleObject o) throws BaseException {
             this.field=f;
-            this.delegator=o;
+            this.current=XMLCodingExtraInfo.NULL_INFO.createRuntime(o);
             return this;
         }
 	    
@@ -277,7 +309,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	        TypeDefinition resolvedType=access.getType();
 	        switch(resolvedType.getFlavour()) {
 	            case ClassType:
-	                delegator=access.newAccessible(this);
+	                current=XMLCodingScheme.getExtraInfo(resolvedType).createRuntime(access,access.newAccessible(this));
 	                break;
 	            case ArrayType:
 	                defineArray(f, access);
@@ -306,20 +338,25 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	            } else {
 	                throw new BaseException(BaseException.BAD_REQUEST,"Array "+f.getName()+" not initialized.");
 	            }
-	        } else if(delegator!=null) try {
-	            delegator.setField(f, o);
+	        } else if(current!=null) try {
+	            current.setField(f, o);
 	        } catch(Throwable t) {
 	        }
 	    }
 	    
 	    AccessibleObject pop() throws BaseException {
 	        TypeDefinition type=getType();
-	        if(delegator!=null) {
-	            if(arrays!=null) for(ArrayBuilder a:arrays.values()) {
-	                a.store(delegator);
-	            }
-	            arrays=null;
-	            return delegator;
+            if(current!=null) {
+                if(arrays!=null) for(ArrayBuilder a:arrays.values()) {
+                    current.setField(a.f,a.obj);
+                }
+                Field textField=current.getTextField();
+   	            if(textField!=null) {
+   	                Access simpleAccess=new Access.SimpleTypeAccess(getCodingScheme().getFactory(),textField.getType());
+   	                Codec codec=resolveCodec(textField.getType().getJavaClassType(),simpleAccess);
+   	                current.setField(textField, simpleAccess.makeAccessible(codec.decode(this)));
+    	        }
+   	            return current.checked();
 	        } else if(type.getFlavour()==Flavour.ArrayType) {
 	            return arrays.get(field.getName());
 	        } else try {
@@ -359,15 +396,6 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	        public void add(AccessibleObject o) throws BaseException {
 	            obj.add(o);
 	        }
-	        
-	        public void store(AccessibleObject o) throws BaseException {
-	            switch(o.getType().getFlavour()) {
-	                case ArrayType:o.add(obj);
-	                    break;
-	                default: o.setField(f,obj);
-	                    break;
-	            }
-	        }
 
 	        @Override
 	        public Sequence<AccessibleObject> asSequence() {
@@ -382,8 +410,8 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 
 	    @Override
 	    public <T> T castTo(Context context, Class<T> clazz) {
-	        if(delegator!=null) {
-	            T t=delegator.castTo(context, clazz);
+	        if(current!=null) {
+	            T t=current.obj.castTo(context, clazz);
 	            if(t!=null) {
 	                return t;
 	            }
@@ -406,5 +434,4 @@ class XMLDecoder extends DefaultHandler implements Decoder {
             return root.getFactory().resolve(referrer, type);
         }
 	}
-
 }

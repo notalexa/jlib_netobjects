@@ -38,6 +38,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		return Types.CLASS_TYPE;
 	}
 	protected boolean enableObjectRefs;
+	protected boolean extendible;
 	protected Field[] fields;
 	
 	public ClassTypeDefinition(Class<?> clazz) {
@@ -53,6 +54,11 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		return Flavour.ClassType;
 	}
 	
+	@Override
+    public boolean isAbstract() {
+        return extendible;
+    }
+    
 	/**
 	 * Add interfaces to this class type declaration. This interfaces are <b>not part of the global class definition</b> but can be 
 	 * defined in a <b>local execution environment</b> and are therefore non persistent.
@@ -108,10 +114,9 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		return ret;
 	}
 
-
-
 	public class Builder extends AbstractClassTypeDefinition.Builder<Builder> {
 		protected boolean enableObjectRefs;
+        protected boolean extendible;
 		protected List<Field> fields=new ArrayList<>();
 		public Builder setEnableObjectRefs(boolean enable) {
 			enableObjectRefs=enable;
@@ -122,7 +127,25 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			return this;
 		}
 		
+		/**
+		 * Declare this class as abstract (that is fields
+		 * of this type needs additional info because the class
+		 * can be extended (like interfaces)).
+		 * @param extendible {@code true} if the class should be considered as abstract
+         * @return this builder for additional configuration
+		 */
+		public Builder setAbstract(boolean extendible) {
+		    this.extendible=extendible;
+		    return this;
+		}
 		
+		
+		/**
+		 * Add a field with default configuration
+		 * @param name the name of the field
+		 * @param type the type of the field
+		 * @return this builder for additional configuration
+		 */
 		public Builder addField(String name,TypeDefinition type) {
 			return createField(name, type).build();
 		}
@@ -130,9 +153,9 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		/**
 		 * An abstract type can be added to a field if it is either not anonymous or immutable
 		 * 
-		 * @param name
-		 * @param type
-		 * @return
+		 * @param name the name of the filed
+		 * @param type it's type definition
+		 * @return a builder for additional (field) setup
 		 */
 		public FieldBuilder createField(String name,TypeDefinition type) {
 			if(type.isAnonymous()&&!type.isImmutable()) {
@@ -147,6 +170,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 					super.build();
 					ClassTypeDefinition.this.fields=fields.toArray(new Field[fields.size()]);
 					ClassTypeDefinition.this.enableObjectRefs=enableObjectRefs;
+					ClassTypeDefinition.this.extendible=extendible;
 					calculateHash();
 				} else {
 					new BaseException(BaseException.BAD_REQUEST,ClassTypeDefinition.this+" is immutable.").throwRuntimeException();
@@ -157,6 +181,9 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		
 		public class FieldBuilder {
 			protected String name;
+			protected boolean extendible;
+            protected boolean optional;
+            protected Object defaultValue;
 			protected TypeDefinition type;
 			protected Map<String,String> tags;
 			FieldBuilder(String name,TypeDefinition type) {
@@ -170,8 +197,44 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 				tags.put(scheme, tag);
 				return this;
 			}
+			
+			/**
+			 * Should this field be considered as abstract?
+			 * 
+			 * @param extendible {@code true} if the <b>field</b> should be considered as abstract
+			 * @return this builder for additional configuration
+			 */
+			public FieldBuilder setAbstract(boolean extendible) {
+			    this.extendible=extendible;
+			    return this;
+			}
+			
+            public FieldBuilder setOptional(boolean optional) {
+                this.optional=optional;
+                return this;
+            }
+            
+            public FieldBuilder setDefaultValue(Object defaultValue) {
+                this.defaultValue=defaultValue;
+                return this;
+            }
+            
 			public Builder build() {
 				Field f=new Field(fields.size(),name,type);
+                f.extendible=extendible;
+                f.optional=optional;
+                switch(type.getFlavour()) {
+                    case InterfaceType:
+                    case ClassType:f.extendible=extendible;
+                        break;
+                    case PrimitiveType:
+                        // Check consistency
+                        if(defaultValue!=null&&!ObjectType.createClassType(defaultValue.getClass()).equals(type.getJavaClassType())) {
+                            throw new RuntimeException("Inconsistent default value: type is "+ObjectType.createClassType(defaultValue.getClass())+" but expected was "+type.getJavaClassType());
+                        }
+                        f.defaultValue=defaultValue;
+                        break;
+                }
 				if(tags!=null) {
 					f.tags=tags;
 				}
@@ -186,8 +249,12 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		private int h;
 		protected int index;
 		protected String name;
+        protected boolean extendible;
+        protected boolean optional;
 		protected TypeDefinition type;
 		protected Map<String,String> tags;
+		protected Object defaultValue;
+		
 		private Field() {}
 		protected Field(int index,String name,TypeDefinition type) {
 			this.index=index;
@@ -210,6 +277,22 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		
 		public int getIndex() {
 			return index;
+		}
+		
+		/**
+		 * 
+		 * @return {@code true} if this field is abstract (that is either it's type or explicitly declared)
+		 */
+		public boolean isAbstract() {
+		    return extendible||type.isAbstract();
+		}
+		
+		public boolean isOptional() {
+		    return optional;
+		}
+		
+		public Object getDefaultValue() {
+		    return defaultValue;
 		}
 		
 		public String getName() {
@@ -281,10 +364,10 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			switch(index) {
 				case 0:List<ObjectType> types=def.getTypes();
                     return types.size()==0?null:types.toArray(new ObjectType[types.size()]);
-
-				case 1:return def.enableObjectRefs;
-				case 2:return def.fields.length==0?null:def.fields;
-				case 3:return def.methods.length==0?null:def.methods;
+				case 1:return def.enableObjectRefs?Boolean.TRUE:null;
+				case 2:return def.extendible?Boolean.TRUE:null;
+				case 3:return def.fields.length==0?null:def.fields;
+				case 4:return def.methods.length==0?null:def.methods;
 			}
 			return null;
 		}
@@ -297,9 +380,11 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 					break;
 				case 1:def.enableObjectRefs=(boolean)v;
 					break;
-				case 2:def.fields=(Field[])v;
+                case 2:def.extendible=(boolean)v;
+                    break;
+				case 3:def.fields=(Field[])v;
 					break;
-				case 3:def.methods=(MethodTypeDefinition[])v;
+				case 4:def.methods=(MethodTypeDefinition[])v;
 					break;
 			}
 		}
@@ -308,8 +393,8 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		public Access createFieldAccess(Field f) throws BaseException {
 			switch(f.getIndex()) {
 				case 0:return forArray(f.getType(),ObjectType[].class);
-				case 2:return new ArrayTypeAccess(f.getType(),new FieldAccess(factory),Field[].class);
-				case 3:return forArray(f.getType(),MethodTypeDefinition[].class);
+				case 3:return new ArrayTypeAccess(f.getType(),new FieldAccess(factory),Field[].class);
+				case 4:return forArray(f.getType(),MethodTypeDefinition[].class);
 			}
 			return super.createFieldAccess(f);
 		}
@@ -353,8 +438,11 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			switch(index) {
 				case 0:return def.index;
 				case 1:return def.name;
-				case 2:return def.type;
-				case 3:return def.tags;
+                case 2:return def.extendible?Boolean.TRUE:null;
+                case 3:return def.optional?Boolean.TRUE:null;
+				case 4:return def.type;
+				case 5:return def.tags;
+                case 6:return def.defaultValue;
 			}
 			return null;
 		}
@@ -368,26 +456,41 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 					break;
 				case 1:def.name=(String)v;
 					break;
-				case 2:def.type=(TypeDefinition)v;
+                case 2:def.extendible=(boolean)v;
+                    break;
+                case 3:def.optional=(boolean)v;
+                    break;
+				case 4:def.type=(TypeDefinition)v;
 					break;
-				case 3:def.tags=(Map<String,String>)v;
+				case 5:def.tags=(Map<String,String>)v;
 					break;
+                case 6:def.defaultValue=v;
+                    break;
 			}
 		}
 
 		@Override
 		public Access createFieldAccess(Field f) throws BaseException {
 			switch(f.getIndex()) {
-				case 3:return forMap(f.getType(),Map.class);
+				case 5:return forMap(f.getType(),Map.class);
 			}
 			return super.createFieldAccess(f);
 		}
 		
 		public Object finish(Object o) {
 			Field def=(Field)o;
+			// Ensure consistency
+			switch(def.type.getFlavour()) {
+    			case PrimitiveType:def.extendible=false;
+    			    break;
+    			case InterfaceType:
+    			case ClassType:def.defaultValue=null;
+    			    break;
+			    default:def.extendible=false;
+			            def.defaultValue=null;
+			}
 			def.calculateHash();
 			return def;
 		}
 	}
-
 }

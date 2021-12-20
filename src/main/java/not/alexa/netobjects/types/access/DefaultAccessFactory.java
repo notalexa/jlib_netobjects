@@ -42,6 +42,7 @@ import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.TypeLoader;
 import not.alexa.netobjects.types.TypeLoader.LinkedLocal;
 import not.alexa.netobjects.types.access.Access.SimpleTypeAccess;
+import not.alexa.netobjects.utils.TypeUtils;
 import not.alexa.netobjects.utils.WeakKeyMap;
 import not.alexa.netobjects.utils.WeakValueMap;
 
@@ -332,7 +333,7 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
                             try {
                                 java.lang.reflect.Constructor<?> c=accessClass.getConstructor(AccessFactory.class,Constructor.class);
                                 if(Access.class.isAssignableFrom(accessClass)) {
-                                    access=(Access)c.newInstance(DefaultAccessFactory.this,clazz.getAnnotation(Final.class)==null?new Constructor.OverlayConstructor(javaType,getConstructor()):getConstructor());
+                                    access=(Access)c.newInstance(DefaultAccessFactory.this,TypeUtils.isFinal(clazz)?getConstructor():new Constructor.OverlayConstructor(javaType,getConstructor()));
                                 }
                             } catch(Throwable t) {}
                             try {

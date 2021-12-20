@@ -18,8 +18,13 @@ package not.alexa.netobjects.coding.xml;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.List;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
@@ -115,7 +120,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 	public Encoder createEncoder(Context context, OutputStream stream) {
 	    TextCodingSupport<XMLCodingScheme> support=new TextCodingSupport<XMLCodingScheme>(this,context);
 		return new XMLEncoder(support,stream)
-		        .init(rootTag,false,support.getFactory().resolve(context,rootType));
+		        .init(rootTag,rootType.isAbstract()?XMLEncoder.SHOWTYPE_MASK:0,support.getFactory().resolve(context,rootType));
 	}
 
 	@Override
@@ -214,25 +219,37 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
     }
 
 
-    public static class AccessCodec implements Codec {
+    static class AccessCodec implements Codec {
         Access access;
         Codecs pool;
         boolean disableObjectRefs;
+        XMLCodingExtraInfo info;
         Field[] fields;
         Codec[] fieldCodecs;
         AccessCodec(boolean enableObjectRefs,Access access,Codecs pool) {
             this.access=access;
+            info=getExtraInfo(access.getType());
             disableObjectRefs=!enableObjectRefs;
             fields=sort(access.getFields());
             fieldCodecs=new Codec[fields.length];
             this.pool=pool;
         }
+        
         @Override
         public void encode(Buffer buffer, Object o) throws BaseException {
-            if(disableObjectRefs||!buffer.isReferenced(o)) for(Field f:fields) {
+            info.check();
+            if(disableObjectRefs||!buffer.isReferenced(o)) {
+                for(Field f:fields) {
+                    encode(buffer,o,f);
+                }
+            }
+        }
+        
+        private void encode(Buffer buffer,Object o,Field f) throws BaseException {
+            if(f!=null) {
                 Object t=access.getField(o, f);
-                if(t!=null) {
-                    Encoder child=buffer.push(f);
+                if(t!=null&&(f.getDefaultValue()==null||!f.getDefaultValue().equals(t))) {
+                    Encoder child=buffer.push(info,f);
                     child.encode(t);
                 }
             }
@@ -242,6 +259,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         public Object decode(not.alexa.netobjects.coding.Decoder.Buffer buffer) throws BaseException {
             return access.newAccessible(buffer);
         }
+        
         @Override
         public Codec getCodec(Field f) throws BaseException {
             Codec codec=fieldCodecs[f.getIndex()];
@@ -267,7 +285,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
                     Codec componentCodec=createCodec(tagName, ((ArrayTypeDefinition)type).getComponentType(), componentAccess);
                     @Override
                     public void encode(Buffer buffer, Object t) throws BaseException {
-                        XMLEncoder c=((XMLEncoder)buffer).getChild().init(tagName,false,access);
+                        XMLEncoder c=((XMLEncoder)buffer).getChild().init(tagName,type.isAbstract()?XMLEncoder.SHOWTYPE_MASK:0,access);
                         c.codec=this;
                         c.encode(t);
                     }
@@ -304,7 +322,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
                     }
                     return codec;
                 default:
-                       return null;
+                    return null;
             }
         }
     }
@@ -322,6 +340,178 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         
         public String getIsEmptyName() {
             return isEmpty;
+        }
+    }
+    
+    static synchronized XMLCodingExtraInfo getExtraInfo(TypeDefinition type) {
+        switch(type.getFlavour()) {
+            case ClassType:XMLCodingExtraInfo info=type.getAdapter(XMLCodingExtraInfo.class);
+                if(info==null) {
+                    info=new XMLCodingExtraInfo((ClassTypeDefinition)type);
+                    type.putAdapter(info);
+                }
+                return info;
+            default:return XMLCodingExtraInfo.NULL_INFO;
+        }
+    }
+    
+    static class XMLCodingExtraInfo {
+        private static final Object MANDATORY=new Object();
+        private static final Object SET=new Object();
+        private static final String[] NO_FIELDS=new String[0];
+        static final XMLCodingExtraInfo NULL_INFO=new XMLCodingExtraInfo(null);
+        private Field[] fields;
+        private String[] attributes;
+        private String[] tags;
+        private Field textField;
+        private Map<String,Field> fieldMap=new HashMap<>();
+        private Object[] defaults;
+        private String[] names;
+        private int[] flags;
+        private int checkCount;
+        private BaseException codingException;
+        private XMLCodingExtraInfo(ClassTypeDefinition type) {
+            if(type==null) {
+                attributes=tags=NO_FIELDS;
+                textField=null;
+                fieldMap=Collections.emptyMap();
+                defaults=NO_FIELDS;
+            } else {
+                List<String> a=new ArrayList<>();
+                List<String> t=new ArrayList<>();
+                fields=type.getFields();
+                defaults=new Object[fields.length];
+                flags=new int[fields.length];
+                names=new String[fields.length];
+                for(int i=0;i<fields.length;i++) {
+                    Field f=fields[i];
+                    flags[i]=f.isAbstract()?4:0;
+                    if(f.getDefaultValue()!=null) {
+                        defaults[i]=f.getDefaultValue();
+                        checkCount++;
+                    } else if(f.isOptional()) {
+                        // We don't care if the field is optional
+                        defaults[i]=SET;
+                    } else {
+                        defaults[i]=MANDATORY;
+                        checkCount++;
+                    }
+                    String name=f.getTag("XML");
+                    names[i]=name;
+                    if(name.length()==0) {
+                        continue;
+                    } else if("#text".equals(name)) {
+                        if(textField==null) {
+                            textField=f;
+                            flags[i]|=2;
+                        } else {
+                            codingException=new BaseException(BaseException.BAD_REQUEST,"#text field declared twice.");
+                            break;
+                        }
+                    } else if(name.charAt(0)=='@') {
+                        String attr=name.substring(1);
+                        names[i]=attr;
+                        a.add(attr);
+                        fieldMap.put(attr,f);
+                        flags[i]|=1;
+                    } else {
+                        t.add(name);
+                        fieldMap.put(name, f);
+                    }
+                }
+                attributes=a.size()==0?NO_FIELDS:a.toArray(new String[a.size()]);
+                tags=t.size()==0?NO_FIELDS:t.toArray(new String[t.size()]);
+                if(codingException==null) {
+                    if(textField!=null&&tags.length>0) {
+                        codingException=new BaseException(BaseException.BAD_REQUEST,"Mixing tags and #text is forbidden.");
+                    }
+                }
+            }
+        }
+        
+        public void check() throws BaseException {
+            if(codingException!=null) {
+                throw codingException;
+            }
+        }
+        
+        public Field getTextField() {
+            return textField;
+        }
+        
+        public Field get(String name) {
+            return fieldMap.get(name);
+        }
+        
+        public String[] getAttributes() {
+            return attributes;
+        }
+        
+        public String[] getTags() {
+            return tags;
+        }
+        
+        public int getFlags(Field f) {
+            return flags[f.getIndex()];
+        }
+        
+        public String getName(Field f) {
+            return names[f.getIndex()];
+        }
+        
+        public Runtime createRuntime(AccessibleObject obj) {
+            return createRuntime(null,obj);
+        }
+        
+        public Runtime createRuntime(Access access,AccessibleObject obj) {
+            return new Runtime(access,obj);
+        }
+        
+        class Runtime {
+            Access access;
+            AccessibleObject obj;
+            int checked;
+            Object[] a=defaults.clone();
+            private Runtime(Access access,AccessibleObject obj) {
+                this.access=access;
+                this.obj=obj;
+            }
+            public Field get(String name) {
+                return XMLCodingExtraInfo.this.get(name);
+            }
+            
+            public Field getTextField() {
+                return textField;
+            }
+            
+            public String[] getAttributes() {
+                return XMLCodingExtraInfo.this.getAttributes();
+            }
+            
+            public void setField(Field f, AccessibleObject value) throws BaseException {
+                if(a[f.getIndex()]!=SET) {
+                    checked++;
+                    a[f.getIndex()]=SET; 
+                }
+                obj.setField(f, value);
+            }
+            
+            public AccessibleObject checked() throws BaseException {
+                if(checked<checkCount) {
+                    // Not all set. Mandatory field are present but maybe a default value exist.
+                    for(int i=0;i<a.length;i++) {
+                        if(a[i]!=SET) {
+                            if(a[i]==MANDATORY||access==null) {
+                                throw new BaseException(BaseException.BAD_REQUEST, "Field "+fields[i].getName()+" in "+fields[i].getClassDescription()+" is mandatory but not set.");
+                            } else {
+                                obj.setField(fields[i],access.getFieldAccess(fields[i]).makeAccessible(a[i]));
+                            }
+                        }
+                    }
+                    checked=checkCount;
+                }
+                return obj;
+            }
         }
     }
 }

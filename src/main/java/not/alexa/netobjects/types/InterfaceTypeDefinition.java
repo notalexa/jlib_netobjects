@@ -68,6 +68,15 @@ public class InterfaceTypeDefinition extends AbstractClassTypeDefinition impleme
 	}
 
 	/**
+	 * Always return {@code true}.
+	 */
+	@Override
+	public boolean isAbstract() {
+	    return true;
+	}
+
+
+	/**
 	 * 
 	 * @return <code>true</code> if this interface type is restricted to a set of implementors
 	 */

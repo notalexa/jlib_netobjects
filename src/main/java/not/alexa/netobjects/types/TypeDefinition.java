@@ -66,6 +66,14 @@ public abstract class TypeDefinition extends Namespace.Types {
 	public MethodTypeDefinition[] getMethods() {
 	    return MethodTypeDefinition.NO_METHODS;
 	}
+	
+	/**
+	 * 
+	 * @return {@code true} if this type definition is abstract
+	 */
+	public boolean isAbstract() {
+	    return false;
+	}
 
 
 	/**
