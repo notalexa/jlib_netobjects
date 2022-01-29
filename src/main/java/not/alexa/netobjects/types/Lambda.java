@@ -19,6 +19,7 @@ import java.lang.reflect.Method;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
+import not.alexa.netobjects.Executable;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
@@ -69,7 +70,7 @@ import not.alexa.netobjects.utils.TypeUtils;
  * @author notalexa
  *
  */
-public class Lambda {
+public class Lambda implements Executable {
     private static ThreadLocal<Lambda> called=new ThreadLocal<>();
     /**
      * 
@@ -172,6 +173,14 @@ public class Lambda {
             return true;
         }
         return false;
+    }
+    
+    /**
+     * The return value of the call is ignored in this case
+     */
+    @Override
+    public void main(Context context) throws BaseException {
+        call(context);
     }
     
     /**
