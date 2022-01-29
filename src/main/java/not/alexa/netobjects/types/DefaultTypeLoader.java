@@ -15,12 +15,17 @@
  */
 package not.alexa.netobjects.types;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import not.alexa.netobjects.Adaptable;
+import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.Context;
+import not.alexa.netobjects.coding.xml.XMLCodingScheme;
 import not.alexa.netobjects.types.JavaClass.Type;
 
 /**
@@ -172,5 +177,44 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 	     * @return the resolved type definition or <code>null/code> if not resolveable.
 	     */
 	    public TypeDefinition resolve(DefaultTypeLoader loader,ObjectType type);
+	}
+	
+	/**
+	 * Type resolver serving as a delegate. If the namespace of the type is the normal Java namespace, take the name of the type (typically the classname)
+	 * and resolve the file <code>&lt;name&gt;.resolver</code>. If this file exist, the content is assumed to be a network object representing a type resolver.
+	 * This resolver is instantiated and the type is resolved using the this resolver.
+	 * 
+	 * @author notalexa
+	 *
+	 */
+	public static class TypeResolverDelegate implements TypeResolver {
+	    private Context context;
+	    
+	    /**
+	     * Construct the delegate
+	     * 
+	     * @param context the context to resolve the type resolver for a given class.
+	     */
+	    public TypeResolverDelegate(Context context) {
+	        this.context=context;
+	    }
+
+        @Override
+        public TypeDefinition resolve(DefaultTypeLoader loader, ObjectType type) {
+            if(type.getNamespace()==Namespace.getJavaNamespace()) {
+                String n=type.getName().replace('.','/')+".resolver";
+                try(InputStream stream=loader.getClassLoader().getResourceAsStream(n)) {
+                    if(stream!=null) {
+                        TypeResolver resolver=XMLCodingScheme.DEFAULT_SCHEME.createDecoder(context, stream).decode(TypeResolver.class);
+                        if(resolver!=null) {
+                            return resolver.resolve(loader, type);
+                        }
+                    }
+                } catch(IOException|BaseException e) {
+                    // Silently ignore problems in this case
+                }
+            }
+            return null;
+        }
 	}
 }
