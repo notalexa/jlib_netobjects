@@ -17,6 +17,7 @@ package not.alexa.netobjects.types.access;
 
 import java.lang.reflect.Modifier;
 
+import not.alexa.netobjects.Adaptable;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.api.Overlay;
 import not.alexa.netobjects.types.JavaClass.Type;
@@ -50,27 +51,53 @@ public interface Constructor {
     public boolean isOverlay(TypeLoader loader);
    
     /**
-     * The default constructor calls the {@link Class#newInstance()} method to
-     * obtain an object. <i>This implementation is under construction</i>.
+     * The default constructor constructors an object as follows:
+     * <br>If the class is not a non static inner class, the default constructor is called. Otherwise, the constructor with the declaring outer class
+     * is taken and the argument is resolved using the provided access context (that is typically the instance of the outer class is provided using the
+     * {@link Adaptable#putAdapter(Object)} method). The constructor needs not to be public to emphasize that the constructed object is "incomplete" in the
+     * sense that some fields are required (and set after construction).
      * 
      * @author notalexa
      *
      */
     public class DefaultConstructor implements Constructor {
-        Type type;
-        Class<?> clazz;
+        private Class<?> clazz;
+        private Class<?> enclosingClass;
+        private java.lang.reflect.Constructor<?> constructor;
+        private Throwable initializerException;
         public DefaultConstructor(Type type,Class<?> clazz) {
-            this.type=type;
             this.clazz=clazz;
+            if(!Modifier.isStatic(clazz.getModifiers())) {
+                enclosingClass=clazz.getEnclosingClass();
+            }
+            try {
+                constructor=enclosingClass==null?clazz.getDeclaredConstructor():clazz.getDeclaredConstructor(enclosingClass);
+                constructor.setAccessible(true);
+            } catch(Throwable t) {
+                initializerException=t;
+            }
         }
+        
         @Override
         public Object newInstance(AccessContext context) throws BaseException {
-            try {
-                return clazz.newInstance();
+            if(initializerException!=null) {
+                return BaseException.throwException(initializerException);
+            }
+            if(enclosingClass==null) try {
+                return constructor.newInstance();
+            } catch(Throwable t) {
+                return BaseException.throwException(t);
+            } else try {
+                Object o=context.castTo(enclosingClass);
+                if(o==null) {
+                    throw new BaseException(BaseException.NOT_FOUND,"Enclosing instance of type "+enclosingClass.getName()+" is missing to construct an instanceof of "+clazz.getName());
+                }
+                return constructor.newInstance(o);
             } catch(Throwable t) {
                 return BaseException.throwException(t);
             }
         }
+        
         @Override
         public boolean isOverlay(TypeLoader loader) {
             if(clazz.getAnnotation(Overlay.class)!=null) {
