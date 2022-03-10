@@ -1,0 +1,14 @@
+<object class="not.alexa.netobjects.kafka.timer.KafkaClient" groupId="timed">
+	<!--  We use a minimal configuration even though better choices especially for
+	      max.poll.records seems to be reasonable. -->
+	<config prop="bootstrap.servers">nikosia:9092</config>
+	<!--  Timer app. The incoming topic is "scheduler", the timer topic "timed".
+	      Therefore, the group id  m u s t  be "timed" too.
+	      There are no restrictions on the configuration of "scheduler", but the
+	      number of partitions of the "timed" topic should be large enough for the biggest
+	      delay expected in the system.
+	      The base unit is not changed (and 49sec by default). -->
+	<app class="not.alexa.netobjects.kafka.timer.KafkaTimer"
+		timerTopic="scheduler"
+		waitTopic="timed"/>
+</object>

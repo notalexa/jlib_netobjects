@@ -21,6 +21,7 @@ import java.io.OutputStream;
 import java.nio.charset.Charset;
 
 import not.alexa.netobjects.Context;
+import not.alexa.netobjects.coding.xml.XMLCodingScheme;
 
 /**
  * Interface representing a coding scheme. A coding scheme is defined by
@@ -33,6 +34,15 @@ import not.alexa.netobjects.Context;
  *
  */
 public interface CodingScheme {
+    
+    /**
+     * 
+     * @return the global systems coding scheme
+     */
+    public static CodingScheme getSystemScheme() {
+        return XMLCodingScheme.DEFAULT_SCHEME;
+    }
+    
 	// May return null if the scheme is a binary scheme
     /**
      * If this scheme assumes that the object is represented in textual form

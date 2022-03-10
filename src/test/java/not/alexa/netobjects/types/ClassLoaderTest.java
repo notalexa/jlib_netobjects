@@ -81,7 +81,7 @@ public class ClassLoaderTest {
         return null;
     }
 
-    static Class<?> defineOverlayClass() {
+    public static Class<?> defineOverlayClass() {
         try {
             return Class.forName("not.alexa.netobjects.types.overlay.DataOverlay",true,createClassLoader());
         } catch(Throwable t) {

@@ -341,6 +341,39 @@ public class TypeUtils {
             }
             throw new RuntimeException("Unresolved type: "+type);
         }
+        
+        private ResolvedClass resolve(AnnotatedType current,Class<?> clazz) {
+            ResolvedClass resolved=resolve(current);
+            Class<?> c=resolved.getResolvedClass();
+            if(clazz.equals(c)) {
+                return resolved;
+            } else {
+                return resolveHierachy(c, clazz);
+            }
+        }
+            
+        private ResolvedClass resolveHierachy(Class<?> c,Class<?> clazz) {
+            for(AnnotatedType type:c.getAnnotatedInterfaces()) {
+                ResolvedClass resolved=resolve(type,clazz);
+                if(resolved!=null) {
+                    return resolved;
+                }
+            }
+            return c.getAnnotatedInterfaces()==null?null:resolve(c.getAnnotatedSuperclass(),clazz);                
+        }
+        
+        /**
+         * Resolve the given class as a class in the class hierarchy of the root class.
+         * @param clazz the class to resolve
+         * @return the resolved class or {@code null} if the class is not resolvable (in case the class is not contained in the root class hierachy for example) 
+         */
+        public ResolvedClass resolve(Class<?> clazz) {
+            if(clazz.equals(getRootClass())) {
+                return new ResolvedClass(getRootClass(),new ResolvedClass[0]);
+            } else {
+                return resolveHierachy(getRootClass(), clazz);
+            }
+        }
     }
     
     /**

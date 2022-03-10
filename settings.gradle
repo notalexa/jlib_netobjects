@@ -8,3 +8,5 @@
  */
 
 rootProject.name = 'jlib_netobjects'
+
+include ':kafka'
