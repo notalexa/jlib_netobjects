@@ -1,4 +1,4 @@
-<object class="not.alexa.netobjects.kafka.timer.KafkaClient" groupId="timed">
+<object class="not.alexa.netobjects.kafka.KafkaClient" groupId="timed">
 	<!--  We use a minimal configuration even though better choices especially for
 	      max.poll.records seems to be reasonable. -->
 	<config prop="bootstrap.servers">nikosia:9092</config>

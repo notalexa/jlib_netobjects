@@ -29,7 +29,6 @@ import not.alexa.netobjects.types.DefaultTypeLoader;
 import not.alexa.netobjects.types.Lambda;
 import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.utils.Scheduler.Executor;
-import not.alexa.netobjects.utils.Scheduler.Scheduled;
 
 /**
  * The test uses a local scheduler.
@@ -55,12 +54,9 @@ public class SchedulerTest {
             Scheduler scheduler=new LocalScheduler(context,executors,new Executor(overlayContext));
             ObjectType type1=ObjectType.resolve("jvm:not.alexa.coding.Data::1a833da6-3a6b-3e20-898d-ae06d06602e1");
             Lambda lambda=new Lambda(new Data("text",1,"x","y","z"),type1);
-            Scheduled scheduled=scheduler.scheduleCancellable(System.currentTimeMillis()+5000L,lambda);
             scheduler.schedule(3000L,lambda);
             // Put the resource in the context.
             overlayContext.putAdapter(new Resource());
-            Thread.sleep(1000);
-            System.out.println("Canceled: "+scheduler.cancel(scheduled));
             Thread.sleep(5000);
         } catch(Throwable t) {
             fail(t.getMessage());

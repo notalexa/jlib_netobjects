@@ -15,22 +15,16 @@
  */
 package not.alexa.netobjects.utils;
 
-import java.util.UUID;
-
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.Executable;
 import not.alexa.netobjects.coding.CodingScheme;
-import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.Lambda;
-import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
-import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.AccessContext;
 import not.alexa.netobjects.types.access.AccessFactory;
 import not.alexa.netobjects.types.access.Constructor;
-import not.alexa.netobjects.types.access.DefaultAccessibleObject;
 
 /**
  * Utility class to shift execution of network objects <b>in time</b> (normally called a
@@ -78,19 +72,8 @@ public abstract class Scheduler {
      * @throws BaseException if an error occurs
      */
     public void schedule(long delay,Object o) throws BaseException {
-        schedule(null,createEntry(delay, o));
+        schedule(createEntry(delay, o));
     }
-    
-    /**
-     * Cancel the given scheduled entry. In contrast to the cancel method of a future, the return value should be considered as a hint that cancellation has been
-     * at least initiated.
-     * 
-     * @param scheduled the scheduled entry
-     * @return {@code true} if the scheduled entry was cancelled, {@code false} otherwise. The return value should be interpreted as a hint. If {@code false} is
-     * returned, the scheduler was not able to initiate a cancellation. If {@code true} and no timing issues occured, the scheduled entry should be considered as
-     * not executd.
-     */
-    public abstract boolean cancel(Scheduled scheduled);
     
     /**
      * Schedule the provided entry.
@@ -100,28 +83,7 @@ public abstract class Scheduler {
      * @throws BaseException if the entry cannot be scheduled. If the entry should be scheduled cancelable and the underlying scheduler doesn't provide
      * the functionality, 
      */
-    protected abstract void schedule(UUID id,ScheduledEntry entry) throws BaseException;
-    
-    /**
-     * Schedule the object after the given {@code delay}. This schedule is cancellable. The method returns a (network) object representing this scheduled entry.
-     * 
-     * @param delay the delay after which the object should be executed.
-     * @param o the object to execute (via a callback)
-     * @return a (network) object representing thiis schedule
-     * @throws BaseException if an error occurs and especially if the scheduler doesn't support cancellable schedules
-     */
-    public Scheduled scheduleCancellable(long delay,Object o) throws BaseException {
-        ScheduledEntry entry=createEntry(delay, o);
-        UUID id=UUID.randomUUID();
-        try {
-            synchronized(id) {
-                schedule(id,entry);
-                return new Scheduled(entry.when,id);
-            }
-        } catch(Throwable t) {
-            return BaseException.throwException(t);
-        }
-    }
+    protected abstract void schedule(ScheduledEntry entry) throws BaseException;
     
     /**
      * Method for checking if the given partition is active. This method is inspired by Kafka and the idea is to select one of many VM's accessing
@@ -188,84 +150,7 @@ public abstract class Scheduler {
          */
         public void call(T t) throws BaseException;
     }
-    
-    /**
-     * (Network) class representing a scheduled entry. The entry is representing using a uuid.
-     * 
-     * @author notalexa
-     *
-     */
-    public final static class Scheduled {
-        private static final ClassTypeDefinition TYPE=new ClassTypeDefinition(Scheduled.class).createBuilder()
-                .addField("id",PrimitiveTypeDefinition.getTypeDescription(UUID.class))
-                .addField("when",PrimitiveTypeDefinition.getTypeDescription(Long.class))
-                .build();
         
-        /**
-         * 
-         * @return the class definition of this class
-         */
-        public static ClassTypeDefinition getTypeDescription() {
-            return TYPE;
-        }
-        
-        protected UUID id;
-        protected long when;
-        private Scheduled() {}
-        private Scheduled(long when,UUID id) {
-            this.when=when;
-            this.id=id;
-        }
-
-        /**
-         * 
-         * @return the id of this scheduled entry
-         */
-        public UUID getId() {
-            return id;
-        }
-        
-        /**
-         * 
-         * @return the timestamp of this schedule
-         */
-        public long getScheduledTime() {
-            return when;
-        }
-        
-        public static class ClassAccess extends AbstractClassAccess implements Access {
-
-            public ClassAccess(AccessFactory factory) {
-                super(factory, TYPE);
-            }
-            
-            @Override
-            public AccessibleObject newAccessible(AccessContext context) throws BaseException {
-                return new DefaultAccessibleObject(this,new Scheduled());
-            }
-
-
-            @Override
-            protected Object getField(Object o, int index) throws BaseException {
-                switch(index) {
-                    case 0:return ((Scheduled)o).id;
-                    case 1:return ((Scheduled)o).when;
-                }
-                return null;
-            }
-
-            @Override
-            protected void setField(Object o, int index, Object v) throws BaseException {
-                switch(index) {
-                    case 0:((Scheduled)o).id=(UUID)v;
-                        break;
-                    case 1:((Scheduled)o).when=(Long)v;
-                        break;
-                }
-            }            
-        }
-    }
-    
     /**
      * A scheduled entry.
      * 

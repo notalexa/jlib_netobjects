@@ -141,19 +141,11 @@ public class KafkaScheduler extends Scheduler implements KafkaApp {
     }
 
     /**
-     * This is a noop at the moment. Cancellation is not supported.
-     */
-    @Override
-    public boolean cancel(Scheduled scheduled) {
-        return false;
-    }
-
-    /**
      * Schedule the entry by writing it into the scheduler topic.
      */
     @Override
-    protected void schedule(UUID id, ScheduledEntry entry) throws BaseException {
-        KafkaTimerEntry timerEntry=new KafkaTimerEntry(entry.getScheduledTime(), targetTopic,true, id, entry.getPayload());
+    protected void schedule(ScheduledEntry entry) throws BaseException {
+        KafkaTimerEntry timerEntry=new KafkaTimerEntry(entry.getScheduledTime(), targetTopic,true, entry.getPayload());
         ProducerRecord<byte[],byte[]> record=new ProducerRecord<byte[], byte[]>(schedulerTopic, CodingScheme.getSystemScheme().createEncoder(context).encode(timerEntry).asBytes());
         client.send(record,this);
     }

@@ -29,6 +29,7 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -207,7 +208,15 @@ public class KafkaClient implements ConsumerRebalanceListener, AutoCloseable, Ex
                 executor=Executors.newSingleThreadScheduledExecutor();
                 reader=new Consumer();
                 Thread thread=new Thread(reader::startup);
-                topicMap.forEach((app,topics)->app.start(context, this, topics));
+                List<KafkaApp> failed=new ArrayList<KafkaApp>();
+                topicMap.forEach((app,topics)->{
+                    try {
+                        app.start(context, this, topics);
+                    } catch(Throwable t) {
+                        failed.add(app);
+                    }
+                });
+                failed.forEach(this::dispose);
                 thread.start();
             }
         }

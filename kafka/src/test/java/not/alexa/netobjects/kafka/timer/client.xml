@@ -1,4 +1,4 @@
-<object class="not.alexa.netobjects.kafka.timer.KafkaClient" groupId="test-timer">
+<object class="not.alexa.netobjects.kafka.KafkaClient" groupId="test-timer">
 	<config prop="bootstrap.servers">nikosia:9092</config>
 	<!--  Kafka app is installed manually in KafkaSchedulerTest. -->
 </object>

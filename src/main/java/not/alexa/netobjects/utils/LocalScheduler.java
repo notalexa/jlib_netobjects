@@ -15,11 +15,7 @@
  */
 package not.alexa.netobjects.utils;
 
-import java.util.Hashtable;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import not.alexa.netobjects.BaseException;
@@ -35,7 +31,6 @@ import not.alexa.netobjects.coding.CodingScheme;
  */
 public class LocalScheduler extends Scheduler {
     private ScheduledExecutorService executors;
-    private Map<UUID,ScheduledFuture<?>> waiting=new Hashtable<>();
 
     /**
      * Construct this local scheduler
@@ -58,43 +53,24 @@ public class LocalScheduler extends Scheduler {
     }
     
     /**
-     * Cancel the scheduled task.
-     */
-    @Override
-    public boolean cancel(Scheduled scheduled) {
-        ScheduledFuture<?> future=waiting.remove(scheduled.id);
-        if(future!=null) {
-            future.cancel(false);
-        }
-        return true;
-    }
-    
-    /**
      * Just schedule a wrapper of entry into the executor service. 
      */
     @Override
-    protected void schedule(UUID id,ScheduledEntry entry) throws BaseException {
-        ScheduledFuture<?> future=executors.schedule(new Runnable() {
+    protected void schedule(ScheduledEntry entry) throws BaseException {
+        /*ScheduledFuture<?> future=*/executors.schedule(new Runnable() {
             @Override
             public void run() {
-                synchronized(id==null?this:id) {
-                    if(id==null||waiting.remove(id)!=null) {
-                        if(callback!=null) try {
-                            if(ScheduledEntry.class.isAssignableFrom(callbackClass)) {
-                                callback.call(entry);
-                            } else {
-                                Object o=CodingScheme.getSystemScheme().createDecoder(callback.getCallbackContext(), entry.getPayload()).decode(callbackClass);
-                                callback.call(o);
-                            }
-                        } catch(Throwable t) {
-                            // Silently ignore this exception
-                        }
+                if(callback!=null) try {
+                    if(ScheduledEntry.class.isAssignableFrom(callbackClass)) {
+                        callback.call(entry);
+                    } else {
+                        Object o=CodingScheme.getSystemScheme().createDecoder(callback.getCallbackContext(), entry.getPayload()).decode(callbackClass);
+                        callback.call(o);
                     }
+                } catch(Throwable t) {
+                    // Silently die
                 }
             }
         }, entry.getScheduledTime()-System.currentTimeMillis(),TimeUnit.MILLISECONDS);
-        if(id!=null) {
-            waiting.put(id,future);
-        }
     }
 }

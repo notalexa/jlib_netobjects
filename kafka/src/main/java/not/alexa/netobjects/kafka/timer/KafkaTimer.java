@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import not.alexa.netobjects.BaseException;
@@ -29,8 +28,8 @@ import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.CodingScheme;
 import not.alexa.netobjects.kafka.KafkaApp;
 import not.alexa.netobjects.kafka.KafkaClient;
-import not.alexa.netobjects.kafka.Message;
 import not.alexa.netobjects.kafka.KafkaClient.Partitions;
+import not.alexa.netobjects.kafka.Message;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
@@ -233,14 +232,12 @@ public class KafkaTimer implements KafkaApp {
      */
     public static class KafkaTimerEntry {
         protected long when;
-        protected UUID id;
         protected boolean objectOnly;
         protected String targetTopic;
         protected byte[] timedObject;
         KafkaTimerEntry() {}
-        public KafkaTimerEntry(long when,String targetTopic,boolean objectOnly,UUID id,byte[] timedObject) {
+        public KafkaTimerEntry(long when,String targetTopic,boolean objectOnly,byte[] timedObject) {
             this.when=when;
-            this.id=id;
             this.objectOnly=objectOnly;
             this.targetTopic=targetTopic;
             this.timedObject=timedObject;
@@ -248,8 +245,6 @@ public class KafkaTimer implements KafkaApp {
         
         private static ClassTypeDefinition TYPE=new ClassTypeDefinition(KafkaTimerEntry.class).createBuilder()
                 .addField("when",PrimitiveTypeDefinition.getTypeDescription(Long.class))
-                .createField("id",PrimitiveTypeDefinition.getTypeDescription(UUID.class))
-                    .setOptional(true).build()
                 .createField("objectOnly",PrimitiveTypeDefinition.getTypeDescription(Boolean.class))
                     .setDefaultValue(true).build()
                 .addField("targetTopic",PrimitiveTypeDefinition.getTypeDescription(String.class))
@@ -261,15 +256,15 @@ public class KafkaTimer implements KafkaApp {
         public long getWhen() {
             return when;
         }
-        public UUID getId() {
-            return id;
-        }
+
         public boolean isObjectOnly() {
             return objectOnly;
         }
+        
         public String getTargetTopic() {
             return targetTopic;
         }
+        
         public byte[] getTimedObject() {
             return timedObject;
         }
@@ -285,10 +280,9 @@ public class KafkaTimer implements KafkaApp {
                 KafkaTimerEntry entry=(KafkaTimerEntry)o;
                 switch(index) {
                     case 0:return entry.when;
-                    case 1:return entry.id;
-                    case 2:return entry.objectOnly;
-                    case 3:return entry.targetTopic;
-                    case 4:return entry.timedObject;
+                    case 1:return entry.objectOnly;
+                    case 2:return entry.targetTopic;
+                    case 3:return entry.timedObject;
                 }
                 return null;
             }
@@ -299,13 +293,11 @@ public class KafkaTimer implements KafkaApp {
                 switch(index) {
                     case 0:entry.when=(Long)v;
                         break;
-                    case 1:entry.id=(UUID)v;
+                    case 1:entry.objectOnly=(Boolean)v;
                         break;
-                    case 2:entry.objectOnly=(Boolean)v;
+                    case 2:entry.targetTopic=(String)v;
                         break;
-                    case 3:entry.targetTopic=(String)v;
-                        break;
-                    case 4:entry.timedObject=(byte[])v;
+                    case 3:entry.timedObject=(byte[])v;
                         break;
                 }
             }
