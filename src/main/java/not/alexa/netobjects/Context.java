@@ -15,9 +15,11 @@
  */
 package not.alexa.netobjects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.security.Permission;
 import java.util.Locale;
-import java.util.logging.Logger;
 
 import not.alexa.netobjects.types.TypeLoader;
 import not.alexa.netobjects.types.access.AccessFactory;
@@ -79,7 +81,7 @@ public interface Context extends Adaptable {
 	 * @return the logger of this context
 	 */
 	public default Logger getLogger() {
-		return Logger.getGlobal();
+		return Root.LOG;
 	}
 	
 	/**
@@ -177,6 +179,7 @@ public interface Context extends Adaptable {
 	 *
 	 */
 	public class Root extends Adaptable.Default implements Context {
+	    private static Logger LOG=LoggerFactory.getLogger(Context.class);
 	}
 	
 	/**

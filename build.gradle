@@ -18,9 +18,11 @@ allprojects {
 	}
 	dependencies {
 	    testImplementation 'junit:junit:4.12'
+    	testImplementation group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.36'
 	}
 }
 
 dependencies {
+    implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.36'
     // No dependencies on the root project.
 }
