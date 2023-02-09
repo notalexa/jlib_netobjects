@@ -44,7 +44,7 @@ public class KafkaTimerTest {
             client.main(context);
             Thread.sleep(Long.MAX_VALUE);
         } catch(Throwable t) {
-            t.printStackTrace();
+            context.getLogger().error("Timer failed.",t);
         }
     }
     

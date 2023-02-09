@@ -29,7 +29,6 @@ import java.util.Set;
 import not.alexa.netobjects.Adaptable;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
-import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.api.Overlay;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ArrayTypeDefinition;
@@ -101,13 +100,13 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
     
     private Caster INTERFACE_CASTER=new Caster() {
         @Override
-        public <T> T upcast(Context context,T o) {
+        public <T> T upcast(Context context,T o) throws BaseException {
             Caster caster=resolveCaster(context.getTypeLoader(),o.getClass());
             return caster.upcast(context,o);
         }
 
         @Override
-        public CasterContext upcast(CasterContext context, Object o) {
+        public CasterContext upcast(CasterContext context, Object o) throws BaseException {
             if(o!=null) {
                 Caster caster=resolveCaster(context.getContext().getTypeLoader(),o.getClass());
                 return caster.upcast(context,o);
@@ -188,7 +187,11 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
 	        return null;
 	    }
 	    Caster caster=resolveCaster(context.getTypeLoader(),t.getClass());
-	    return caster.upcast(context,t);
+	    try {
+	        return caster.upcast(context,t);
+	    } catch(Throwable e) {
+	        return t;
+	    }
 	}
 	
 	protected Caster resolveCaster(TypeLoader loader,Class<?> clazz) {
@@ -350,7 +353,7 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
                             }
                         }
                         if(access==null) {
-                            access=new AnonymousClassAccess(clazz.getClassLoader(),type);
+                            access=new ReflectionClassAccess(DefaultAccessFactory.this, clazz, (ClassTypeDefinition)type, TypeUtils.isFinal(clazz)?getConstructor():new Constructor.OverlayConstructor(javaType,getConstructor()));
                         }
                         break;
                 }
@@ -402,45 +405,6 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
             return caster;
         }
     }
-
-	private class AnonymousClassAccess implements Access {
-		private TypeDefinition type;
-		private ClassLoader loader;
-		private AnonymousClassAccess(ClassLoader loader,TypeDefinition type) {
-			this.type=type;
-			this.loader=loader;
-		}
-		
-		@Override
-		public AccessFactory getFactory() {
-		    return DefaultAccessFactory.this;
-		}
-		
-		@Override
-        public ClassLoader getAccessLoader() {
-            return loader;
-        }
-
-        @Override
-		public TypeDefinition getType() {
-			return type;
-		}
-
-		@Override
-		public AccessibleObject newAccessible(AccessContext context) throws BaseException {
-			throw new BaseException(BaseException.BAD_REQUEST,"No instance of anonymous type "+type.toString());
-		}
-		
-		@Override
-		public AccessibleObject makeAccessible(Object v) throws BaseException {
-			return new DefaultAccessibleObject(this, v);
-		}
-
-		@Override
-		public Access getFieldAccess(Field f) throws BaseException {
-			return resolve(this,f.getType());
-		}	
-	}
 	
 	public interface AccessResolver {
 	    /**
@@ -458,10 +422,10 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
         boolean needsCast() {
             return true;
         }
-        public <T> T upcast(Context context,T o) {
+        public <T> T upcast(Context context,T o) throws BaseException {
             return o;
         }
-        public CasterContext upcast(CasterContext context,Object o) {
+        public CasterContext upcast(CasterContext context,Object o) throws BaseException {
             return context.getChildContext(o,o);
         }
     }
@@ -473,7 +437,7 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
         }
 
         @Override
-        public CasterContext upcast(CasterContext context,Object o) {
+        public CasterContext upcast(CasterContext context,Object o) throws BaseException {
             if(o==null) {
                 return context.getChildContext(null,null);
             }
@@ -596,7 +560,7 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
         }
         
         @Override
-        public <T> T upcast(Context context, T o) {
+        public <T> T upcast(Context context, T o) throws BaseException {
             return (T)upcast(new CasterContext(context),o).n;
         }
         
@@ -612,39 +576,39 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
         }
         
         @Override
-        public CasterContext upcast(CasterContext context, Object o) {
-            try {
-                Ref ref=classDef.enableObjectRefs()?context.get(o):null;
-                if(ref!=null) {
-                    CasterContext child=context.getChildContext(o,ref.n);
-                    child.update(ref);
-                    return child;
-                }
-                Object n=c.newInstance(context);
-                CasterContext child=context.getChildContext(o,n);
-                if(classDef.enableObjectRefs()) {
-                    context.put(o,ref=new Ref(o,n,child.mode));
-                }
-                Caster[] fieldCaster=resolveFieldCasters(context);
-                Object[] f=new Object[fieldCaster.length];
-                Field[] fields=classDef.getFields();
-                for(int i=0;i<f.length;i++) {
-                    Object t=access.getField(o, fields[i]);
-                    CasterContext cc=fieldCaster[i].upcast(child, t);
-                    f[i]=cc.n;
-                    child.update(cc);
-                }
-                if(child.finish(ref)!=CastMode.Unmodified) {
-                    //System.out.println("Object "+o.getClass()+" was upcasted to "+n.getClass()+" ("+child.mode+", conditions="+child.getConditions()+")");
-                    for(int i=0;i<f.length;i++) {
-                        access.setField(n, fields[i], f[i]);
-                    }
-                }
+        public CasterContext upcast(CasterContext context, Object o) throws BaseException {
+            Ref ref=classDef.enableObjectRefs()?context.get(o):null;
+            if(ref!=null) {
+                CasterContext child=context.getChildContext(o,ref.n);
+                child.update(ref);
                 return child;
-            } catch(Throwable t) {
-                t.printStackTrace();
             }
-            return context.getChildContext(o,o);
+            AccessibleObject instance=c.newInstance(context).makeAccessible(access);
+            CasterContext child=context.getChildContext(o,instance.getObject());
+            if(classDef.enableObjectRefs()) {
+                context.put(o,ref=new Ref(o,child.n,child.mode));
+            }
+            Caster[] fieldCaster=resolveFieldCasters(context);
+            Object[] f=new Object[fieldCaster.length];
+            Field[] fields=classDef.getFields();
+            for(int i=0;i<f.length;i++) {
+                Object t=access.getField(o, fields[i]);
+                CasterContext cc=fieldCaster[i].upcast(child, t);
+                f[i]=cc.n;
+                child.update(cc);
+            }
+            if(child.finish(ref)!=CastMode.Unmodified) {
+                //System.out.println("Object "+o.getClass()+" was upcasted to "+n.getClass()+" ("+child.mode+", conditions="+child.getConditions()+")");
+                for(int i=0;i<f.length;i++) {
+                    access.setField(instance.getObject(), fields[i], f[i]);
+                }
+                Object finished=instance.getAssignable();
+                if(ref!=null&&finished!=child.n) {
+                    throw new BaseException(BaseException.FORBIDDEN,"Reference object of type "+access.getType().getJavaClassType()+" changed.");
+                }
+                child.n=finished;
+            }
+            return child;
         }
     }
     

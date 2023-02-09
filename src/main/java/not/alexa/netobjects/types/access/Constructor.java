@@ -15,12 +15,14 @@
  */
 package not.alexa.netobjects.types.access;
 
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 import not.alexa.netobjects.Adaptable;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.api.Overlay;
 import not.alexa.netobjects.types.JavaClass.Type;
+import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.TypeLoader;
 
 /**
@@ -39,7 +41,7 @@ public interface Constructor {
      * @return an accessible object
      * @throws BaseException if an error occurs
      */
-    public Object newInstance(AccessContext context) throws BaseException;
+    public PreAccessible newInstance(AccessContext context) throws BaseException;
     
     /**
      * Does this constructor represents an overlay type. If {@code true}, the
@@ -56,14 +58,18 @@ public interface Constructor {
      * is taken and the argument is resolved using the provided access context (that is typically the instance of the outer class is provided using the
      * {@link Adaptable#putAdapter(Object)} method). The constructor needs not to be public to emphasize that the constructed object is "incomplete" in the
      * sense that some fields are required (and set after construction).
+     * <p>Moreover, if the class has a defined method {@code finish} with no argument, the method is called <b>after</b> setting all fields using the {@link AccessibleObject#getAssignable()}
+     * method.
      * 
      * @author notalexa
+     * @see AccessibleObject#getAssignable()
      *
      */
     public class DefaultConstructor implements Constructor {
         private Class<?> clazz;
         private Class<?> enclosingClass;
         private java.lang.reflect.Constructor<?> constructor;
+        private Method finish;
         private Throwable initializerException;
         public DefaultConstructor(Type type,Class<?> clazz) {
             this.clazz=clazz;
@@ -76,15 +82,42 @@ public interface Constructor {
             } catch(Throwable t) {
                 initializerException=t;
             }
+            init(clazz);
+        }
+        
+        protected void init(Class<?> clazz) {
+            if(clazz!=null) {
+                if(finish==null) try {
+                    finish=clazz.getDeclaredMethod("finish");
+                    finish.setAccessible(true);
+                } catch(Throwable t) {
+                }
+                init(clazz.getSuperclass());
+            }
+        }
+        
+        protected PreAccessible decorate(Object created) {
+            return finish==null?new Constructed(created):new Constructed(created) {
+                Object finished;
+                @Override
+                Object finish() throws BaseException {
+                    if(finished==null) try {
+                        finished=finish.invoke(super.finish());
+                    } catch(Throwable t) {
+                        return BaseException.throwException(t);
+                    }
+                    return finished;
+                }
+            };
         }
         
         @Override
-        public Object newInstance(AccessContext context) throws BaseException {
+        public PreAccessible newInstance(AccessContext context) throws BaseException {
             if(initializerException!=null) {
                 return BaseException.throwException(initializerException);
             }
             if(enclosingClass==null) try {
-                return constructor.newInstance();
+                return decorate(constructor.newInstance());
             } catch(Throwable t) {
                 return BaseException.throwException(t);
             } else try {
@@ -92,7 +125,7 @@ public interface Constructor {
                 if(o==null) {
                     throw new BaseException(BaseException.NOT_FOUND,"Enclosing instance of type "+enclosingClass.getName()+" is missing to construct an instanceof of "+clazz.getName());
                 }
-                return constructor.newInstance(o);
+                return decorate(constructor.newInstance(o));
             } catch(Throwable t) {
                 return BaseException.throwException(t);
             }
@@ -125,7 +158,7 @@ public interface Constructor {
             this.type=type;
         }
         @Override
-        public Object newInstance(AccessContext context) throws BaseException {
+        public PreAccessible newInstance(AccessContext context) throws BaseException {
             if(type.hasOverlays()) {
                 return context.resolve(context.getContext(), type).newInstance(context);
             } else {
@@ -138,5 +171,46 @@ public interface Constructor {
             // Should be called
             return false;
         }
+    }
+    
+    public class Constructed implements PreAccessible {
+        private Object o;
+        private Constructed(Object o) {
+            this.o=o;
+        }
+        
+        Object finish() throws BaseException {
+            return o;
+        }
+        
+        public not.alexa.netobjects.types.AccessibleObject makeAccessible(Access access) {
+            return new AbstractAccessibleObject(access) {
+                @Override
+                public Object getObject() {
+                    return o;
+                }
+                
+                @Override
+                public Object getAssignable() throws BaseException {
+                    return access.finish(finish());
+                }
+            };
+        }
+    }
+    
+    /**
+     * Internal interface denoting a preconstructed object.
+     *  
+     * @author notalexa
+     *
+     */
+    public interface PreAccessible {
+        /**
+         * Create an accessbile object for this preconstructed object.
+         * 
+         * @param access the (compatible) access for this preconstructed object
+         * @return the corresponding accessible object
+         */
+        public AccessibleObject makeAccessible(Access access);
     }
 }

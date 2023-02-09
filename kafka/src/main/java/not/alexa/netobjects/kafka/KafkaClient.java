@@ -89,7 +89,7 @@ public class KafkaClient implements ConsumerRebalanceListener, AutoCloseable, Ex
             .createField("producer",STRING_STRING_MAP)
                 .setOptional(true)
                 .build()
-            .createField("apps",new ArrayTypeDefinition(new InterfaceTypeDefinition(KafkaApp.class)))
+            .createField("preloaded",new ArrayTypeDefinition(new InterfaceTypeDefinition(KafkaApp.class)))
                 .addTag("XML","app")
                 .setOptional(true)
                 .build()
@@ -229,8 +229,7 @@ public class KafkaClient implements ConsumerRebalanceListener, AutoCloseable, Ex
      * @param t the uncatched throwable
      */
     protected void handleUncatchedException(Throwable t) {
-        t.printStackTrace();
-        System.err.println("Consumer died: "+t.getMessage());
+        context.getLogger().error("Consumer died.",t);
     }
     
     /**
@@ -310,8 +309,11 @@ public class KafkaClient implements ConsumerRebalanceListener, AutoCloseable, Ex
         if(!closed) try {
             closed=true;
             if(reader!=null) try {
+                reader.close();
                 reader.await();
             } catch(Throwable t) {
+            } finally {
+                reader=null;
             }
             for(KafkaApp app:topicMap.keySet()) {
                 app.stop();
@@ -361,74 +363,15 @@ public class KafkaClient implements ConsumerRebalanceListener, AutoCloseable, Ex
         }
     }
     
-    /**
-     * This class is serializable.
-     * 
-     * @author notalexa
-     *
-     */
-    public static class ClassAccess extends AbstractClassAccess {
-
-        public ClassAccess(AccessFactory factory, Constructor constructor) {
-            super(factory, TYPE, constructor);
-        }
-
-        @Override
-        protected Object getField(Object o, int index) throws BaseException {
-            KafkaClient client=(KafkaClient)o;
-            switch(index) {
-                case 0:return client.groupId;
-                case 1:return client.config;
-                case 2:return client.consumer;
-                case 3:return client.producer;
-                case 4:return client.preloaded;
-            }
-            return null;
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        protected void setField(Object o, int index, Object v) throws BaseException {
-            KafkaClient client=(KafkaClient)o;
-            switch(index) {
-                case 0:client.groupId=(String)v;
-                    break;
-                case 1:client.config=(Map<String,String>)v;
-                    break;
-                case 2:client.consumer=(Map<String,String>)v;
-                    break;
-                case 3:client.producer=(Map<String,String>)v;
-                    break;
-                case 4:client.preloaded=(List<KafkaApp>)v;
-                    break;
+    protected KafkaClient finish() {
+        if(preloaded!=null) {
+            for(KafkaApp app:preloaded) {
+                install(app);
             }
         }
-
-        @Override
-        public Access getFieldAccess(Field f) throws BaseException {
-            switch(f.getIndex()) {
-                case 1:
-                case 2:
-                case 3:return forMap(f.getType(),Map.class);
-                case 4:return new ArrayTypeAccess(f.getType(), factory.resolve(this,((ArrayTypeDefinition)f.getType()).getComponentType()),List.class);
-            }
-            return super.getFieldAccess(f);
-        }
-
-        @Override
-        public Object finish(Object o) {
-            KafkaClient client=(KafkaClient)o;
-            if(client.preloaded!=null) {
-                for(KafkaApp app:client.preloaded) {
-                    client.install(app);
-                }
-            }
-            return super.finish(o);
-        }
-        
-        
+        return this;
     }
-            
+                
     /**
      * Internal consumer of this client. The consumer polls a Kafka Consumer and handles the fetched records
      * via delegating to a Kafka app.

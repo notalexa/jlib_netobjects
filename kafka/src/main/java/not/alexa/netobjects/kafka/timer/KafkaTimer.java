@@ -32,9 +32,6 @@ import not.alexa.netobjects.kafka.KafkaClient.Partitions;
 import not.alexa.netobjects.kafka.Message;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
-import not.alexa.netobjects.types.access.AbstractClassAccess;
-import not.alexa.netobjects.types.access.AccessFactory;
-import not.alexa.netobjects.types.access.Constructor;
 
 /**
  * A Kafka application which implements a timer. The app needs a scheduler topic for incoming messages and a "waiting grid" to store the messages.
@@ -149,10 +146,10 @@ public class KafkaTimer implements KafkaApp {
             // Ready for evaluation
             payload=Arrays.copyOfRange(payload,16,payload.length);
             KafkaTimerEntry entry=CodingScheme.getSystemScheme().createDecoder(context,payload).decode(KafkaTimerEntry.class);
-            System.out.println(new Date()+": Payload requested to be performed (scheduled for "+new Date(entry.when)+") ((off by "+(System.currentTimeMillis()-entry.when)+").");
+            context.getLogger().info("Payload requested to be performed (scheduled for {}) (off by {}).",new Date(entry.when),System.currentTimeMillis()-entry.when);
             msg.send(new ProducerRecord<byte[], byte[]>(entry.targetTopic, entry.objectOnly?entry.timedObject:payload),this);                
         } catch(BaseException e) {
-            //e.printStackTrace();
+            context.getLogger().error("Executing payload failed.",e);
         } finally {
             msg.commit();
         } else if(fromWaitingQueue&&msg.getTopicPartition().partition()==0) {
@@ -192,7 +189,7 @@ public class KafkaTimer implements KafkaApp {
            putLong(entry.when,payload,8);
            schedule(msg,false,offsets.length-1,entry.when,payload);
         } catch(Throwable t) {
-            t.printStackTrace();
+            context.getLogger().error("Scheduling msg failed.",t);
         }
     }
     
@@ -268,70 +265,5 @@ public class KafkaTimer implements KafkaApp {
         public byte[] getTimedObject() {
             return timedObject;
         }
-
-        public static class ClassAccess extends AbstractClassAccess {
-
-            public ClassAccess(AccessFactory factory,Constructor constructor) {
-                super(factory, TYPE,constructor);
-            }
-
-            @Override
-            protected Object getField(Object o, int index) throws BaseException {
-                KafkaTimerEntry entry=(KafkaTimerEntry)o;
-                switch(index) {
-                    case 0:return entry.when;
-                    case 1:return entry.objectOnly;
-                    case 2:return entry.targetTopic;
-                    case 3:return entry.timedObject;
-                }
-                return null;
-            }
-
-            @Override
-            protected void setField(Object o, int index, Object v) throws BaseException {
-                KafkaTimerEntry entry=(KafkaTimerEntry)o;
-                switch(index) {
-                    case 0:entry.when=(Long)v;
-                        break;
-                    case 1:entry.objectOnly=(Boolean)v;
-                        break;
-                    case 2:entry.targetTopic=(String)v;
-                        break;
-                    case 3:entry.timedObject=(byte[])v;
-                        break;
-                }
-            }
-        }
-    }
-    
-    public static class ClassAccess extends AbstractClassAccess {
-
-        public ClassAccess(AccessFactory factory,Constructor constructor) {
-            super(factory, TYPE,constructor);
-        }
-        
-        @Override
-        protected Object getField(Object o, int index) throws BaseException {
-            KafkaTimer entry=(KafkaTimer)o;
-            switch(index) {
-                case 0:return entry.timerTopic;
-                case 1:return entry.waitTopic;
-                case 2:return entry.timeUnit;
-            }
-            return null;
-        }
-
-        @Override
-        protected void setField(Object o, int index, Object v) throws BaseException {
-            KafkaTimer entry=(KafkaTimer)o;
-            switch(index) {
-                case 0:entry.timerTopic=(String)v;
-                    break;
-                case 1:entry.waitTopic=(String)v;
-                    break;
-                case 2:entry.timeUnit=(Long)v;
-                    break;
-            }
-        }        
     }
 }

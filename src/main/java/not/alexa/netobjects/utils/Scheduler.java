@@ -21,10 +21,6 @@ import not.alexa.netobjects.Executable;
 import not.alexa.netobjects.coding.CodingScheme;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.Lambda;
-import not.alexa.netobjects.types.access.AbstractClassAccess;
-import not.alexa.netobjects.types.access.AccessContext;
-import not.alexa.netobjects.types.access.AccessFactory;
-import not.alexa.netobjects.types.access.Constructor;
 
 /**
  * Utility class to shift execution of network objects <b>in time</b> (normally called a
@@ -206,30 +202,6 @@ public abstract class Scheduler {
         @Override
         public void call(Executable t) throws BaseException {
             t.main(context);
-        }
-        
-        public static class ClassAccess extends AbstractClassAccess {
-
-            public ClassAccess(AccessFactory factory, ClassTypeDefinition classType, Constructor constructor) {
-                super(factory, TYPE, constructor);
-            }
-            
-            @Override
-            protected Object newInstance(AccessContext context) throws BaseException {
-                Object o=super.newInstance(context);
-                ((Executor)o).context=context.getContext();
-                return o;
-            }
-
-
-            @Override
-            protected Object getField(Object o, int index) throws BaseException {
-                return null;
-            }
-
-            @Override
-            protected void setField(Object o, int index, Object v) throws BaseException {
-            }
         }
     }
 }

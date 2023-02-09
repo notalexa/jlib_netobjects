@@ -21,7 +21,6 @@ import static org.junit.Assert.fail;
 import java.io.InputStream;
 import java.security.SecureRandom;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -67,7 +66,7 @@ public class KafkaSchedulerTest {
             client.install(scheduler);
             ObjectType type1=ObjectType.resolve("jvm:not.alexa.coding.Data::1a833da6-3a6b-3e20-898d-ae06d06602e1");
             Lambda lambda=new Lambda(new Data("text",1,"x","y","z"),type1);
-            System.out.println(new Date()+": "+" Scheduling "+msgs+" message(s) for the next "+minutes+" minute(s) ...");
+            context.getLogger().info("Scheduling {} message(s) for the next {} minute(s) ...",msgs,minutes);
             for(int i=0;i<msgs;i++) {
                 // Take care of scheduling in the future to observe "exact" scheduling
                 long l=System.currentTimeMillis();
@@ -80,14 +79,13 @@ public class KafkaSchedulerTest {
             }
             Thread.sleep(1200000);
         } catch(Throwable t) {
-            t.printStackTrace();
+            context.getLogger().error("Scheduler failed.",t);
             fail(t.getMessage());
         }
     }
     
     // Container for the Overlay class defining some local resources
     private static class Resource {
-        long timestamp=System.currentTimeMillis();
         AtomicInteger count=new AtomicInteger();
     
         @Overlay
@@ -97,7 +95,7 @@ public class KafkaSchedulerTest {
     
             @Override
             public String helloWorld(Context context) throws Throwable {
-                System.out.println(new Date()+": "+(System.currentTimeMillis()-timestamp)+":"+(count.incrementAndGet())+": "+super.helloWorld(context));
+                context.getLogger().info("Message {}: {}",count.incrementAndGet(),super.helloWorld(context));
                 return super.helloWorld(context);
             }    
         }

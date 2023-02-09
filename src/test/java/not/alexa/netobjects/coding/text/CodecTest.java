@@ -50,31 +50,26 @@ public class CodecTest {
 
                 @Override
                 public Context getContext() {
-                    // TODO Auto-generated method stub
                     return null;
                 }
 
                 @Override
                 public <T> T castTo(Context context, Class<T> clazz) {
-                    // TODO Auto-generated method stub
                     return null;
                 }
 
                 @Override
                 public Constructor resolve(Context context, Type type) {
-                    // TODO Auto-generated method stub
                     return null;
                 }
 
                 @Override
                 public Access resolve(Context context, TypeDefinition type) {
-                    // TODO Auto-generated method stub
                     return null;
                 }
 
                 @Override
                 public Access resolve(Access referrer, TypeDefinition type) {
-                    // TODO Auto-generated method stub
                     return null;
                 }
 

@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2023 Not Alexa
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package not.alexa.netobjects.coding;
 
 import org.junit.Test;
@@ -115,19 +130,16 @@ public class AbstractTextCodingSchemeCodecsTest {
         
         @Override
         protected Codec createInterfaceCodec(Context context, ObjectType type, TypeDefinition typeDef) throws BaseException {
-            // TODO Auto-generated method stub
             return walkThrough?null:super.createInterfaceCodec(context, type, typeDef);
         }
 
         @Override
         protected Codec createMethodCodec(Context context, ObjectType type, TypeDefinition typeDef) throws BaseException {
-            // TODO Auto-generated method stub
             return walkThrough?null:super.createMethodCodec(context, type, typeDef);
         }
 
         @Override
         protected Codec createArrayCodec(Context context, ObjectType type, TypeDefinition typeDef) throws BaseException {
-            // TODO Auto-generated method stub
             return walkThrough?null:super.createArrayCodec(context, type, typeDef);
         }
 
@@ -156,7 +168,6 @@ public class AbstractTextCodingSchemeCodecsTest {
 
         @Override
         public Codec getCodec(Context context, ObjectType type, Access access) throws BaseException {
-            // TODO Auto-generated method stub
             return super.getCodec(context, type, access);
         }
  	}

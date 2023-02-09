@@ -20,15 +20,14 @@ import org.apache.kafka.common.TopicPartition;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.UUID;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.CodingScheme;
 import not.alexa.netobjects.kafka.KafkaApp;
 import not.alexa.netobjects.kafka.KafkaClient;
-import not.alexa.netobjects.kafka.Message;
 import not.alexa.netobjects.kafka.KafkaClient.Partitions;
+import not.alexa.netobjects.kafka.Message;
 import not.alexa.netobjects.kafka.timer.KafkaTimer.KafkaTimerEntry;
 import not.alexa.netobjects.utils.Scheduler;
 

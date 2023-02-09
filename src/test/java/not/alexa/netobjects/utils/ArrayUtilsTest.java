@@ -29,7 +29,6 @@ import java.util.Map;
 public class ArrayUtilsTest {
 
     public ArrayUtilsTest() {
-        // TODO Auto-generated constructor stub
     }
 
     @Test public void nullTest() {

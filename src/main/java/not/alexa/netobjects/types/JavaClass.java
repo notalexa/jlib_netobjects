@@ -99,7 +99,7 @@ public final class JavaClass extends Namespace {
 	    }
 	}
 		
-	public final class Type extends AbstractType implements ObjectType {
+	public final class Type extends Namespace.AbstractType implements ObjectType {
 		
 		protected String className;
 		protected String method;

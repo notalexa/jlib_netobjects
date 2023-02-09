@@ -23,6 +23,7 @@ import not.alexa.netobjects.types.ArrayTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.TypeDefinition;
+import not.alexa.netobjects.types.access.Constructor.PreAccessible;
 
 /**
  * Abstract access implementation useful for network objects implementing it's own explicit
@@ -64,7 +65,7 @@ public abstract class AbstractClassAccess implements Access {
 	
 	@Override
     public AccessibleObject newAccessible(AccessContext context) throws BaseException {
-        return new DefaultAccessibleObject(this, newInstance(context));
+	    return newInstance(context).makeAccessible(this);
     }
 	
 	/**
@@ -74,7 +75,7 @@ public abstract class AbstractClassAccess implements Access {
 	 * @return an instance of the global type
 	 * @throws BaseException if an error occurs
 	 */
-	protected Object newInstance(AccessContext context) throws BaseException {
+	protected PreAccessible newInstance(AccessContext context) throws BaseException {
 	    return constructor.newInstance(context);
 	}
 
@@ -122,7 +123,11 @@ public abstract class AbstractClassAccess implements Access {
 			return factory.resolve(this,description);
 		}
 	}
-	
+
+	protected Access forCollection(TypeDefinition description,Class<?> clazz) {
+	    return new ArrayTypeAccess(description, factory.resolve(this,((ArrayTypeDefinition)description).getComponentType()),clazz);
+	}
+
 	protected Access forMap(TypeDefinition description,Class<? extends Map> clazz) {
 		return new ArrayTypeAccess(description,new MapEntryAccess(factory,this,(ClassTypeDefinition)((ArrayTypeDefinition)description).getComponentType()), clazz);
 	}
