@@ -17,17 +17,15 @@ package not.alexa.netobjects.utils;
 
 import java.io.ByteArrayOutputStream;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.AnnotatedArrayType;
 import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.AnnotatedParameterizedType;
-import java.lang.reflect.AnnotatedType;
-import java.lang.reflect.AnnotatedTypeVariable;
-import java.lang.reflect.AnnotatedWildcardType;
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,6 +48,72 @@ import not.alexa.netobjects.types.TypeDefinition;
  *
  */
 public class TypeUtils {
+	private static Annotation[] NO_ANNOTATIONS=new Annotation[0];
+	private static AnnotatedElement NULL_ELEMENT=new AnnotatedElement() {
+		
+		@Override
+		public Annotation[] getDeclaredAnnotations() {
+			return NO_ANNOTATIONS;
+		}
+		
+		@Override
+		public Annotation[] getAnnotations() {
+			return NO_ANNOTATIONS;
+		}
+		
+		@Override
+		public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+			return null;
+		}
+	};
+	
+	private static ATypeFactory FACTORY=new ATypeFactory() {
+		private AType[] decorate(java.lang.reflect.Type[] args) {
+			AType[] result=new AType[args.length];
+			for(int i=0;i<result.length;i++) {
+				result[i]=new AType(args[i],NULL_ELEMENT);
+			}
+			return result;
+		}
+		@Override
+		public AType[] getAnnotatedActualTypeArguments(AType annotatedType) {
+			return decorate(((ParameterizedType)annotatedType.getType()).getActualTypeArguments());
+		}
+
+		@Override
+		public AType getAnnotatedType(Field f) {
+			return new AType(f.getGenericType(),f);
+		}
+
+		@Override
+		public AType getAnnotatedSuperclass(Class<?> c) {
+			return new AType(c.getGenericSuperclass(),NULL_ELEMENT);
+		}
+
+		@Override
+		public AType[] getAnnotatedInterfaces(Class<?> c) {
+			return decorate(c.getGenericInterfaces());
+		}
+
+		@Override
+		public AType[] getAnnotatedUpperBounds(AType type) {
+			return decorate(((WildcardType)type.getType()).getUpperBounds());
+		}
+
+		@Override
+		public AType getAnnotatedGenericComponentType(AType annotatedType) {
+			return new AType(((GenericArrayType)annotatedType.getType()).getGenericComponentType(),NULL_ELEMENT);
+		}
+	};
+	
+	static {
+		try {
+			FACTORY=(ATypeFactory)Class.forName("not.alexa.netobjects.utils.VM8TypeFactory").newInstance();
+		} catch(Throwable t) {
+			// Fail throw. Some features concerning annotations are not present.
+		}
+	}
+	
     private TypeUtils() {}
     
     /**
@@ -219,7 +283,7 @@ public class TypeUtils {
      */
     public static final class ClassResolver {
         private Class<?> clazz;
-        private Map<java.lang.reflect.Type,AnnotatedType> resolvedVariables=new HashMap<>();
+        private Map<java.lang.reflect.Type,AType> resolvedVariables=new HashMap<>();
         ClassResolver(Class<?> clazz) {
             this.clazz=clazz;
             init(clazz);
@@ -233,9 +297,9 @@ public class TypeUtils {
             return clazz;
         }
         
-        private Class<?> resolve(AnnotatedParameterizedType type) {
+        private Class<?> resolve0(AType type) {
             java.lang.reflect.Type rawType=((ParameterizedType)type.getType()).getRawType();
-            AnnotatedType[] resolved=type.getAnnotatedActualTypeArguments();
+            AType[] resolved=FACTORY.getAnnotatedActualTypeArguments(type);
             if(rawType instanceof Class) {
                 Class<?> clazz=(Class<?>)rawType;
                 TypeVariable<?>[] typeVars=clazz.getTypeParameters();
@@ -253,18 +317,18 @@ public class TypeUtils {
             if(cl!=null) {
                 if(cl instanceof Class) {
                     Class<?> clazz=(Class<?>)cl;
-                    init(clazz.getAnnotatedSuperclass());
-                    for(AnnotatedType type:clazz.getAnnotatedInterfaces()) {
+                    init(FACTORY.getAnnotatedSuperclass(clazz));
+                    for(AType type:FACTORY.getAnnotatedInterfaces(clazz)) {
                         init(type);
                     }
                 }
             }
         }
 
-        private void init(AnnotatedType cl) {
+        private void init(AType cl) {
             if(cl!=null) {
-                if(cl instanceof AnnotatedParameterizedType) {
-                    init(resolve((AnnotatedParameterizedType)cl));
+                if(cl.getType() instanceof ParameterizedType) {
+                    init(resolve0(cl));
                 } else {
                     init(cl.getType());
                 }
@@ -286,14 +350,15 @@ public class TypeUtils {
          * a method of the class with individual type variable).
          * 
          */
-        public ResolvedClass resolve(AnnotatedType annotatedType) {
-            AnnotatedType type=resolvedVariables.getOrDefault(annotatedType.getType(),annotatedType);
-            if(type instanceof AnnotatedTypeVariable) {
+        private ResolvedClass resolve(AType annotatedType) {
+        	annotatedType=resolvedVariables.getOrDefault(annotatedType.getType(),annotatedType);
+        	java.lang.reflect.Type type=annotatedType.getType();
+            if(type instanceof TypeVariable) {
                 throw new RuntimeException("Unresolved type variable: "+type);
-            } else if(type instanceof AnnotatedParameterizedType) {
-                AnnotatedParameterizedType p=(AnnotatedParameterizedType)type;
-                java.lang.reflect.Type rawType=((ParameterizedType)p.getType()).getRawType();
-                AnnotatedType[] parameters=p.getAnnotatedActualTypeArguments();
+            } else if(type instanceof ParameterizedType) {
+                //AnnotatedParameterizedType p=(AnnotatedParameterizedType)type;
+                java.lang.reflect.Type rawType=((ParameterizedType)type).getRawType();
+                AType[] parameters=FACTORY.getAnnotatedActualTypeArguments(annotatedType);
                 ResolvedClass[] resolvedParameters=new ResolvedClass[parameters.length];
                 for(int i=0;i<parameters.length;i++) {
                     resolvedParameters[i]=resolve(parameters[i]);
@@ -301,48 +366,27 @@ public class TypeUtils {
                 if(rawType instanceof Class) {
                     return new ResolvedClass((Class<?>)rawType,annotatedType,resolvedParameters);
                 }
-            } else if(type instanceof AnnotatedArrayType) {
-                AnnotatedArrayType array=(AnnotatedArrayType)type;
-                return new ResolvedClass(Object[].class,new ResolvedClass[] { resolve(array.getAnnotatedGenericComponentType())});
-            } else if(type instanceof AnnotatedWildcardType) {
-                AnnotatedWildcardType wildcardType=(AnnotatedWildcardType)type;
-                AnnotatedType[] bounds=wildcardType.getAnnotatedUpperBounds();
+            } else if(type instanceof GenericArrayType) {
+//                AnnotatedArrayType array=(AnnotatedArrayType)type;
+                return new ResolvedClass(Object[].class,new ResolvedClass[] { resolve(FACTORY.getAnnotatedGenericComponentType(annotatedType))});
+            } else if(type instanceof WildcardType) {
+                AType[] bounds=FACTORY.getAnnotatedUpperBounds(annotatedType);
                 if(bounds.length!=1) {
                     throw new RuntimeException("Unsupported multiple bounds");
                 }
                 return resolve(bounds[0]);
-            } else if(type.getType() instanceof Class) {
-                Class<?> clazz=(Class<?>)type.getType();
+            } else if(type instanceof Class) {
+                Class<?> clazz=(Class<?>)type;
                 if(clazz.isArray()) {
-                    return new ResolvedClass(Object[].class,annotatedType,new ResolvedClass[] { resolve(new AnnotatedType() {
-                        @Override
-                        public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
-                            return type.getAnnotation(annotationClass);
-                        }
-
-                        @Override
-                        public Annotation[] getAnnotations() {
-                            return type.getAnnotations();
-                        }
-
-                        @Override
-                        public Annotation[] getDeclaredAnnotations() {
-                            return type.getDeclaredAnnotations();
-                        }
-
-                        @Override
-                        public java.lang.reflect.Type getType() {
-                            return clazz.getComponentType();
-                        }
-                    })});
+                    return new ResolvedClass(Object[].class,annotatedType,new ResolvedClass[] { resolve(new AType(clazz.getComponentType(),annotatedType))});
                 } else {
-                    return new ResolvedClass((Class<?>)type.getType(),annotatedType,null);
+                    return new ResolvedClass((Class<?>)type,annotatedType,null);
                 }
             }
             throw new RuntimeException("Unresolved type: "+type);
         }
         
-        private ResolvedClass resolve(AnnotatedType current,Class<?> clazz) {
+        private ResolvedClass resolve(AType current,Class<?> clazz) {
             ResolvedClass resolved=resolve(current);
             Class<?> c=resolved.getResolvedClass();
             if(clazz.equals(c)) {
@@ -353,13 +397,13 @@ public class TypeUtils {
         }
             
         private ResolvedClass resolveHierachy(Class<?> c,Class<?> clazz) {
-            for(AnnotatedType type:c.getAnnotatedInterfaces()) {
+            for(AType type:FACTORY.getAnnotatedInterfaces(c)) {
                 ResolvedClass resolved=resolve(type,clazz);
                 if(resolved!=null) {
                     return resolved;
                 }
             }
-            return c.getAnnotatedInterfaces()==null?null:resolve(c.getAnnotatedSuperclass(),clazz);                
+            return c.getAnnotatedInterfaces()==null?null:resolve(FACTORY.getAnnotatedSuperclass(c),clazz);                
         }
         
         /**
@@ -374,6 +418,10 @@ public class TypeUtils {
                 return resolveHierachy(getRootClass(), clazz);
             }
         }
+
+		public ResolvedClass resolve(Field f) {
+			return resolve(FACTORY.getAnnotatedType(f));
+		}
     }
     
     /**
@@ -507,5 +555,74 @@ public class TypeUtils {
      */
     public static boolean isAbstract(Class<?> clazz) {
         return Modifier.isAbstract(clazz.getModifiers())||clazz.getAnnotation(Abstract.class)!=null;
+    }
+    
+    /**
+     * Wraps the AnnotatedType interface in Java 8, which is not present in Android.
+     * 
+     * @author notalexa
+     *
+     */
+    public static class AType implements AnnotatedElement {
+    	java.lang.reflect.Type type;
+    	AnnotatedElement annotationHolder;
+    	AType(java.lang.reflect.Type type,AnnotatedElement annotationHolder) {
+    		this.type=type;
+    		this.annotationHolder=annotationHolder;
+    	}
+    	
+    	public java.lang.reflect.Type getType() {
+    		return type;
+    	}
+		public boolean isAnnotationPresent(Class<? extends Annotation> annotationClass) {
+			return annotationHolder.isAnnotationPresent(annotationClass);
+		}
+
+		public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+			return annotationHolder.getAnnotation(annotationClass);
+		}
+
+		public Annotation[] getAnnotations() {
+			return annotationHolder.getAnnotations();
+		}
+
+		public <T extends Annotation> T[] getAnnotationsByType(Class<T> annotationClass) {
+			return annotationHolder.getAnnotationsByType(annotationClass);
+		}
+
+		public <T extends Annotation> T getDeclaredAnnotation(Class<T> annotationClass) {
+			return annotationHolder.getDeclaredAnnotation(annotationClass);
+		}
+
+		public <T extends Annotation> T[] getDeclaredAnnotationsByType(Class<T> annotationClass) {
+			return annotationHolder.getDeclaredAnnotationsByType(annotationClass);
+		}
+
+		public Annotation[] getDeclaredAnnotations() {
+			return annotationHolder.getDeclaredAnnotations();
+		}
+    	
+    }
+    
+    /**
+     * Factory wrapping the {@code getAnnotated*} features from Java 8 used in this utility class.
+     * 
+     * @author notalexa
+     *
+     */
+    public interface ATypeFactory {
+
+		AType[] getAnnotatedActualTypeArguments(AType annotatedType);
+
+		AType getAnnotatedType(Field f);
+
+		AType getAnnotatedSuperclass(Class<?> c);
+
+		AType[] getAnnotatedInterfaces(Class<?> c);
+
+		AType[] getAnnotatedUpperBounds(AType type);
+
+		AType getAnnotatedGenericComponentType(AType annotatedType);
+    	
     }
 }
