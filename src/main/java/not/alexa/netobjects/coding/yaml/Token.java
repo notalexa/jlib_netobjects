@@ -140,10 +140,11 @@ public interface Token {
 	/**
 	 * Tokens representing a node can be viewed as {@link Document}'s.
 	 * 
+	 * @param yaml the yaml configuration attached to this document
 	 * @return this token as a document
 	 * @throws YamlException if this token doesn't represent a document (that is is not a node)
 	 */
-	public default Yaml.Document asDocument() throws YamlException {
+	public default Yaml.Document asDocument(Yaml yaml) throws YamlException {
 		if(!isNode()) {
 			throw new YamlException("Not a document type: "+getType());
 		}
@@ -151,7 +152,7 @@ public interface Token {
 			@Override
 			public <T extends Handler> T process(T handler) throws YamlException {
 				handler.beginDocument();
-				Yaml.process(Token.this, handler);
+				yaml.process(Token.this, handler);
 				handler.endDocument();
 				return handler;
 			}
