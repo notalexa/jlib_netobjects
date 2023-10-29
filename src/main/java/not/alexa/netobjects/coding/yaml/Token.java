@@ -136,13 +136,25 @@ public interface Token {
 		return result;
 	}
 	
+	/**
+	 * Conveniance method for creating a document without any script support.
+	 * 
+	 * @return a document without script support
+	 * @throws YamlException if an error occurs
+	 */
+	public default Yaml.Document asDocument() throws YamlException {
+		return asDocument(null);
+	}
 	
 	/**
-	 * Tokens representing a node can be viewed as {@link Document}'s.
+	 * Tokens representing a node can be viewed as {@link Document}'s. The (optional) {@link Yaml} instance is only used
+	 * for resolving scripts. If no scripts are present or script modifier are handled by the handler which processes 
+	 * the document, no instance should be provided.
 	 * 
-	 * @param yaml the yaml configuration attached to this document
+	 * @param yaml the yaml configuration attached to this document (optional)
 	 * @return this token as a document
 	 * @throws YamlException if this token doesn't represent a document (that is is not a node)
+	 * @see {@link #asDocument()}
 	 */
 	public default Yaml.Document asDocument(Yaml yaml) throws YamlException {
 		if(!isNode()) {
@@ -152,7 +164,7 @@ public interface Token {
 			@Override
 			public <T extends Handler> T process(T handler) throws YamlException {
 				handler.beginDocument();
-				yaml.process(Token.this, handler);
+				Yaml.process0(yaml,Token.this, handler);
 				handler.endDocument();
 				return handler;
 			}

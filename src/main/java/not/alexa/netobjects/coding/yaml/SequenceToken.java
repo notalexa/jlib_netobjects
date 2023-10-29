@@ -31,8 +31,15 @@ public class SequenceToken implements Token {
 		return Type.Sequence;
 	}
 	
-	public void add(Token t) {
+	/**
+	 * Add a token to this sequence.
+	 * 
+	 * @param t the token to add
+	 * @return this sequence
+	 */
+	public SequenceToken add(Token t) {
 		items.add(t);
+		return this;
 	}
 
 	@Override

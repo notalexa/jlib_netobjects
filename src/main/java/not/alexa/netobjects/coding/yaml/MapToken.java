@@ -35,9 +35,15 @@ public class MapToken implements Token {
 		return Type.Map;
 	}
 
-	
-	public void add(Token key,Token value) {
+	/**
+	 * Add the key/value pair to this map.
+	 * @param key the key of the entry
+	 * @param value the value of the entry
+	 * @return this map
+	 */
+	public MapToken add(Token key,Token value) {
 		items.add(new Item(key,value));
+		return this;
 	}
 	
 	@Override
@@ -45,7 +51,7 @@ public class MapToken implements Token {
 		return "!map";
 	}
 
-	public String indented(Token token) {
+	private String indented(Token token) {
 		String val=token.toString();
 		return val.replace("\n","\n    ").trim();
 	}

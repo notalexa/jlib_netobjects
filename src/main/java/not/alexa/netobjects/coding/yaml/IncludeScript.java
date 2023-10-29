@@ -15,6 +15,7 @@
  */
 package not.alexa.netobjects.coding.yaml;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -92,6 +93,8 @@ public class IncludeScript implements YamlScript {
 				try(InputStream in=classPathScript?this.getClass().getClassLoader().getResourceAsStream(script):new URL(script).openStream()) {
 					if(in!=null) {
 						yaml.parse(in,new HandlerWrapper(delegate));
+					} else {
+						YamlException.throwException(new FileNotFoundException(script));
 					}
 				} catch(IOException e) {
 					YamlException.throwException(e);
