@@ -1,0 +1,61 @@
+---
+'
+ Multi line  
+
+ single  
+ quoted.  
+ '
+---
+"
+ Multi line\L\
+ double
+ quoted.
+ "
+---
+>
+
+  x
+   * bullet
+  
+  z
+  
+# comment
+---
+|
+
+  x
+  y
+  
+  z
+  
+---
+>+
+  x
+  y
+  
+  z
+  
+---  
+|+
+  x
+  y
+  
+  z
+  
+---  
+>-
+  x
+  y
+  
+  z
+
+---  
+|-
+  x
+  y
+  
+  z
+
+---  
+|
+

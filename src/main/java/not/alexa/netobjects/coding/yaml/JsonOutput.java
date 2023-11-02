@@ -224,7 +224,7 @@ public class JsonOutput implements OutputHandler {
 			OutputEntry current=array.peek();
 			if(key||current.array) {
 				stream.append(current.indent).append(Yaml.encode(token, 3));
-				empty=true;
+				empty=key;
 			} else {
 				stream.append(": ").append(Yaml.encode(token, 3));
 				empty=false;

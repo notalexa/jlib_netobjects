@@ -15,16 +15,23 @@
  */
 package not.alexa.netobjects.coding.yaml;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import org.junit.Test;
 
 import not.alexa.netobjects.coding.yaml.Token.Type;
+import not.alexa.netobjects.coding.yaml.Yaml.Document;
 import not.alexa.netobjects.coding.yaml.Yaml.Handler;
+import not.alexa.netobjects.coding.yaml.Yaml.Mode;
 
 public class FailureTest {
 
@@ -196,6 +203,144 @@ public class FailureTest {
 			fail();
 		} catch(YamlException t) {
 		}
+	}
+	
+	@Test
+	public void failureTest2() {
+		String[] result=new String[] {
+			"l.3: Misplaced node (two strings?)",
+			"l.6: Misplaced node (two strings?)",
+			"l.9: Misplaced node (two strings?)",
+			"l.12: Misplaced node (two strings?)",
+			"l.16: Incomplete line",
+			"l.18: Misplaced node (two strings?)",
+			"l.21: Misplaced node (two strings?)",
+			"l.24: Misplaced node (two strings?)",
+			"l.27: Bad indentation: An indentation of length 2 was expected.",
+			"l.29: Two hex digits expected after \\x",
+			"l.31: Four hex digits expected after \\u",
+			"l.33: Eight hex digits expected after \\U",
+			"l.35: Illegal character after \\: A",
+			"l.38: Missing - to indicate new array item.",
+			"l.41: Unsupported script: script",
+			"l.44: Bad indentation: An indentation of length 2 was expected.",
+			"l.46: Misplaced :",
+			"l.48: Misplaced :",
+			"l.50: Misplaced :",
+			"l.53: Misplaced :",
+			"l.56: Misplaced key indicator",
+			"l.60: Misplaced key indicator",
+		};
+		try(InputStream in=new ByteArrayInputStream(
+				(
+				 "---\na\nb\n"+
+		         "---\na\n- b\n"+
+		         "---\n- a\nb\n"+
+		         "---\na\nc: d\n"+
+		         "---\na: d\nb\n"+   
+		         "---\n- a\nb: d\n"+
+		         "---\nb: d\n- a\n"+   
+		         "---\n  a: b\na: b\n"+
+		         "---\n  a: b\n a: b\n"+
+		         "---\n\"\\x2\"\n"+
+		         "---\n\"\\u2\"\n"+
+		         "---\n\"\\U2\"\n"+
+		         "---\n\"\\A\"\n"+
+				 "---\n- a\n  b\n"+
+				 "---\n- @script a\n"+
+				 "---\n- @identity\n  a: b\n c:d\n"+
+				 "---\n: c\n"+
+				 "---\n- : c\n"+
+				 "---\na: c: d\n"+
+				 "---\na: c\n: d\n"+
+				 "---\n? c\n? d\n"+
+				 "---\n?\n- a\n? b\n"+
+""						).getBytes())) {
+			List<Throwable> failures=new ArrayList<>();
+			List<Throwable> messageFailures=new ArrayList<>();
+			int c=0;
+			for(Document doc:new Yaml(Mode.Indented,YamlScript.IDENTITY).parse(in)) {
+				c++;
+				doc.process(new Yaml.Handler() {
+					@Override
+					public void onError(YamlException e) throws YamlException {
+						if(!result[failures.size()].equals(e.getMessage())) {
+							e.printStackTrace();
+							messageFailures.add(e);
+						}
+						failures.add(e);
+					}
+				});
+			}
+			assertEquals(result.length,failures.size());
+			assertEquals(result.length, c);
+			assertEquals(0, messageFailures.size());
+		} catch(IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Test
+	public void simpleJsonFailureTes() {
+		String[] result=new String[] {
+			"l.1: Forbidden in Json: Modifier",
+			"l.1: Forbidden in Json: Modifier",
+			"l.1: Forbidden in Json: Modifier",
+			"l.1: Forbidden in Json: Aliases",
+			"l.1: Forbidden in Json: Arrays as keys",
+			"l.1: Forbidden in Json: Object as keys",
+			"l.1: Missing : in flow mode",
+			"l.1: Value expected",
+			"l.1: Misplaced separator",
+			"l.1: Misplaced separator",
+			"l.1: Misplaced separator",
+			"l.1: Misplaced ,",
+			"l.1: Misplaced ,",
+			"l.1: Misplaced :",
+			"l.1: Misplaced :",
+			"l.1: Misplaced :",
+		};
+		List<Throwable> failures=new ArrayList<>();
+		List<Throwable> messageFailures=new ArrayList<>();
+		int c=0;
+		for(String f:new String[] {
+			"&anchor a",
+			"&anchor []",
+			"&anchor {}",
+			"*a",
+			"{[]:a}",
+			"{{}:a}",
+			"{a}",
+			"{a:}",
+			"{,a:b}",
+			"[,a]",
+			"{a,b}",
+			"{a:b,}",
+			"[a,]",
+			"[a:]",
+			"{:c}",
+			"{a:c :}",
+		}) try(InputStream in=new ByteArrayInputStream(f.getBytes())) {
+		//try(InputStream in=new ByteArrayInputStream("-\n -123\n- -\n --ab".getBytes())) {
+			for(Document doc:new Yaml(Mode.Json).parse(in)) {
+				c++;
+				doc.process(new Yaml.Handler() {
+					@Override
+					public void onError(YamlException e) throws YamlException {
+						if(!result[failures.size()].equals(e.getMessage())) {
+							e.printStackTrace();
+							messageFailures.add(e);
+						}
+						failures.add(e);
+					}
+				});
+			}
+		} catch(IOException e) {
+			e.printStackTrace();
+		}
+		assertEquals(result.length,failures.size());
+		assertEquals(result.length, c);
+		assertEquals(0, messageFailures.size());
 	}
 
 }

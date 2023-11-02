@@ -1,0 +1,116 @@
+---
+-
+   a
+-
+  b
+   
+
+---
+&a0 [
+  &a1 "a",
+  { &a2 {"x":"y"}:c},
+  { "x":{"c":"d"}},
+#  "b",
+#  "c",
+  { &a3 [ &a4 "d"]:["e"] }
+]
+
+#  { "d":"e" },"f",
+--- 
+- a
+- ? 
+  - d
+  : 
+  - e
+- [c]
+---
+? &anchor
+- a&?::*!#''@
+- b
+: c
+? e
+:
+- b #  { "d":"e" },"f",
+- c
+
+a: &myanchor1
+- &myanchor2
+  - b1
+  - b2
+- &myanchor3
+  - c1
+  - c2
+  - &myanchor4
+    ? &myanchor5
+      c3: d
+      c5: f
+    : 
+      c7: z
+      c8: y
+    c3: d
+    c4: e
+  
+
+---
+a: b
+b: b
+c: &a
+  &anchor b
+? &anchor d
+: &anchor b
+? e
+: &anchor
+- b
+- &anchoredalias *a
+
+---
+a: &anchor b
+
+---
+- data1
+- ' data2 '
+- ' a
+ line1  
+
+
+ line2  
+ 
+  a '
+- 'ab' : x
+- *2
+---
+-  &a @identity &anchor data100
+
+---
+data
+--- &rootanchor a a a "
+-            # comment
+   a
+---
+- #comment
+ -123
+- -
+   abc
+  - def
+-  
+ --ab
+-
+ - a
+ - b
+-
+ --cd
+- |
+- a
+- &a0 @identity &a1 b
+- &a2 @identity
+  - e
+  - f
+- z
+- &identityanchor @identity
+  x1: y1
+  x2: y2
+- &anchoredz @identity
+  z 
+...
+
+Text without YAML

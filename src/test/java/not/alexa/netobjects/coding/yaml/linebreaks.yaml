@@ -1,0 +1,31 @@
+- >
+  x   z
+  y
+- |
+  x   z
+  y
+# comment 
+
+
+- "  start
+  x   z  
+  y     \
+  end  "
+
+- '  start
+  x   z  
+  y
+
+  end  '
+- '
+  x
+  '
+
+- @include cp://not/alexa/netobjects/coding/yaml/inlinescalars.yaml
+- @include 
+  cp://not/alexa/netobjects/coding/yaml/inlinescalars.yaml
+- @include
+  - cp://not/alexa/netobjects/coding/yaml/inlinescalars.yaml
+  - cp://not/alexa/netobjects/coding/yaml/inlinescalars.yaml
+
+- ''

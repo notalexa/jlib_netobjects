@@ -1,0 +1,66 @@
+- a
+- 'a'
+- ' a '
+- "b"
+- " b " # Spaced scalar
+- 
+  c
+- 
+  " c " 
+-
+  ' c '
+- '
+ Multi line  
+
+ single  
+ quoted.  
+ '
+- "
+ Multi line\L\
+ double
+ quoted.
+ "
+- >
+
+  x
+   * bullet
+  
+  z
+  
+# comment
+- |
+
+  x
+  y
+  
+  z
+  
+
+- >+
+  x
+  y
+  
+  z
+  
+  
+- |+
+  x
+  y
+  
+  z
+  
+  
+- >-
+  x
+  y
+  
+  z
+  
+- |-
+  x
+  y
+  
+  z
+  
+- |
+
