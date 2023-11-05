@@ -144,18 +144,9 @@ public class MiscTest {
 
 	@Test
 	public void simpleTokenTest1() {
-		assertEquals("{",new Token.SimpleToken(Type.CurlyOpen, null, "{").getValue());
-		assertEquals("}",new Token.SimpleToken(Type.CurlyClose, null, "}").getValue());
-		assertEquals("[",new Token.SimpleToken(Type.SquareOpen, null, "[").getValue());
-		assertEquals("]",new Token.SimpleToken(Type.SquareClose, null, "]").getValue());
 		assertEquals("script",new Token.SimpleToken(Type.Script, null, "script").getValue());
 		assertEquals("anchor",new Token.SimpleToken(Type.Anchor, null, "anchor").getValue());
 		assertEquals("alias",new Token.SimpleToken(Type.Alias, null, "alias").getValue());
-		assertEquals("?",new Token.SimpleToken(Type.KeyIndicator, null, "?").getValue());
-		assertEquals("?",new Token.SimpleToken(Type.KeyIndicator, null, "?").toString());
-		assertEquals(":",new Token.SimpleToken(Type.ValueIndicator, null, "?").getValue());
-		assertEquals(":",new Token.SimpleToken(Type.ValueIndicator, null, "?").toString());
-		assertEquals("prefix",new Token.SimpleToken(Type.ValueIndicator, "prefix", "?").getTag());
 		Token defaultImpl=new Token() {
 
 			@Override

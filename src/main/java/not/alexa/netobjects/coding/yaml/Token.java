@@ -305,7 +305,14 @@ public interface Token {
 		private String value;
 		private String tag;
 		SimpleToken(Type type,String tag,String value) {
-			this.type=type;
+			switch(type) {
+				case Anchor:
+				case Alias:
+				case Scalar:
+				case Script:this.type=type;
+					break;
+				default:throw new RuntimeException("Illegal type "+type+" for a simple token.");
+			}
 			this.value=value;
 			this.tag=tag;
 		}
@@ -317,27 +324,21 @@ public interface Token {
 		
 		@Override
 		public String getValue() {
-			switch(type) {
-				case KeyIndicator:return "?";
-				case ValueIndicator:return ":";
-				default: return value;
-			}
+			return value;
 		}
 		
 		@Override
 		public String toString() {
 			String s;
 			switch(type) {
-			case Script:s="@"+value;
-			break;
-			case Alias:s="*"+value;
-				break;
-			case Anchor:s="&"+value;
-				break;
-			case KeyIndicator:return "?";
-			case ValueIndicator:return ":";
-			default:s=Yaml.encode(value,3);
-			break;
+				case Script:s="@"+value;
+					break;
+				case Alias:s="*"+value;
+					break;
+				case Anchor:s="&"+value;
+					break;
+				default:s=Yaml.encode(value,3);
+					break;
 			}
 			return tag==null?s:("!"+tag+" "+s);
 		}

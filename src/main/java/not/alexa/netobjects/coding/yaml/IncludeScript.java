@@ -29,18 +29,39 @@ import not.alexa.netobjects.coding.yaml.Yaml.Handler;
  * a YAML file. This file is included in the parsing input stream (with the same YAML setup).
  * 
  * A special protocol is recognized. URL's starting with {@code cp://} are considered to reference a resource in the class path and
- * are tried to resolved using the class path. If not present, the input is considered as empty.
+ * are tried to resolved using the provided class loader. If not present, an exception is thrown.
  * 
  * @author notalexa
  *
  */
 public class IncludeScript implements YamlScript {
 	private String name;
+	private ClassLoader loader;
+	
+	/**
+	 * Constructs the default include script with name {@¢ode @include} and the class loader of this class.
+	 */
 	public IncludeScript() {
 		this("include");
 	}
+	
+	/**
+	 * Uses the class loader of this class.
+	 * 
+	 * @param name the name of this script (without {@code @})
+	 */
 	public IncludeScript(String name) {
+		this(name,IncludeScript.class.getClassLoader());
+	}
+	
+	/**
+	 * 
+	 * @param name the name of this script (without {@code @})
+	 * @param loader the class loader to use for {@code cp://} URLs
+	 */
+	public IncludeScript(String name,ClassLoader loader) {
 		this.name=name;
+		this.loader=loader;
 	}
 	
 	@Override
@@ -90,7 +111,7 @@ public class IncludeScript implements YamlScript {
 					script=script.substring(script.indexOf("cp://")+5);
 					classPathScript=true;
 				}
-				try(InputStream in=classPathScript?this.getClass().getClassLoader().getResourceAsStream(script):new URL(script).openStream()) {
+				try(InputStream in=classPathScript?loader.getResourceAsStream(script):new URL(script).openStream()) {
 					if(in!=null) {
 						yaml.parse(in,new HandlerWrapper(delegate));
 					} else {

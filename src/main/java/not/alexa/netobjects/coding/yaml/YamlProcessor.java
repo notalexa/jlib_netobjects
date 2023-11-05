@@ -340,10 +340,10 @@ class YamlProcessor implements Iterator<Document> {
 				modifier.add(token);
 				break;
 			case KeyIndicator:
-				tokenizer.peekIndentationEntry().key(modifier,handler);
+				tokenizer.peekIndentationEntry().key(yaml.mode,modifier,handler);
 				break;
 			case ValueIndicator:
-				tokenizer.peekIndentationEntry().value(handler);
+				tokenizer.peekIndentationEntry().value(yaml.mode,handler);
 				break;		
 			}
 		}

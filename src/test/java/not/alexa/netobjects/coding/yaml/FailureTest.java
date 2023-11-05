@@ -32,6 +32,7 @@ import not.alexa.netobjects.coding.yaml.Token.Type;
 import not.alexa.netobjects.coding.yaml.Yaml.Document;
 import not.alexa.netobjects.coding.yaml.Yaml.Handler;
 import not.alexa.netobjects.coding.yaml.Yaml.Mode;
+import not.alexa.netobjects.coding.yaml.Yaml.OutputHandler;
 
 public class FailureTest {
 
@@ -54,7 +55,7 @@ public class FailureTest {
 	@Test
 	public void illegalTokenTest2() {
 		try {
-			new Token.SimpleToken(Type.DecoratedToken, null, "x").decorate(new Token.SimpleToken(Type.Anchor,null,"anchor")).undecorate((m,t)-> {
+			new TestToken(Type.DecoratedToken).decorate(new Token.SimpleToken(Type.Anchor,null,"anchor")).undecorate((m,t)-> {
 			});
 			fail();
 		} catch(RuntimeException|YamlException t) {
@@ -63,145 +64,131 @@ public class FailureTest {
 
 	@Test
 	public void illegalModifierTest3() {
-		try {
-			Handler handler=new YamlOutput(new ByteArrayOutputStream(), true);
+		try(OutputHandler handler=new YamlOutput(new ByteArrayOutputStream(), true)) {
 			handler.beginArray(false,illegalModifier());
 			fail();
-		} catch(RuntimeException|YamlException t) {
+		} catch(RuntimeException|IOException t) {
 		}
 	}
 
 	@Test
 	public void illegalModifierTest4() {
-		try {
-			Handler handler=new YamlOutput(new ByteArrayOutputStream(), true);
+		try(OutputHandler handler=new YamlOutput(new ByteArrayOutputStream(), true)) {
 			handler.beginArray(false,Collections.emptyList());
 			handler.beginArray(false,illegalModifier());
 			fail();
-		} catch(RuntimeException|YamlException t) {
+		} catch(RuntimeException|IOException t) {
 		}
 	}
 	@Test
 	public void illegalModifierTest5() {
-		try {
-			Handler handler=new YamlOutput(new ByteArrayOutputStream(), true);
+		try(OutputHandler handler=new YamlOutput(new ByteArrayOutputStream(), true)) {
 			handler.beginArray(false,Collections.emptyList());
 			handler.beginObject(false,illegalModifier());
 			fail();
-		} catch(RuntimeException|YamlException t) {
+		} catch(RuntimeException|IOException t) {
 		}
 	}
 	@Test
 	public void illegalModifierTest6() {
-		try {
-			Handler handler=new YamlOutput(new ByteArrayOutputStream(), true);
+		try(OutputHandler handler=new YamlOutput(new ByteArrayOutputStream(), true)) {
 			handler.scalar(false,illegalModifier(),illegalModifier().get(0));
 			fail();
-		} catch(RuntimeException|YamlException t) {
+		} catch(RuntimeException|IOException t) {
 		}
 	}
 
 	@Test
 	public void illegalModifierTest7() {
-		try {
-			Handler handler=new YamlOutput(new ByteArrayOutputStream(), true);
+		try(OutputHandler handler=new YamlOutput(new ByteArrayOutputStream(), true)) {
 			handler.scalar(false,Collections.emptyList(),new Token.SimpleToken(Type.Script, null,"script"));
 			fail();
-		} catch(RuntimeException|YamlException t) {
+		} catch(RuntimeException|IOException t) {
 		}
 	}
 	
 	@Test
 	public void illegalModifierTest8() {
-		try {
-			Handler handler=new YamlOutput(new ByteArrayOutputStream(), true);
-			handler.scalar(false,Collections.emptyList(),new Token.SimpleToken(Type.CurlyClose, null,"}"));
+		try(OutputHandler handler=new YamlOutput(new ByteArrayOutputStream(), true)) {
+			handler.scalar(false,Collections.emptyList(),new TestToken(Type.CurlyClose));
 			fail();
-		} catch(RuntimeException|YamlException t) {
+		} catch(RuntimeException|IOException t) {
 		}
 	}
 
 	@Test
 	public void illegalModifierTest9() {
-		try {
-			Handler handler=new JsonOutput(true,"","",new ByteArrayOutputStream());
+		try(OutputHandler handler=new JsonOutput(true,"","",new ByteArrayOutputStream())) {
 			handler.beginArray(false,illegalModifier());
 			fail();
-		} catch(RuntimeException|YamlException t) {
+		} catch(RuntimeException|IOException t) {
 		}
 	}
 
 	@Test
 	public void illegalModifierTest10() {
-		try {
-			Handler handler=new JsonOutput(true,"","",new ByteArrayOutputStream());
+		try(OutputHandler handler=new JsonOutput(true,"","",new ByteArrayOutputStream())) {
 			handler.beginArray(false,Collections.emptyList());
 			handler.beginArray(false,illegalModifier());
 			fail();
-		} catch(RuntimeException|YamlException t) {
+		} catch(RuntimeException|IOException t) {
 		}
 	}
 	@Test
 	public void illegalModifierTest11() {
-		try {
-			Handler handler=new JsonOutput(true,"","",new ByteArrayOutputStream());
+		try(OutputHandler handler=new JsonOutput(true,"","",new ByteArrayOutputStream())) {
 			handler.beginArray(false,Collections.emptyList());
 			handler.beginObject(false,illegalModifier());
 			fail();
-		} catch(RuntimeException|YamlException t) {
+		} catch(RuntimeException|IOException t) {
 		}
 	}
 	@Test
 	public void illegalModifierTest12() {
-		try {
-			Handler handler=new JsonOutput(true,"","",new ByteArrayOutputStream());
+		try(OutputHandler handler=new JsonOutput(true,"","",new ByteArrayOutputStream())) {
 			handler.scalar(false,illegalModifier(),illegalModifier().get(0));
 			fail();
-		} catch(RuntimeException|YamlException t) {
+		} catch(RuntimeException|IOException t) {
 		}
 	}
 
 	@Test
 	public void illegalModifierTest13() {
-		try {
-			Handler handler=new JsonOutput(true,"","",new ByteArrayOutputStream());
+		try(OutputHandler handler=new JsonOutput(true,"","",new ByteArrayOutputStream())) {
 			handler.scalar(false,Collections.emptyList(),new Token.SimpleToken(Type.Script, null,"script"));
 			fail();
-		} catch(RuntimeException|YamlException t) {
+		} catch(RuntimeException|IOException t) {
 		}
 	}
 	
 	@Test
 	public void illegalModifierTest14() {
-		try {
-			Handler handler=new JsonOutput(true,"","",new ByteArrayOutputStream());
-			handler.scalar(false,Collections.emptyList(),new Token.SimpleToken(Type.CurlyClose, null,"}"));
+		try(OutputHandler handler=new JsonOutput(true,"","",new ByteArrayOutputStream())) {
+			handler.scalar(false,Collections.emptyList(),new TestToken(Type.CurlyClose));
 			fail();
-		} catch(RuntimeException|YamlException t) {
+		} catch(RuntimeException|IOException t) {
 		}
 	}
 
 	@Test
 	public void simpleJsonTest1() {
-		try {
-			Handler handler=new JsonOutput(false,"","",new ByteArrayOutputStream());
+		try(OutputHandler handler=new JsonOutput(false,"","",new ByteArrayOutputStream())) {
 			handler.beginDocument();
 			handler.scalar(false,Collections.emptyList(),illegalModifier().get(0));
 			handler.endDocument();
 			handler.beginDocument();
 			fail();
-		} catch(YamlException t) {
+		} catch(IOException t) {
 		}
 	}
 
 	@Test
 	public void simpleJsonTest2() {
-		try {
-			Handler handler=new JsonOutput(false,"","",new ByteArrayOutputStream());
+		try(OutputHandler handler=new JsonOutput(false,"","",new ByteArrayOutputStream())) {
 			handler.beginDocument();
 			handler.scalar(false,Collections.emptyList(),new Token.SimpleToken(Type.Alias, null, "anchor"));
 			fail();
-		} catch(YamlException t) {
+		} catch(IOException t) {
 		}
 	}
 	
@@ -230,6 +217,7 @@ public class FailureTest {
 			"l.53: Misplaced :",
 			"l.56: Misplaced key indicator",
 			"l.60: Misplaced key indicator",
+			"l.62: Misplaced node (two strings?)",
 		};
 		try(InputStream in=new ByteArrayInputStream(
 				(
@@ -255,6 +243,7 @@ public class FailureTest {
 				 "---\na: c\n: d\n"+
 				 "---\n? c\n? d\n"+
 				 "---\n?\n- a\n? b\n"+
+				 "---\n\"a\" 'b'\n"+
 ""						).getBytes())) {
 			List<Throwable> failures=new ArrayList<>();
 			List<Throwable> messageFailures=new ArrayList<>();
@@ -299,6 +288,7 @@ public class FailureTest {
 			"l.1: Misplaced :",
 			"l.1: Misplaced :",
 			"l.1: Misplaced :",
+			"l.1: Missing , or :",
 		};
 		List<Throwable> failures=new ArrayList<>();
 		List<Throwable> messageFailures=new ArrayList<>();
@@ -320,6 +310,7 @@ public class FailureTest {
 			"[a:]",
 			"{:c}",
 			"{a:c :}",
+			"{\"a\" \"b\"}",
 		}) try(InputStream in=new ByteArrayInputStream(f.getBytes())) {
 		//try(InputStream in=new ByteArrayInputStream("-\n -123\n- -\n --ab".getBytes())) {
 			for(Document doc:new Yaml(Mode.Json).parse(in)) {
@@ -341,6 +332,54 @@ public class FailureTest {
 		assertEquals(result.length,failures.size());
 		assertEquals(result.length, c);
 		assertEquals(0, messageFailures.size());
+	}
+	
+	private static class TestToken implements Token {
+		Type type;
+		private TestToken(Type type) {
+			this.type=type;
+		}
+		@Override
+		public Type getType() {
+			return type;
+		}
+	}
+	
+	@Test
+	public void illegalDocumentTest1() {
+		try {
+			new Token.SimpleToken(Type.Anchor, null, "alias").asDocument();
+			fail();
+		} catch(YamlException e) {
+		}
+		try {
+			new Yaml(Mode.Indented).asDocument(new Token.SimpleToken(Type.Anchor, null, "alias"));
+			fail();
+		} catch(YamlException e) {
+		}
+	}
+	
+	@Test
+	public void defaultHandlerFailureTest1() {
+		Handler h=new Yaml.DefaultHandler(true, (t,e)-> {
+		});
+		try {
+			h.onError(new YamlException("test"));
+			fail();
+		} catch(Throwable t) {
+		}
+		try {
+			h.beginArray(true, Collections.emptyList());
+			h.endArray(false);
+			fail();
+		} catch(YamlException e) {
+		}
+		try {
+			h.beginObject(true, Collections.emptyList());
+			h.endObject(false);
+			fail();
+		} catch(YamlException e) {
+		}
 	}
 
 }

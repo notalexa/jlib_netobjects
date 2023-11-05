@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2023 Not Alexa
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package not.alexa.netobjects.coding.yaml;
 
 import java.io.IOException;
@@ -12,6 +27,7 @@ import not.alexa.netobjects.coding.text.LineReader.Line;
 import not.alexa.netobjects.coding.yaml.Token.SimpleToken;
 import not.alexa.netobjects.coding.yaml.Token.Type;
 import not.alexa.netobjects.coding.yaml.Yaml.Handler;
+import not.alexa.netobjects.coding.yaml.Yaml.Mode;
 import not.alexa.netobjects.coding.yaml.YamlProcessor.InternalException;
 
 /**
@@ -51,7 +67,14 @@ class YamlLine {
 		public void eof() throws IOException {
 		}
 	};
-	private static Token OBJECT_INDICATOR=new Token.SimpleToken(Type.Sequence, null, "");
+	private static final Token OBJECT_INDICATOR=new Token.SimpleToken(Type.Scalar, null, "");
+	private static final Token CURLY_OPEN=new InternalToken(Type.CurlyOpen,"{");
+	private static final Token CURLY_CLOSE=new InternalToken(Type.CurlyClose,"}");
+	private static final Token SQUARE_OPEN=new InternalToken(Type.SquareOpen,"[");
+	private static final Token SQUARE_CLOSE=new InternalToken(Type.SquareClose,"]");
+	private static final Token KEY_INDICATOR=new InternalToken(Type.KeyIndicator,"?");
+	private static final Token VALUE_INDICATOR=new InternalToken(Type.ValueIndicator,":");
+	private static final Token SEPARATOR=new InternalToken(Type.Separator,",");
 	protected int size;
 	int length;
 	private int firstArray=-1;
@@ -255,13 +278,11 @@ class YamlLine {
 		final FlowEntry parent;
 		final boolean array;
 		boolean key0;
-		//boolean key;
 		int count=0;
 		boolean finished;
 		boolean separated=true;
 		private FlowEntry(FlowEntry parent,boolean array) {
 			this.parent=parent;
-//			this.key0=parent==null?false:parent.isKey();
 			this.array=array;
 		}
 		
@@ -313,7 +334,7 @@ class YamlLine {
 		
 		public void incr() throws YamlException {
 			if(!separated) {
-				throw new YamlException("Misplaced...");
+				throw new YamlException("Missing , or :");
 			}
 			count++;
 			separated=false;
@@ -372,8 +393,8 @@ class YamlLine {
 			return this;
 		}
 		
-		<T extends Handler> void key(List<Token> modifier,T handler) throws YamlException {
-			if(lineMode>=16||token!=null) {
+		<T extends Handler> void key(Mode mode,List<Token> modifier,T handler) throws YamlException {
+			if(lineMode>=16||token!=null||mode!=Mode.Indented) {
 				throw new YamlException("Misplaced key indicator");
 			}
 			this.objectModifier=modifier;
@@ -382,11 +403,11 @@ class YamlLine {
 			modifier.clear();
 		}
 		
-		<T extends Handler> void value(T handler) throws YamlException {
+		<T extends Handler> void value(Mode mode,T handler) throws YamlException {
 			if(token!=null) {
 				finishToken(true, handler);
 			}
-			if(lineMode<16) {
+			if(lineMode<16||mode!=Mode.Indented) {
 				throw new YamlException("Misplaced :");
 			}
 			lineMode=2;
@@ -436,10 +457,6 @@ class YamlLine {
 				handler.endObject(isKey());
 				if(!array&&parent!=null) {
 					parent.handleChildObject();
-//					if(0==(parent.lineMode&0xf)) {
-//						parent.token=OBJECT_INDICATOR;
-//					}
-//					parent.lineMode&=0xf0;
 				}
 				eventMask&=~2;
 			} else {
@@ -486,10 +503,6 @@ class YamlLine {
 				handler.endArray(isKey());
 				eventMask=0;
 				parent.handleChildObject();
-//				if(0==(parent.lineMode&0xf)) {
-//					parent.token=OBJECT_INDICATOR;
-//				}
-//				parent.lineMode&=0xf0;
 			}
 		}
 		
@@ -890,7 +903,7 @@ class YamlLine {
 						case '?':
 						case ':': if(isNextspace()||isFlowMode()) {
 								if(syntaxMode==0) {
-									next=new SimpleToken(c=='?'?Type.KeyIndicator:Type.ValueIndicator,null,Character.toString(c));
+									next=c=='?'?KEY_INDICATOR:VALUE_INDICATOR;
 									break outerloop;
 								} else {
 									offset--;
@@ -920,8 +933,7 @@ class YamlLine {
 							}
 							break;
 						case '[':if(syntaxMode==0) {
-								next=new SimpleToken(Type.SquareOpen,null,"[");
-								//boolean asKey=level.size()>0&&level.peek().key&!level.peek().array;
+								next=SQUARE_OPEN;
 								addLevel(new FlowEntry(currentLevel(),true));
 							} else if(isFlowMode()) {
 								offset--;
@@ -930,8 +942,7 @@ class YamlLine {
 							}
 							break outerloop;
 						case '{':if(syntaxMode==0) {
-								next=new SimpleToken(Type.CurlyOpen,null,"{");
-								//boolean asKey=level.size()>0&&level.peek().key&!level.peek().array;
+								next=CURLY_OPEN;
 								addLevel(new FlowEntry(currentLevel(),false));
 							} else if(isFlowMode()) {
 								offset--;
@@ -941,7 +952,7 @@ class YamlLine {
 							break outerloop;
 						case '}':if(isFlowMode()) {
 								if(syntaxMode==0) {
-									next=new SimpleToken(Type.CurlyClose,null,"}");
+									next=CURLY_CLOSE;
 								} else {
 									offset--;
 								}
@@ -950,7 +961,7 @@ class YamlLine {
 							break;
 						case ']':if(isFlowMode()) {
 								if(syntaxMode==0) {
-									next=new SimpleToken(Type.SquareClose,null,"]");
+									next=SQUARE_CLOSE;
 								} else {
 									offset--;
 								}
@@ -959,7 +970,7 @@ class YamlLine {
 							break;
 						case ',':if(isFlowMode()) {
 								if(syntaxMode==0) {
-									next=new SimpleToken(Type.Separator,null,",");
+									next=SEPARATOR;
 								} else {
 									offset--;
 								}
@@ -1035,5 +1046,27 @@ class YamlLine {
 			}
 			
 		}
-	}	
+	}
+	
+	private static class InternalToken implements Token {
+		Type type;
+		String val;
+		private InternalToken(Type type,String val) {
+			this.type=type;
+			this.val=val;
+		}
+		@Override
+		public Type getType() {
+			return type;
+		}
+		@Override
+		public String getValue() {
+			return val;
+		}
+		
+		@Override
+		public String toString() {
+			return getValue();
+		}
+	}
 }
