@@ -128,7 +128,7 @@ public class BaseException extends Exception {
 	}
 
 	/**
-	 * Throw a base exception created out of the given exception. The
+	 * Normalize a given exception. The
 	 * method traverses the causes list of t and throws the first base exception
 	 * found. If no base exception is found, a new exception is created with a
 	 * suitable error code and the same stack trace as the original exception.
@@ -137,15 +137,15 @@ public class BaseException extends Exception {
 	 * like <code>return BaseException.throwException(t)</code> to clearify that the
 	 * method will not evaluate code after this method.
 	 * @param t the throwable to throw
-	 * @return <code>null/code>
+	 * @return <code>the normalized exception/code>
 	 * @throws BaseException always
 	 */
-	public static <T> T throwException(Throwable t) throws BaseException {
+	public static BaseException normalize(Throwable t) {
 		while(t.getCause()!=null) {
 			t=t.getCause();
 		}
 		if(t instanceof BaseException) {
-			throw (BaseException)t;
+			return (BaseException)t;
 		} else {
 			int code=500;
 			Class<?> exceptionClass=t.getClass();
@@ -157,7 +157,22 @@ public class BaseException extends Exception {
 			if(c!=null) {
 				code=c;
 			}
-			throw new BaseException(code,t);
+			return new BaseException(code,t);
 		}
+	}
+
+	/**
+	 * Throw a base exception created out of the given exception.
+	 * 
+	 * @param <T> the type of the return value (for convenience to formulate code
+	 * like <code>return BaseException.throwException(t)</code> to clearify that the
+	 * method will not evaluate code after this method.
+	 * @param t the throwable to throw
+	 * @return <code>null/code>
+	 * @throws BaseException always
+	 * @see #normalize(Throwable)
+	 */
+	public static <T> T throwException(Throwable t) throws BaseException {
+		throw normalize(t);
 	}
 }
