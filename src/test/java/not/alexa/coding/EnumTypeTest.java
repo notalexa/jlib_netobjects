@@ -1,30 +1,37 @@
+/*
+ * Copyright (C) 2023 Not Alexa
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package not.alexa.coding;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.ByteArrayOutputStream;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-import not.alexa.coding.Data.State;
+import not.alexa.coding.PackageSchemes.TestData;
 import not.alexa.netobjects.Context;
-import not.alexa.netobjects.coding.ByteEncoder;
+import not.alexa.netobjects.coding.CodingScheme;
 import not.alexa.netobjects.coding.Decoder;
 import not.alexa.netobjects.coding.Encoder;
-import not.alexa.netobjects.coding.xml.XMLCodingScheme;
 import not.alexa.netobjects.types.ArrayTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.DefaultTypeLoader;
@@ -34,15 +41,14 @@ import not.alexa.netobjects.types.MethodTypeDefinition;
 import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
-import not.alexa.netobjects.types.TypeLoader;
 import not.alexa.netobjects.types.UnknownTypeDefinition;
 
 @RunWith(org.junit.runners.Parameterized.class)
 public class EnumTypeTest {
 
 	@Parameters
-	public static List<TypeDefinition> enumTypes() {
-		return Arrays.asList(new TypeDefinition[] {
+	public static List<TestData<TypeDefinition>> enumTypes() {
+		return PackageSchemes.wrap(Arrays.asList(new TypeDefinition[] {
 				new EnumTypeDefinition(Data.State.class),
 				new ArrayTypeDefinition(new EnumTypeDefinition(Data.State.class)),
 				new ArrayTypeDefinition(new ArrayTypeDefinition(new EnumTypeDefinition(Data.State.class))),
@@ -59,35 +65,27 @@ public class EnumTypeTest {
 				UnknownTypeDefinition.getTypeDescription(),
 				new UnknownTypeDefinition(ObjectType.resolve("jvm:not.alexa.unknown.UnknownType")),
 				ClassTypeDefinition.getTypeDescription()
-		});
+		}));
 	}
 	
 	@Parameter
-	public TypeDefinition typeDef;
+	public TestData<TypeDefinition> typeDef;
 	
 	public EnumTypeTest() {
 	}
 	
 	@Test
 	public void checkEncoding() {
-		XMLCodingScheme scheme=XMLCodingScheme.DEFAULT_SCHEME;//.newBuilder().setIndent("  ", "\n").build();
+		CodingScheme scheme=typeDef.getScheme();//.newBuilder().setIndent("  ", "\n").build();
 		DefaultTypeLoader resolver=new DefaultTypeLoader();
 		Context context=Context.createRootContext(resolver);
 		try(ByteArrayOutputStream out=new ByteArrayOutputStream();
 			Encoder encoder=scheme.createEncoder(context, out)) {
-			encoder.encode(typeDef).flush();
+			encoder.encode(typeDef.getTest()).flush();
 			System.out.write(out.toByteArray());System.out.println();
 			try(Decoder decoder=scheme.createDecoder(context, out.toByteArray())) {
 				Object decoded=decoder.decode(Object.class);
-				assertEquals(typeDef,decoded);
-				try(ByteEncoder e=scheme.createEncoder(context)) {
-				    assertSame(scheme, e.getCodingScheme());
-					System.out.write(e.encode(decoded).asBytes()); System.out.println();
-				}
-                try(ByteEncoder e=scheme.createEncoder(context)) {
-                    assertSame(scheme, e.getCodingScheme());
-                    System.out.println(e.encode(decoded));
-                }
+				assertEquals(typeDef.getTest(),decoded);
 			}
 		} catch(AssertionError e) {
 		    throw e;

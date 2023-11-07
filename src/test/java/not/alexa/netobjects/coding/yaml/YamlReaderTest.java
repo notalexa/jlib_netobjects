@@ -21,9 +21,9 @@ import not.alexa.netobjects.coding.yaml.Yaml.Mode;
 import not.alexa.netobjects.coding.yaml.Yaml.OutputHandler;
 
 @RunWith(org.junit.runners.Parameterized.class)
-public class YAMLReaderTest {
+public class YamlReaderTest {
 
-	public YAMLReaderTest() {
+	public YamlReaderTest() {
 	}
 	
     @Parameters
@@ -44,7 +44,7 @@ public class YAMLReaderTest {
     
     @Test
     public void readTest() {
-    	try(InputStream stream=YAMLReaderTest.class.getResourceAsStream(file.name)) {
+    	try(InputStream stream=YamlReaderTest.class.getResourceAsStream(file.name)) {
     		Yaml yaml=new Yaml(Mode.Indented,YamlScript.IDENTITY,new IncludeScript());
     		ByteArrayOutputStream out=new ByteArrayOutputStream();
     		ByteArrayOutputStream out2=new ByteArrayOutputStream();
@@ -148,7 +148,7 @@ public class YAMLReaderTest {
     @Test
     public void skipTest() {
     	System.out.println("\n"+file.name);
-    	try(InputStream stream=YAMLReaderTest.class.getResourceAsStream(file.name)) {
+    	try(InputStream stream=YamlReaderTest.class.getResourceAsStream(file.name)) {
     		Yaml yaml=new Yaml(Mode.Indented,YamlScript.IDENTITY,new IncludeScript());
     		int count=0;
     		for(Document doc:yaml.parse(stream)) {

@@ -369,9 +369,8 @@ public class Yaml {
 	 * 
 	 * @param stream the input stream
 	 * @return an iterable over all documents
-	 * @throws IOException if an error occurs
 	 */
-	public Iterable<Document> parse(InputStream stream) throws IOException {
+	public Iterable<Document> parse(InputStream stream) {
 		return parse(new LineReader(stream));
 	}
 
@@ -379,9 +378,8 @@ public class Yaml {
 	 * Parse the input of the given reader
 	 * @param reader the input reader
 	 * @return an iterable over all documents
-	 * @throws IOException if an error occurs
 	 */
-	public Iterable<Document> parse(LineReader reader) throws IOException {
+	public Iterable<Document> parse(LineReader reader) {
 		return new Iterable<Document>() {
 			boolean delivered=false;
 			@Override

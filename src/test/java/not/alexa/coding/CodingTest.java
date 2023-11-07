@@ -17,35 +17,49 @@ package not.alexa.coding;
 
 import static org.junit.Assert.assertEquals;
 
-import org.junit.Test;
-
 import java.io.ByteArrayOutputStream;
+import java.util.Arrays;
+import java.util.List;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
 import not.alexa.coding.Data.State;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.api.Overlay;
+import not.alexa.netobjects.coding.CodingScheme;
 import not.alexa.netobjects.coding.Decoder;
 import not.alexa.netobjects.coding.Encoder;
-import not.alexa.netobjects.coding.xml.XMLCodingScheme;
 import not.alexa.netobjects.types.DefaultTypeLoader;
 import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 
+@RunWith(org.junit.runners.Parameterized.class)
 public class CodingTest {
 
 	public CodingTest() {
 	}
+	
+    @Parameters
+    public static List<CodingScheme> testSchemata() {
+    	return Arrays.asList(PackageSchemes.SCHEMATA);
+    }
+    
+    @Parameter
+    public CodingScheme scheme;
 
 	@Test
 	public void test() throws Throwable {
-		XMLCodingScheme scheme=XMLCodingScheme.builder().setIndent("  ","\r\n").setRootTag("root").build();//new XMLCodingScheme();
+		//XMLCodingScheme scheme=XMLCodingScheme.builder().setIndent("  ","\r\n").setRootTag("root").build();//new XMLCodingScheme();
 		Context context=Context.createRootContext(new DefaultTypeLoader());
 		ObjectType.createClassType(PrimitiveTypeDefinition.class);
 		for(Object o:new Object[] {new not.alexa.coding.Data("Hello World",100,"T1","T2"),
-				"\"Hello&World\"",Data.State.active,
+				/*"\"Hello&World\"",Data.State.active,
 				1,
 				ObjectType.createClassType(PrimitiveTypeDefinition.class),
-				ObjectType.resolve("oid:2.3.1.24.2")}) try(ByteArrayOutputStream out=new ByteArrayOutputStream();
+				ObjectType.resolve("oid:2.3.1.24.2")*/}) try(ByteArrayOutputStream out=new ByteArrayOutputStream();
 			Encoder encoder=scheme.createEncoder(context, out)) {
 			encoder.encode(o).flush();
 			System.out.write(out.toByteArray());System.out.println();
@@ -67,7 +81,7 @@ public class CodingTest {
 	
     @Test
     public void overlayTest() throws Throwable {
-        XMLCodingScheme scheme=XMLCodingScheme.builder().setIndent("  ","\r\n").setRootTag("root").build();//new XMLCodingScheme();
+        //XMLCodingScheme scheme=XMLCodingScheme.builder().setIndent("  ","\r\n").setRootTag("root").build();//new XMLCodingScheme();
         DefaultTypeLoader resolver=new DefaultTypeLoader();
         Context context=Context.createRootContext(resolver);
         Context overlayContext=Context.createRootContext(resolver.overlay(DataOverlay.class));

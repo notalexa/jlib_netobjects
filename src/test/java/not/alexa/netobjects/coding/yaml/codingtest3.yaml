@@ -1,0 +1,38 @@
+--- &rootanchor
+class: not.alexa.coding.Data
+text: &textanchor Hello World
+index: 100
+state: active
+ref: *rootanchor
+data: *0
+list: &listanchor
+- T1
+- T2
+matrix: 
+- - *textanchor
+  - T2
+- *listanchor
+map: 
+- k: T1
+  v: 0
+- k: T2
+  v: 1
+---
+class: not.alexa.coding.Data
+text: Hello World
+index: 100
+state: active
+ref: &anchored *0
+data: *anchored
+list: 
+- T1
+- T2
+matrix: 
+- - T1
+  - T2
+- - T1
+map: 
+- k: T1
+  v: 0
+- k: T2
+  v: 1

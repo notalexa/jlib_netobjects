@@ -106,7 +106,7 @@ public class Data {
         return "Hello Universe";
     }
 
-	enum State {
+	public enum State {
 		active,passive,failed;
 	}
 }

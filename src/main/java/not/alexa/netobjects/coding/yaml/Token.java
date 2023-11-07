@@ -304,7 +304,16 @@ public interface Token {
 		private Type type;
 		private String value;
 		private String tag;
-		SimpleToken(Type type,String tag,String value) {
+		
+		public SimpleToken(String value) {
+			this(Type.Scalar,value);
+		}
+		
+		public SimpleToken(Type type,String value) {
+			this(type,null,value);
+		}
+		
+		public SimpleToken(Type type,String tag,String value) {
 			switch(type) {
 				case Anchor:
 				case Alias:
