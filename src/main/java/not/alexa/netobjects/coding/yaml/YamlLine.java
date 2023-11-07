@@ -837,7 +837,7 @@ class YamlLine {
 				currentToken.setLength(0);
 				prefix=null;
 				Token next=null;
-				if(isDocumentStart()&&current.content[offset]!='&') {
+				if(isDocumentStart()&&current.content[offset]!='&'&&current.content[offset]!='@') {
 					mode=0;
 					return;
 				}

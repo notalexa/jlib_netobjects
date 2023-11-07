@@ -176,8 +176,11 @@ class YamlProcessor implements Iterator<Document> {
 			Tokenizer tokenizer=structureIndentation.getTokenizer();
 			while(tokenizer.hasNext()) {
 				Token t=tokenizer.next();
-				if(t.getType()==Type.Anchor) {
+				switch(t.getType()) {
+				case Anchor:
+				case Script:
 					modifier.add(t);
+					break;
 				}
 			}
 			tokenizer=null;
