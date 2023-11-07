@@ -46,11 +46,19 @@ public class YamlException extends IOException implements LineAware {
 		super(message, cause);
 	}
 	
-	public static <T> T throwException(IOException e) throws YamlException {
-		if(e instanceof YamlException) {
-			throw (YamlException)e;
+	/**
+	 * Throw the argument as a {@link YamlException}
+	 * 
+	 * @param <T> the "return" type
+	 * @param t the throwable 
+	 * @return nothing. This method always throws an exception
+	 * @throws YamlException the exception to throw
+	 */
+	public static <T> T throwException(Throwable t) throws YamlException {
+		if(t instanceof YamlException) {
+			throw (YamlException)t;
 		} else {
-			throw new YamlException(e);
+			throw new YamlException(t);
 		}
 	}
 	
