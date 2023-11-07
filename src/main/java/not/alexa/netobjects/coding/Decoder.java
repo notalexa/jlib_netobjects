@@ -38,6 +38,12 @@ public interface Decoder extends AutoCloseable {
 	public <T> T decode(Class<T> clazz) throws BaseException;
 	
 	/**
+	 * 
+	 * @return {@¢ode true} if this decoder has more elements (possibly {@code null})
+	 */
+	public boolean hasNext();
+	
+	/**
 	 * Return a sequence of all objects in the underlying stream. If an error occurs while decoding, the stream is not evaluated any more and
 	 * the exception is thrown in the {@link Sequence#close()} method.
 	 * 
@@ -52,15 +58,19 @@ public interface Decoder extends AutoCloseable {
 	        Throwable e;
             @Override
             public boolean busy() {
-                if(read) try {
-                    read=false;
-                    while(e==null&&t!=null) {
-                        t=decode(clazz);
-                    }
-                } catch(Throwable t) {
-                    e=t;
-                }
-                return t!=null;
+            	if(e==null&&Decoder.this.hasNext()) {
+	                if(read) try {
+	                    read=false;
+	                    t=decode(clazz);
+	                } catch(Throwable t) {
+	                    e=t;
+	                    this.t=null;
+	                    return false;
+	                }
+	                return true;
+            	} else {
+            		return false;
+            	}
             }
 
             @Override
