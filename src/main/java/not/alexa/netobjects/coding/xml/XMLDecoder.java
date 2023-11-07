@@ -15,6 +15,8 @@
  */
 package not.alexa.netobjects.coding.xml;
 
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -53,9 +55,16 @@ import not.alexa.netobjects.utils.Sequence;
  */
 class XMLDecoder extends DefaultHandler implements Decoder {
 	private static final SAXParserFactory FACTORY=SAXParserFactory.newInstance();
+	protected Node node;
 	protected InputStream stream;
 	protected XMLContentHandler top;
-	TextCodingSupport<XMLCodingScheme> root;
+	protected TextCodingSupport<XMLCodingScheme> root;
+	protected boolean parsed;
+	
+	public XMLDecoder(TextCodingSupport<XMLCodingScheme> root,Node node) {
+	    this.root=root;
+		this.node=node;
+	}
 	
 	public XMLDecoder(TextCodingSupport<XMLCodingScheme> root,InputStream stream) {
 	    this.root=root;
@@ -65,13 +74,19 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	@Override
 	public <T> T decode(Class<T> clazz) throws BaseException {
 		try {
-			SAXParser parser=FACTORY.newSAXParser();
 			top=new XMLContentHandler(this, root.getContext())
 					.init("",root.getCodingScheme().getRootDecoder(root));
-			parser.parse(stream, this);
+			if(stream!=null) {
+				SAXParser parser=FACTORY.newSAXParser();
+				parser.parse(stream, this);
+			} else if(node!=null) {
+				fireEvents(node);
+			}
 			return (T)top.pop().castTo(root.getContext(), clazz);
 		} catch(Throwable t) {
 			return BaseException.throwException(t);
+		} finally {
+			parsed=true;
 		}
 	}
 
@@ -81,6 +96,36 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 			stream.close();
 		} catch(Throwable t) {
 			BaseException.throwException(t);
+		}
+	}
+	
+	@Override
+	public boolean hasNext() {
+		return !parsed;
+	}
+	
+	private void fireEvents(Node node) throws SAXException {
+		switch(node.getNodeType()) {
+			case Node.CDATA_SECTION_NODE:
+			case Node.TEXT_NODE:
+				char[] val=node.getNodeValue().toCharArray();
+				characters(val, 0,val.length);
+				break;
+			case Node.ELEMENT_NODE:
+				String uri=node.getNamespaceURI();
+				String localName=node.getLocalName();
+				String name=node.getNodeName();
+				startElement(uri, localName, name, new NodeAttributes(node.getAttributes()));
+				if(node.hasChildNodes()) for(Node child=node.getFirstChild();child!=null;child=child.getNextSibling()) {
+					fireEvents(child);
+				}
+				endElement(uri, localName, name);
+				break;
+			case Node.DOCUMENT_NODE:
+				if(node.hasChildNodes()) for(Node child=node.getFirstChild();child!=null;child=child.getNextSibling()) {
+					fireEvents(child);
+				}
+			default:
 		}
 	}
 
@@ -433,5 +478,85 @@ class XMLDecoder extends DefaultHandler implements Decoder {
         public Access resolve(Access referrer, TypeDefinition type) {
             return root.getFactory().resolve(referrer, type);
         }
+	}
+
+	static class NodeAttributes implements Attributes {
+		NamedNodeMap map;
+		NodeAttributes(NamedNodeMap map) {
+			this.map=map;
+		}
+		@Override
+		public int getLength() {
+			return map.getLength();
+		}
+
+		@Override
+		public String getURI(int index) {
+			return map.item(index).getNamespaceURI();
+		}
+
+		@Override
+		public String getLocalName(int index) {
+			return map.item(index).getLocalName();
+		}
+
+		@Override
+		public String getQName(int index) {
+			return map.item(index).getNodeName();
+		}
+
+		@Override
+		public String getType(int index) {
+			return "CDATA";
+		}
+
+		@Override
+		public String getValue(int index) {
+			return map.item(index).getNodeValue();
+		}
+
+		@Override
+		public int getIndex(String uri, String localName) {
+			Node n=map.getNamedItemNS(uri,localName);
+			for(int i=0;i<map.getLength();i++) {
+				if(map.item(i)==n) {
+					return i;
+				}
+			}
+			return -1;
+		}
+
+		@Override
+		public int getIndex(String qName) {
+			Node n=map.getNamedItem(qName);
+			for(int i=0;i<map.getLength();i++) {
+				if(map.item(i)==n) {
+					return i;
+				}
+			}
+			return -1;
+		}
+
+		@Override
+		public String getType(String uri, String localName) {
+			return "CDATA";
+		}
+
+		@Override
+		public String getType(String qName) {
+			return "CDATA";
+		}
+
+		@Override
+		public String getValue(String uri, String localName) {
+			Node n=map.getNamedItemNS(uri,localName);
+			return n==null?null:n.getNodeValue();
+		}
+
+		@Override
+		public String getValue(String qName) {
+			Node n=map.getNamedItem(qName);
+			return n==null?null:n.getNodeValue();
+		}
 	}
 }

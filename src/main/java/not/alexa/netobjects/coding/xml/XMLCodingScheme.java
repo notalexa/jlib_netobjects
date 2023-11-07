@@ -23,6 +23,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Map;
+
+import org.w3c.dom.Node;
+
 import java.util.HashMap;
 import java.util.List;
 
@@ -127,7 +130,18 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 	public Decoder createDecoder(Context context, InputStream stream) {
 		return new XMLDecoder(new TextCodingSupport<>(this,context),stream);
 	}
-    	
+
+	/**
+	 * Additional decoder support for a node. Typically, this is a node in a bigger document where parts configures objects.
+	 * 
+	 * @param context the context to use
+	 * @param node the node 
+	 * @return a decoder for this node
+	 */
+	public Decoder createDecoder(Context context, Node node) {
+		return new XMLDecoder(new TextCodingSupport<>(this,context),node);
+	}
+
     @Override
     public ReservedAttributes getReservedAttributes() {
         return reservedXMLAttributes;
