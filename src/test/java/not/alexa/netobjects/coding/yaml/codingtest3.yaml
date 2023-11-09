@@ -1,6 +1,6 @@
---- &rootanchor
+--- &rootanchor @expand
 class: not.alexa.coding.Data
-text: &textanchor Hello World
+text: &textanchor ${user.home}
 index: 100
 state: active
 ref: *rootanchor

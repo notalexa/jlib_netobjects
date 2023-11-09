@@ -68,9 +68,9 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
 	 */
     public static final YamlCodingScheme DEFAULT_SCHEME=new YamlCodingScheme(new Yaml(Mode.Indented));
     /**
-     * Default instance for decoding YAML as a configuration file. This includes the {@link IncludeScript}.
+     * Default instance for decoding YAML as a configuration file. This includes the {@link IncludeScript} and the default {@link ScalarMappingScript}.
      */
-    public static final YamlCodingScheme CONFIGURATION_SCHEME=new YamlCodingScheme(new Yaml(Mode.Indented,new IncludeScript()));
+    public static final YamlCodingScheme CONFIGURATION_SCHEME=new YamlCodingScheme(new Yaml(Mode.Indented,new IncludeScript(),new ScalarMappingScript()));
     
     /**
      * 

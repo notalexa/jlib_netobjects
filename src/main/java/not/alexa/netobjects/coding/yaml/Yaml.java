@@ -66,12 +66,14 @@ import not.alexa.netobjects.coding.yaml.Token.Type;
  * <p>Scripts starts with an {@literal @} and can be used at any position where anchors are allowed.
  * Roughly, the script takes a node, transforms it and writes the result to the original handler. Technically,
  * the script should implement the {@link YamlScript} interface and receives the input node
- * as a sequence of events and writes events to the original handler. The packages provides two scripts:
+ * as a sequence of events and writes events to the original handler. The packages provides three scripts:
  * <ul>
  * <li>The identity script {@code @identity}.
  * <li>The include script {@code @include} takes scalars (or arrays of (arrays of...)) scalars and interprets
  * them as URLs pointing to a YAML file which is included. The special protocol {@code cp://} denotes the class loaders
  * resource stream mechanism
+ * <li>The scalar mapping script {@link ScalarMappingScript} to manipulate scalars using a mapping function. The default
+ * script {@code @expand} expands scalars using system properties and environment variables. 
  * </ul>
  * Anchors and aliases are supported but the restrictions are weakened. First, anchors can be mixed with scripts but note,
  * that anchors after the script are shifted to the script while anchors before the script are attached to the first generated

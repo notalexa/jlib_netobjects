@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2023 Not Alexa
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package not.alexa.netobjects.coding.yaml;
 
 import static org.junit.Assert.assertEquals;
@@ -7,18 +22,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
-
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
-import not.alexa.netobjects.coding.yaml.Token.Type;
 import not.alexa.netobjects.coding.yaml.Yaml.Mode;
 import not.alexa.netobjects.types.DefaultTypeLoader;
 import not.alexa.netobjects.utils.Sequence;
@@ -66,10 +75,9 @@ public class YamlCodingTest {
     
     @Test
     public void testFile3() {
-    	YamlCodingScheme scheme=new YamlCodingScheme(new Yaml(Mode.Indented));
+    	YamlCodingScheme scheme=YamlCodingScheme.CONFIGURATION_SCHEME;// YamlCodingScheme(new Yaml(Mode.Indented));
     	Context context=Context.createRootContext(new DefaultTypeLoader());
     	List<Object> result=new ArrayList<>();
-
     	try(InputStream stream=getClass().getResourceAsStream("codingtest3.yaml"); 
     		Sequence<Object> seq=scheme.createDecoder(context, stream).decodeAll(Object.class)) {
     		for(Object o:seq) {
