@@ -326,7 +326,7 @@ public final class JavaClass extends Namespace {
                     if(clazz.isEnum()) {
                         return new EnumTypeDefinition((Class<? extends Enum<?>>)clazz);
                     } else if(clazz.isArray()) {
-                        return new ArrayTypeDefinition(loader.resolveType(ObjectType.createClassType(clazz.getComponentType().getName())));
+                        return new ArrayTypeDefinition(this,loader.resolveType(ObjectType.createClassType(clazz.getComponentType().getName())));
                     } else try {
                         return (TypeDefinition)clazz.getMethod("getTypeDescription").invoke(null);
                     } catch(Throwable t) {

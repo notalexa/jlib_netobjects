@@ -55,7 +55,11 @@ public class ArrayTypeDefinition extends TypeDefinition {
 	 * 
 	 */
 	public ArrayTypeDefinition(TypeDefinition componentType) {
-		super();
+		this(null,componentType);
+	}
+	
+	public ArrayTypeDefinition(ObjectType type,TypeDefinition componentType) {
+		super(type);
 		if(componentType==null) {
 			throw new NullPointerException("component type");
 		}

@@ -328,6 +328,12 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
                     case PrimitiveType:access=new SimpleTypeAccess(DefaultAccessFactory.this,type);
                         break;
                     case ArrayType:
+                        JavaClass.Type arrayType=type.getJavaClassType();
+                        if(arrayType!=null) try {
+                        	Access componentAccess=resolve(clazz.getClassLoader(), ((ArrayTypeDefinition)type).getComponentType()).getAccess();
+                        	access=new ArrayTypeAccess(type, componentAccess, clazz);
+                        } catch(Throwable t) {
+                        }
                         break;
                     case ClassType:
                         JavaClass.Type javaType=type.getJavaClassType();
