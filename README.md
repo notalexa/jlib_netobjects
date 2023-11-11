@@ -13,10 +13,14 @@ Therefore, network objects needs to be serializable itself. This implies that ne
 To realize the approach, data (and the method signatures) and the implementation of methods are divided into the definition of a network type and a local method implementation. The process of attaching a (local) implementation of methods whenever a network object deserializes on a given machine is called a local linkage. For example, a network type may be locally linked to a Java class. Deserializing the network object inside the VM links the network object to a normal Java Object and additionally implements all methods of the network type by corresponding java methods. Note that the attachment of Java classes to a network type is not unique. Different classes (with different method implementations) may be linked locally to the same network type on different machines providing different implementations of the global method. Beside this, network types have the following general properties:
 
 * Network types are itself Network objects. Therefore, types can move across the network (and can be saved as mentioned above).
-* Network types are an abstract layer. No assumptions are made on how the objects are serialized. The library provides currently a base implementation on serializing to XML but in future, other mechanisms may be provided to serialize network objects (or subsets of) including
+* Network types are an abstract layer. No assumptions are made on how the objects are serialized. The library provides currently a base implementation on serializing to
 <ul>
+<li>XML
 <li>JSON
 <li>YAML
+</ul>
+but other mechanisms may be provided in future to serialize network objects (or subsets of) including
+<ul>
 <li>protobuf
 <li>Android's Parcelable
 </ul>
