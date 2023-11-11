@@ -128,7 +128,7 @@ public class PropertyExpander implements Mapper<String,String,IllegalArgumentExc
 					}
 					int cCount=0;
 					if(colon<k.length()-3&&k.charAt(colon+1)=='['&&k.charAt(colon+3)==']') try {
-						cCount=Integer.parseInt(k, colon+2, colon+3, 10);
+						cCount=Integer.parseInt(Character.toString(k.charAt(colon+2)), 10);
 						colon+=3;
 					} catch(Throwable t) {
 					}
