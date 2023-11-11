@@ -9,10 +9,12 @@
 plugins {
     // Apply the java-library plugin to add support for Java Library
     id 'java-library'
+    id 'maven-publish'
 }
 
 allprojects {
 	apply plugin: 'java-library'
+	apply plugin: 'maven-publish'
 	repositories {
     	jcenter()
 	}
@@ -24,5 +26,21 @@ allprojects {
 
 dependencies {
     implementation group: 'org.slf4j', name: 'slf4j-api', version: '1.7.36'
-    // No dependencies on the root project.
+}
+
+publishing {
+	publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'jlib-netobjects'
+            groupId = 'not.alexa'
+            version = '0.9.1'
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+        	// Local only
+        	url 'file://'+System.getProperty('user.home')+'/maven-repo'
+        }
+    }
 }
