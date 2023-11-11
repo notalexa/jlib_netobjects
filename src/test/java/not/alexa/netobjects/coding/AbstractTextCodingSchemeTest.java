@@ -2,20 +2,19 @@ package not.alexa.netobjects.coding;
 
 import static org.junit.Assert.assertEquals;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
-
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
 
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
+
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
-import not.alexa.netobjects.coding.AbstractTextCodingScheme.ReservedAttributes;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.Namespace;
@@ -35,18 +34,18 @@ public class AbstractTextCodingSchemeTest {
 	@Parameters
 	public static List<TestCase> primitiveClasses() {
 		return Arrays.asList(new TestCase[] {
-		        new TestCase(TestScheme.DEFAULT_INSTANCE,"class","obj-ref","obj-id","","",PrimitiveTypeDefinition.getTypeDescription(Object.class),Charset.forName("UTF-8"),"mimetype","dat",ACCESS),
+		        new TestCase(TestScheme.DEFAULT_INSTANCE,"class",null,"","",PrimitiveTypeDefinition.getTypeDescription(Object.class),Charset.forName("UTF-8"),"mimetype","dat",ACCESS),
                 new TestCase(TestScheme.DEFAULT_INSTANCE.newBuilder()
-                        .setCharset("ISO-8859-1").build(),"class","obj-ref","obj-id","","",PrimitiveTypeDefinition.getTypeDescription(Object.class),Charset.forName("ISO-8859-1"),"mimetype","dat",ACCESS),
+                        .setCharset("ISO-8859-1").build(),"class",null,"","",PrimitiveTypeDefinition.getTypeDescription(Object.class),Charset.forName("ISO-8859-1"),"mimetype","dat",ACCESS),
                 new TestCase(TestScheme.DEFAULT_INSTANCE.newBuilder()
-                        .setReservedAttributes(new ReservedAttributes("refid","objid"))
+                        .setResourceBranch("properties")
                         .setIndent("  ", "\r\n")
                         .setCharset(Charset.forName("ISO-8859-1"))
                         .setTypeInfos("text/xml","xml")
                         .setAccessFctory(ACCESS2)
                         .setRootType(PrimitiveTypeDefinition.getTypeDescription(String.class))
-                        .setNamespace("clazz",Namespace.getJavaNamespace()).build(),"clazz","refid","objid","  ","\r\n",PrimitiveTypeDefinition.getTypeDescription(String.class),Charset.forName("ISO-8859-1"),"text/xml","xml",ACCESS2),
-                new TestCase(TestScheme.DEFAULT_INSTANCE,"class","obj-ref","obj-id","","",PrimitiveTypeDefinition.getTypeDescription(Object.class),Charset.forName("UTF-8"),"mimetype","dat",ACCESS)
+                        .setNamespace("clazz",Namespace.getJavaNamespace()).build(),"clazz","properties","  ","\r\n",PrimitiveTypeDefinition.getTypeDescription(String.class),Charset.forName("ISO-8859-1"),"text/xml","xml",ACCESS2),
+                new TestCase(TestScheme.DEFAULT_INSTANCE,"class",null,"","",PrimitiveTypeDefinition.getTypeDescription(Object.class),Charset.forName("UTF-8"),"mimetype","dat",ACCESS)
 		});
 	}
 	
@@ -59,8 +58,7 @@ public class AbstractTextCodingSchemeTest {
 	@Test
 	public void checkAttribute() {
 	    assertEquals("TypeRef",testCase.typeRef,testCase.scheme.getTypeRef());
-        assertEquals("ObjId",testCase.objId,testCase.scheme.getReservedAttributes().getObjIdName());
-        assertEquals("ObjRef",testCase.objRef,testCase.scheme.getReservedAttributes().getObjRefName());
+        assertEquals("ResourceBranch",testCase.resourceBranch,testCase.scheme.getResourceBranch());
         assertEquals("Indent",testCase.indent,testCase.scheme.getIndent());
         assertEquals("LineTerminator",testCase.lineTerminator,testCase.scheme.getLineTerminator());	    
         assertEquals("RootType",testCase.rootType,testCase.scheme.getRootType());     
@@ -74,20 +72,18 @@ public class AbstractTextCodingSchemeTest {
 	private static class TestCase {
 	    TestScheme scheme;
 	    String typeRef;
-	    String objRef;
-	    String objId;
 	    String indent;
 	    String lineTerminator;
+	    String resourceBranch;
 	    TypeDefinition rootType;
         Charset charset;
         String mimeType;
         String fileExtension;
         AccessFactory accessFactory;
-	    public TestCase(TestScheme scheme,String typeRef,String objRef,String objId,String indent,String lineTerminator,TypeDefinition rootType,Charset charset,String mimeType,String fileExtension,AccessFactory accessFactory) {
+	    public TestCase(TestScheme scheme,String typeRef,String resourceBranch,String indent,String lineTerminator,TypeDefinition rootType,Charset charset,String mimeType,String fileExtension,AccessFactory accessFactory) {
 	        this.scheme=scheme;
 	        this.typeRef=typeRef;
-	        this.objRef=objRef;
-	        this.objId=objId;
+	        this.resourceBranch=resourceBranch;
 	        this.indent=indent;
 	        this.lineTerminator=lineTerminator;
 	        this.rootType=rootType;

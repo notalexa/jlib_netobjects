@@ -35,6 +35,7 @@ import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.JavaClass.Type;
+import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.Constructor;
@@ -145,6 +146,18 @@ class YamlDecoder implements Decoder {
 	    	return current.getAssignable();
 	    }
 	    
+	    private void addObjects(Token t) throws BaseException {
+	    	switch(t.getType()) {
+		    	case DecoratedToken:
+			    	getChild().init("resource", root.getFactory().resolve(getContext(),PrimitiveTypeDefinition.getTypeDescription(Object.class))).decode(t);
+		    		break;
+		    	case Sequence:for(Token child:t.getArray()) {
+			    		addObjects(child);
+			    	}
+		    		break;
+	    	}
+	    }
+	    
 	    public AccessibleObject decode(Token e) throws BaseException {
 	    	List<String> modifiers=Collections.emptyList();
 	    	if(e.getType()==not.alexa.netobjects.coding.yaml.Token.Type.DecoratedToken) {
@@ -207,12 +220,20 @@ class YamlDecoder implements Decoder {
 	                	if(modifiers.size()>0) for(String modifier:modifiers) {
                 			root.addObjectReference(false, modifier, current);
 	                	}
+	                	String resourceBranch=getCodingScheme().getResourceBranch();
+	                	if(resourceBranch!=null&&null==extraInfo.get(resourceBranch)&&o.get(resourceBranch)!=null) {
+	                		addObjects(o.get(resourceBranch));
+	                	}
 	                	for(Field f:classType.getFields()) {
 	                		String name=extraInfo.getName(f);
 	                		Token field=o.get(name);
 	                		if(field!=null) {
 	                			AccessibleObject v=getChild().init(name,tagAccess.getFieldAccess(f)).decode(field);
 	                			current.setField(f, v);
+	                		} else if(f.getDefaultValue()!=null) {
+	                			current.setField(f, tagAccess.getFieldAccess(f).makeAccessible(f.getDefaultValue()));
+	                		} else if(!f.isOptional()) {
+                                throw new BaseException(BaseException.BAD_REQUEST, "Field "+name+" in "+tagAccess.getType()+" is mandatory but not set.");
 	                		}
 	                	}
 	                	return current;

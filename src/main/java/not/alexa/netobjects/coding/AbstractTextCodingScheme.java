@@ -22,7 +22,6 @@ import java.util.Map;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.text.EnumCodec;
-import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.Namespace;
 import not.alexa.netobjects.types.ObjectType;
@@ -51,9 +50,8 @@ import not.alexa.netobjects.types.access.AccessFactory;
  * <li><i>Namespaces:</i> The namespace used by the coding scheme can be configured. By default, the namespace is the Java Namespace with type attribute <code>class</code> but this can be configured using {@link Builder#setNamespace(String, Namespace)}.
  * <li><i>Access Factories:</i> The scheme needs specific access to types for object creation and setting and getting attributes. This {@link Access} can be retrieved using the {@link AccessFactory}
  * which can be set using {@link Builder#setAccessFctory(AccessFactory)}.
- * <li><i>Reserved attributes:</i> Most schemes uses reserved attributes indicating special internal values. For example, if the scheme supports object references as needed if {@link ClassTypeDefinition#enableObjectRefs()}
- * is <code>true</code>, the recommended attributes or fields in the encoded text should be <code>obj-ref</code> for the reference and <code>obj-id</code> for the id of the object. To be
- * flexible, this attributes can be overridden using {@link Builder#setReservedAttributes(ReservedAttributes)} and retrieved using {@link #getReservedAttributes()}.
+ * <li><i>Resource Branches:</i> Text files have the important use case of configuring systems. To improve usability, if a resource branch is set and it's
+ * supported by the coding scheme, resources can be defined for every class using the branch in the text file.
  * </ul>
  * @author notalexa
  *
@@ -68,7 +66,7 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
     protected String fileExtension;
     protected Namespace namespace=Namespace.getJavaNamespace();
     protected String typeRef="class";
-    protected ReservedAttributes reservedAttributes=new ReservedAttributes("obj-ref","obj-id");
+    protected String resourceBranch;
     protected Codecs codecs;
     protected AbstractTextCodingScheme(Charset charset,AccessFactory factory) {
         this.charset=charset;
@@ -106,8 +104,8 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
         return lineTerminator;
     }
     
-    public ReservedAttributes getReservedAttributes() {
-        return reservedAttributes;
+    public String getResourceBranch() {
+        return resourceBranch;
     }
     
     public Namespace getNamespace() {
@@ -243,8 +241,8 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
             return setCharset(Charset.forName(charset));
         }
         
-        public B setReservedAttributes(ReservedAttributes attributes) {
-            scheme.reservedAttributes=attributes;
+        public B setResourceBranch(String resourceBranch) {
+            scheme.resourceBranch=resourceBranch;
             return myself();
         }
         
@@ -265,39 +263,6 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
          * @return myself
          */
         public abstract B myself();
-    }
-    
-    /**
-     * Reserved attribute class containing values for the object reference and object id attributes. Subsequent schemes may extend this class to define more
-     * attributes.
-     * 
-     * @author notalexa
-     *
-     */
-    public static class ReservedAttributes {
-        protected String objRef;
-        protected String objId;
-        
-        public ReservedAttributes(String objRef,String objId) {
-            this.objRef=objRef;
-            this.objId=objId;
-        }
-        
-        /**
-         * 
-         * @return the attribute for an object reference
-         */
-        public String getObjRefName() {
-            return objRef;
-        }
-        
-        /**
-         * 
-         * @return the attribute for an object id
-         */
-        public String getObjIdName() {
-            return objId;
-        }
     }
     
     /**

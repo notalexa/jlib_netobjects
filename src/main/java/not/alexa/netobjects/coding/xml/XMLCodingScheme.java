@@ -22,12 +22,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.w3c.dom.Node;
-
-import java.util.HashMap;
-import java.util.List;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
@@ -57,14 +56,19 @@ import not.alexa.netobjects.types.access.MapEntryAccess;
  * Coding scheme for XML. In addition to the configuration defined in {@link AbstractTextCodingScheme}, this coding scheme defines the following additional configurations:
  * 
  * <ul>
- * <li>An additional reserved attribute with default value <code>is-empty</code> defined in the reserved attribute extension {@link ReservedAttributes}. This attribute is used to
- * indicate an array without any values.
+ * <li><i>Reserved attributes:</i> Most schemes uses reserved attributes indicating special internal values. The XML coding scheme defines three reserved attributes:
+ * <ul>
+ * <li><code>obj-ref</code> denotes the reference for a (formerly) defined object.
+ * <li><code>obj-id</code> denotes the reference for an object.
+ * <li><code>is-empty</code> indicates an empty array.
+ * </ul>
+ * These attributes can be overridden using {@link Builder#setReservedAttributes(ReservedAttributes)} and retrieved using {@link #getReservedAttributes()}.
  * <li>An additional attribute <code>rootTag</code> configurable in the builder with {@link Builder#setRootTag(String)} and retrievable via {@link XMLCodingScheme#getRootTag()}
  * describes the XML root tag used for encoding. The default value is <code>object</code>.
  * </ul>
- * Beside the attributes, the tag for a field can be explizitly set via the {@link FieldBuilder#addTag(String, String)} method with first argument <code>XML</code>
+ * Beside the attributes, the tag for a field can be explicitly set via the {@link FieldBuilder#addTag(String, String)} method with first argument <code>XML</code>.
  * Special values starting with <code>@</code> denotes an attribute. The value <code>#text</code> should be used to indicate that the attribute should be
- * coded as a text attribute (where applicable, that is if the attribute is a simple type).
+ * coded as a text node (where applicable, that is if the rest of data is encoded by attributes only).
  * <br>Namespaces are currently not supported.
  * 
  * @author notalexa
@@ -98,7 +102,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
     }
 
     private String rootTag="object";
-    private ReservedAttributes reservedXMLAttributes=new ReservedAttributes(reservedAttributes);
+    private ReservedAttributes reservedAttributes=new ReservedAttributes("obj-ref","obj-id","is-empty");
 	
 	public static Charset defaultCharset() {
 		try {
@@ -142,9 +146,8 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 		return new XMLDecoder(new TextCodingSupport<>(this,context),node);
 	}
 
-    @Override
     public ReservedAttributes getReservedAttributes() {
-        return reservedXMLAttributes;
+        return reservedAttributes;
     }
 	
 	public Builder newBuilder() {
@@ -165,14 +168,9 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
             scheme.rootTag=rootTag;
             return this;
         }
-        
-        public Builder setReservedAttributes(not.alexa.netobjects.coding.AbstractTextCodingScheme.ReservedAttributes attributes) {
-            setReservedAttributes(new ReservedAttributes(attributes));
-            return this;
-        }
-        
+                
         public Builder setReservedAttributes(ReservedAttributes attributes) {
-            scheme.reservedAttributes=scheme.reservedXMLAttributes=attributes;
+            scheme.reservedAttributes=attributes;
             return this;
         }
 
@@ -184,8 +182,8 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 
         @Override
         public XMLCodingScheme build() {
-            if(scheme.reservedXMLAttributes==null) {
-                scheme.reservedXMLAttributes=new ReservedAttributes(scheme.reservedAttributes);
+            if(scheme.reservedAttributes==null) {
+                scheme.reservedAttributes=new ReservedAttributes("obj-ref","obj-id","is-empty");
             }
             return super.build();
         }
@@ -341,19 +339,34 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         }
     }
     
-    public static class ReservedAttributes extends AbstractTextCodingScheme.ReservedAttributes {
+    public static class ReservedAttributes {
+    	private String objRef;
+        private String objId;
         private String isEmpty;
         public ReservedAttributes(String objRef, String objId,String isEmpty) {
-            super(objRef, objId);
+            this.objRef=objRef;
+            this.objId=objId;
             this.isEmpty=isEmpty;
         }
-        
-        public ReservedAttributes(AbstractTextCodingScheme.ReservedAttributes attributes) {
-            this(attributes.getObjRefName(),attributes.getObjIdName(),"is-empty");
-        }
-        
+                
         public String getIsEmptyName() {
             return isEmpty;
+        }
+        
+        /**
+         * 
+         * @return the attribute for an object reference
+         */
+        public String getObjRefName() {
+            return objRef;
+        }
+        
+        /**
+         * 
+         * @return the attribute for an object id
+         */
+        public String getObjIdName() {
+            return objId;
         }
     }
     
@@ -501,7 +514,11 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
             public String[] getAttributes() {
                 return XMLCodingExtraInfo.this.getAttributes();
             }
-            
+
+            public void setField(String f, AccessibleObject value) throws BaseException {
+            	setField(get(f),value);
+            }
+
             public void setField(Field f, AccessibleObject value) throws BaseException {
                 if(a[f.getIndex()]!=SET) {
                     checked++;

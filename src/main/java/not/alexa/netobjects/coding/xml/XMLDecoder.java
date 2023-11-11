@@ -22,7 +22,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import java.io.InputStream;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import javax.xml.parsers.SAXParser;
@@ -41,9 +41,9 @@ import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.Flavour;
 import not.alexa.netobjects.types.JavaClass.Type;
+import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Access;
-import not.alexa.netobjects.types.access.Access.IllegalAccess;
 import not.alexa.netobjects.types.access.Constructor;
 import not.alexa.netobjects.utils.Sequence;
 
@@ -148,17 +148,16 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 		top.characters(ch, start, length);
 	}
 	
-	public static class XMLContentHandler extends TextCodingItem<XMLCodingScheme,XMLContentHandler> implements Decoder.Buffer {
-	    StringBuilder content=new StringBuilder();
-	    Field field;
-	    XMLCodingExtraInfo.Runtime current;
-	    Map<String,ArrayBuilder> arrays;
+	private static class XMLContentHandler extends TextCodingItem<XMLCodingScheme,XMLContentHandler> implements Decoder.Buffer {
+	    private StringBuilder content=new StringBuilder();
+	    private XMLCodingExtraInfo.Runtime current;
+	    private Map<String,ArrayBuilder> arrays;
 
-	    public XMLContentHandler(XMLDecoder decoder, Context context) {
+	    private XMLContentHandler(XMLDecoder decoder, Context context) {
 	        super(decoder.root);
 	    }
 
-	    public XMLContentHandler(XMLContentHandler parent) {
+	    private XMLContentHandler(XMLContentHandler parent) {
 	        super(parent);
 	    }
 
@@ -168,23 +167,31 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 
 	    public XMLContentHandler endElement(String uri, String localName, String qName) throws SAXException,BaseException {
 	        AccessibleObject o=pop();
-	        parent.addField(field,o);
-	        return parent;
+	        return parent.addField(qName,o);
 	    }
 	    
-	    private XMLContentHandler start(Access fieldAccess,Field f,String qName,Attributes atts) throws BaseException {
+	    private XMLContentHandler start(Access fieldAccess,boolean array,String qName,Attributes atts) throws BaseException {
+	    	String objRef=atts.getValue(root.getCodingScheme().getReservedAttributes().getObjRefName());
+            if(objRef!=null) try {
+                AccessibleObject o=root.resolveObjectReference(objRef);
+                if(o!=null) {
+                	if(array) {
+                		defineArray(qName,fieldAccess);
+                	}
+                	return new SkipHandler(addField(qName,o));
+                } else {
+    				throw new BaseException(BaseException.NOT_FOUND,"Undefined reference: "+objRef);
+                }
+            } catch(Throwable t) {
+                BaseException.throwException(t);
+            }
 	        int consumed=0;
 	        Access tagAccess=fieldAccess;
 	        TypeDefinition fieldType=fieldAccess.getType();
 	        if(fieldType.getFlavour()==Flavour.ArrayType) {
-	            defineArray(f,fieldAccess);
+	            defineArray(qName,fieldAccess);
 	            if("true".equals(atts.getValue(getCodingScheme().getReservedAttributes().getIsEmptyName()))) {
-	                return new XMLContentHandler(this) {
-	                    @Override
-	                    public XMLContentHandler endElement(String uri, String localName, String qName) throws SAXException,BaseException {
-	                        return parent;
-	                    }           
-	                };
+	            	return new SkipHandler(this);
 	            }
 	            fieldType=((ArrayTypeDefinition)fieldType).getComponentType();
 	            tagAccess=fieldAccess.getComponentAccess();
@@ -195,57 +202,58 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	        switch(fieldType.getFlavour()) {
 	            case ClassType:classType=(ClassTypeDefinition)fieldType;
 	                objRefs=classType.enableObjectRefs();
+	                break;
 	            case InterfaceType:
-	                String ref=atts.getValue(root.getCodingScheme().getReservedAttributes().getObjRefName());
-	                if(ref!=null) try {
-	                    AccessibleObject o=root.resolveObjectReference(ref);
-	                    return getChild().init(qName,new IllegalAccess(getCodingScheme().getFactory(),fieldType)).setField(f,o);
-	                } catch(Throwable t) {
-	                    BaseException.throwException(t);
-	                }
-	                if(fieldType.getFlavour()==Flavour.InterfaceType) {
-	                    String clazz=atts.getValue(root.getCodingScheme().getTypeRef());
-	                    consumed++;
-	                    try {
-	                        fieldType=getContext().getTypeLoader().resolveType(getCodingScheme().getNamespace().create(clazz));
-	                        tagAccess=root.getFactory().resolve(getContext(),fieldType);
-	                    } catch(Throwable t) {
-	                        return BaseException.throwException(t);
-	                    }
-	                    if(fieldType.getFlavour()==Flavour.ClassType) {
-	                        classType=(ClassTypeDefinition)fieldType;
-	                        objRefs=classType.enableObjectRefs();
-	                    }
-	                }
+                    String clazz=atts.getValue(root.getCodingScheme().getTypeRef());
+                    consumed++;
+                    try {
+                        fieldType=getContext().getTypeLoader().resolveType(getCodingScheme().getNamespace().create(clazz));
+                        tagAccess=root.getFactory().resolve(getContext(),fieldType);
+                    } catch(Throwable t) {
+                        return BaseException.throwException(t);
+                    }
+                    if(fieldType.getFlavour()==Flavour.ClassType) {
+                        classType=(ClassTypeDefinition)fieldType;
+                        objRefs=classType.enableObjectRefs();
+                    }
+                    break;
 	        }
-	        handler=getChild().init(qName,tagAccess).setField(f,tagAccess);
-	        String ref=atts.getValue(root.getCodingScheme().getReservedAttributes().getObjIdName());
-	        if(objRefs||ref!=null) {
-	            if(ref!=null) {
-	                consumed++;
-	            }
-	            root.addObjectReference(objRefs,ref,handler.current.obj/*delegator*/);                     
-	        }
-	        if(handler.current!=null&&atts.getLength()>consumed) for(String attr:handler.current.getAttributes()) {
-	            String value=atts.getValue(attr);
-                if(value!=null) {
-                    Field f0=handler.current.get(attr);
-                    XMLContentHandler sub=handler.getChild().init(f0.getName(),handler.access.getFieldAccess(f0)).setField(f0,handler.access.getFieldAccess(f0));
-                    sub.content.append(value);
-                    handler.addField(f0,sub.pop());
-	            }
-	        }
+	        handler=getChild().init(qName,tagAccess).setField(qName,tagAccess);
+	        handler.handleAttributes(atts, consumed,objRefs);
 	        return handler;     
 	    }
+	    
+	    private void handleAttributes(Attributes atts,int consumed,boolean objRefs) throws BaseException {
+	        if(current!=null) {
+		        String ref=atts.getValue(root.getCodingScheme().getReservedAttributes().getObjIdName());
+	        	if(objRefs||ref!=null) {
+		            if(ref!=null) {
+		                consumed++;
+		            }
+		            root.addObjectReference(objRefs,ref,current.obj);                     
+		        }
+		        if(atts.getLength()>consumed) for(String attr:current.getAttributes()) {
+		            String value=atts.getValue(attr);
+	                if(value!=null) {
+	                    Field f=current.get(attr);
+	                    XMLContentHandler sub=getChild().init(attr,access.getFieldAccess(f)).setField(attr,access.getFieldAccess(f));
+	                    sub.content.append(value);
+	                    // Not an array
+	                    current.setField(f, sub.pop());
+		            }
+		        }
+	        }
+	    }
 
-	    private void defineArray(Field f,Access access) throws BaseException {
+	    private ArrayBuilder defineArray(String fieldName,Access access) throws BaseException {
 	        if(arrays==null) {
-	            arrays=new HashMap<>();
+	            arrays=new LinkedHashMap<>();
 	        }
-	        ArrayBuilder builder=arrays.get(f.getName());
+	        ArrayBuilder builder=arrays.get(fieldName);
 	        if(builder==null) {
-	            arrays.put(f.getName(),builder=new ArrayBuilder(f,access.newAccessible(this)));
+	            arrays.put(fieldName,builder=new ArrayBuilder(access.newAccessible(this)));
 	        }
+	        return builder;
 	    }
 
 	    public XMLContentHandler startElement(String uri, String localName, String qName, Attributes atts) throws SAXException {
@@ -256,54 +264,42 @@ class XMLDecoder extends DefaultHandler implements Decoder {
                     if(fieldAccess==null) {
                         throw new BaseException();
                     }
-                    return start(fieldAccess,f,qName,atts);	                
+                    return start(fieldAccess,f.getType().getFlavour()==Flavour.ArrayType,qName,atts);	                
 	            }
             } catch(BaseException e) {
                 throw new SAXException(e);
+	        } else {
+	        	TypeDefinition type=getType();
+	        	if(type.getFlavour()==Flavour.ArrayType) {
+		            if(qName.equals(fieldName)) try {
+		                // Inner array (depth>1)
+		                return start(access,true,qName,atts);
+		            } catch(Exception e) {
+		                throw new SAXException(e);
+		            }
+		        }
 	        }
-	        TypeDefinition type=getType();
-	        if(type.getFlavour()==Flavour.ClassType) for(Field f:((ClassTypeDefinition)type).getFields()) try {
-	            if(qName.equals(f.getTag("XML"))) {
-	                Access fieldAccess=access.getFieldAccess(f);
-	                if(fieldAccess==null) {
-	                    throw new BaseException();
-	                }
-	                return start(fieldAccess,f,qName,atts);
-	            }
-	        } catch(BaseException e) {
-	            throw new SAXException(e);
-	        } else if(type.getFlavour()==Flavour.ArrayType) {
-	            if(qName.equals(field.getName())) try {
-	                // Inner array (depth>1)
-	                Field field=new ClassTypeDefinition().createBuilder().addField(qName, type).build().getFields()[0];
-	                return start(access,field,qName,atts);
-	            } catch(Exception e) {
-	                throw new SAXException(e);
-	            }
-	        }
-	        return new XMLContentHandler(this) {
-	            private int depth=1;
-                @Override
-                public void characters(char[] ch, int start, int length) throws SAXException {
-                }
+	        if(qName.equals(getCodingScheme().getResourceBranch())) {
+	        	String objId=atts.getValue(root.getCodingScheme().getReservedAttributes().getObjIdName());
+	        	String clazz=atts.getValue(root.getCodingScheme().getTypeRef());
+	        	if(objId!=null&&clazz!=null) try {
+	        		Access objectAccess=getCodingScheme().getFactory().resolve(getContext(), PrimitiveTypeDefinition.getTypeDescription(Object.class));
+	        		XMLContentHandler myHandler=new XMLContentHandler(this) {
 
-                @Override
-                public XMLContentHandler endElement(String uri, String localName, String qName) throws SAXException, BaseException {
-                    depth--;
-                    return depth==0?parent:this;
-                }
-
-                @Override
-                public XMLContentHandler startElement(String uri, String localName, String qName, Attributes atts) throws SAXException {
-                    depth++;
-                    return this;
-                }
-
-                @Override
-                AccessibleObject pop() throws BaseException {
-                    return null;
-                }
-	        };
+						@Override
+						XMLContentHandler addField(String fieldName, AccessibleObject o) throws BaseException {
+							root.addObjectReference(false, objId, o);
+							return parent;
+						}
+						
+	        		}.init("item", objectAccess);
+	        		XMLContentHandler resolved=myHandler.start(objectAccess, false, "item", atts);
+	        		return resolved;
+               } catch(Throwable t) {
+            	   t.printStackTrace();
+               }
+        	}
+	        return new SkipHandler(this);
 	    }
 
 	    @Override
@@ -312,7 +308,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	    }
 
 	    @Override
-	    public XMLContentHandler init(String fieldName, Access access) {
+	    protected XMLContentHandler init(String fieldName, Access access) {
 	        super.init(fieldName,access);
 	        content.setLength(0);
 	        if(parent!=null) {
@@ -337,19 +333,12 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	                }
 	            });
 	        }
-	        field=null;
 	        arrays=null;
 	        return this;
 	    }
 	    
-        public XMLContentHandler setField(Field f,AccessibleObject o) throws BaseException {
-            this.field=f;
-            this.current=XMLCodingExtraInfo.NULL_INFO.createRuntime(o);
-            return this;
-        }
-	    
-	    public XMLContentHandler setField(Field f,Access access) throws BaseException {
-	        this.field=f;
+	    private XMLContentHandler setField(String tagName,Access access) throws BaseException {
+	        this.fieldName=tagName;
 	        this.access=access;
 	        TypeDefinition resolvedType=access.getType();
 	        switch(resolvedType.getFlavour()) {
@@ -357,7 +346,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	                current=XMLCodingScheme.getExtraInfo(resolvedType).createRuntime(access,access.newAccessible(this));
 	                break;
 	            case ArrayType:
-	                defineArray(f, access);
+	                defineArray(tagName, access);
 	                break;
 	            default:
 	                break;
@@ -375,25 +364,21 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	        return content;
 	    }
 	    
-	    protected void addField(Field f,AccessibleObject o) throws BaseException {
-	        if(f.getType().getFlavour()==Flavour.ArrayType) {
-	            ArrayBuilder builder=arrays==null?null:arrays.get(f.getName());
-	            if(builder!=null) {
-	                builder.add(o);
-	            } else {
-	                throw new BaseException(BaseException.BAD_REQUEST,"Array "+f.getName()+" not initialized.");
-	            }
-	        } else if(current!=null) try {
-	            current.setField(f, o);
-	        } catch(Throwable t) {
-	        }
+	    XMLContentHandler addField(String fieldName,AccessibleObject o) throws BaseException {
+            ArrayBuilder builder=arrays==null?null:arrays.get(fieldName);
+            if(builder!=null) {
+                builder.add(o);
+            } else {
+	            current.setField(fieldName, o);
+            }
+            return this;
 	    }
 	    
 	    AccessibleObject pop() throws BaseException {
 	        TypeDefinition type=getType();
             if(current!=null) {
-                if(arrays!=null) for(ArrayBuilder a:arrays.values()) {
-                    current.setField(a.f,a.obj);
+                if(arrays!=null) for(Map.Entry<String,ArrayBuilder> entry:arrays.entrySet()) {
+                    current.setField(entry.getKey(),entry.getValue().obj);
                 }
                 Field textField=current.getTextField();
    	            if(textField!=null) {
@@ -403,7 +388,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
     	        }
    	            return current.checked();
 	        } else if(type.getFlavour()==Flavour.ArrayType) {
-	            return arrays.get(field.getName());
+	            return arrays.get(fieldName).obj;
 	        } else try {
 	            Access simpleAccess=new Access.SimpleTypeAccess(getCodingScheme().getFactory(),type);
 	            Codec codec=resolveCodec(type.getJavaClassType(),simpleAccess);
@@ -414,7 +399,6 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	    }
 	    
 	    private static class ArrayBuilder implements AccessibleObject {
-	        Field f;
 	        AccessibleObject obj;
 	        public TypeDefinition getType() {
 	            return obj.getType();
@@ -433,8 +417,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	            return obj.getField(f);
 	        }
 
-	        public ArrayBuilder(Field f,AccessibleObject obj) {
-	            this.f=f;
+	        public ArrayBuilder(AccessibleObject obj) {
 	            this.obj=obj;
 	        }
 	        
@@ -558,5 +541,34 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 			Node n=map.getNamedItem(qName);
 			return n==null?null:n.getNodeValue();
 		}
+	}
+	
+	private static class SkipHandler extends XMLContentHandler {
+		private int depth=1;
+		
+        private SkipHandler(XMLContentHandler parent) {
+			super(parent);
+		}
+
+        @Override
+        public void characters(char[] ch, int start, int length) throws SAXException {
+        }
+
+        @Override
+        public XMLContentHandler endElement(String uri, String localName, String qName) throws SAXException, BaseException {
+            depth--;
+            return depth==0?parent:this;
+        }
+
+        @Override
+        public XMLContentHandler startElement(String uri, String localName, String qName, Attributes atts) throws SAXException {
+            depth++;
+            return this;
+        }
+
+        @Override
+        AccessibleObject pop() throws BaseException {
+            return null;
+        }
 	}
 }

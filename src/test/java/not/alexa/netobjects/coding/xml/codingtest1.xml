@@ -1,0 +1,23 @@
+<object class="not.alexa.coding.Data" index="100" state="active">
+<resource class="java.lang.String[]" obj-id="strings">
+<item>Hello World1</item>
+<item>Hello World2</item>
+</resource>
+<resource class="java.lang.String" obj-id="greetings">Hello World</resource>
+<text obj-ref="greetings"/>
+<ref obj-ref="0"/>
+<data obj-ref="0"/>
+<list>T1</list>
+<list>T2</list>
+<list obj-ref="greetings"/>
+<matrix>
+  <matrix>T1</matrix>
+  <matrix>T2</matrix>
+</matrix>
+<matrix>
+  <matrix>T1</matrix>
+  <matrix>T2</matrix>
+</matrix>
+<matrix obj-ref="strings"/>
+<map k="T1"><v>0</v></map><map k="T2"><v>1</v></map>
+</object>

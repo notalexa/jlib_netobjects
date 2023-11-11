@@ -18,8 +18,17 @@ map:
 - k: T2
   v: 1
 ---
+resources:
+- &greetings 
+  class: java.lang.String
+  .: Hello World
+- &strings
+  class: java.lang.String[]
+  .:
+  - Hello World1
+  - Hello World2
 class: not.alexa.coding.Data
-text: Hello World
+text: *greetings
 index: 100
 state: active
 ref: &anchored *0
@@ -27,10 +36,12 @@ data: *anchored
 list: 
 - T1
 - T2
+- *greetings
 matrix: 
 - - T1
   - T2
 - - T1
+- *strings
 map: 
 - k: T1
   v: 0

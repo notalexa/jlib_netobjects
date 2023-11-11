@@ -21,6 +21,9 @@ import static org.junit.Assert.fail;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -34,6 +37,8 @@ import org.xml.sax.SAXException;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.xml.XMLDecoder.NodeAttributes;
+import not.alexa.netobjects.types.DefaultTypeLoader;
+import not.alexa.netobjects.utils.Sequence;
 
 public class XMLCodingTest {
 
@@ -78,6 +83,22 @@ public class XMLCodingTest {
 			fail();
 		}
 	}
-
-
+	
+    @Test
+    public void testFile1() {
+    	XMLCodingScheme scheme=XMLCodingScheme.DEFAULT_SCHEME.newBuilder().setResourceBranch("resource").build();// YamlCodingScheme(new Yaml(Mode.Indented));
+    	Context context=Context.createRootContext(new DefaultTypeLoader());
+    	List<Object> result=new ArrayList<>();
+    	try(InputStream stream=getClass().getResourceAsStream("codingtest1.xml"); 
+    		Sequence<Object> seq=scheme.createDecoder(context, stream).decodeAll(Object.class)) {
+    		for(Object o:seq) {
+    			result.add(o);
+    		}
+    		System.out.println("Result "+result);
+    		// fail(); Exception is thrown at close
+    	} catch(BaseException|IOException t) {
+    		t.printStackTrace();
+    		assertEquals(0,result.size());
+    	}
+    }
 }

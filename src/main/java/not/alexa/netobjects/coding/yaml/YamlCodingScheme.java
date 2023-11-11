@@ -57,7 +57,8 @@ import not.alexa.netobjects.types.access.MapEntryAccess;
  * <li>{@link #DEFAULT_SCHEME} with no scripts (and mode {@link Mode#Indented}).
  * <li>{@link #CONFIGURATION_SCHEME} with typical configuration scripts included.
  * </ul>
- * 
+ * This scheme supports resource branches, which are <b>enabled</b> in mode {@link Mode#Indented} (with branch name {@code resources}) by default and <b>disabled</b>
+ * otherwise.
  * 
  * @author notalexa
  *
@@ -97,6 +98,7 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
 	public YamlCodingScheme(Yaml yaml,Charset charset,AccessFactory factory) {
 	    super(charset,factory);
 	    this.yaml=yaml;
+	    resourceBranch=yaml.mode==Mode.Indented?"resources":null;
 	    mimeType=yaml.mode==Mode.Indented?"text/yaml":"text/json";
 	    fileExtension=yaml.mode==Mode.Indented?"yaml":"json";
 	}
