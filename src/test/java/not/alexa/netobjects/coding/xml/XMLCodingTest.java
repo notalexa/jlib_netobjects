@@ -36,7 +36,9 @@ import org.xml.sax.SAXException;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
+import not.alexa.netobjects.coding.CodingScheme;
 import not.alexa.netobjects.coding.xml.XMLDecoder.NodeAttributes;
+import not.alexa.netobjects.coding.yaml.YamlCodingScheme;
 import not.alexa.netobjects.types.DefaultTypeLoader;
 import not.alexa.netobjects.utils.Sequence;
 
@@ -101,4 +103,51 @@ public class XMLCodingTest {
     		assertEquals(0,result.size());
     	}
     }
+    
+    @Test
+    public void testFile2() {
+    	Context context=Context.createRootContext();
+    	CodingScheme scheme=XMLCodingScheme.DEFAULT_SCHEME.newBuilder().setIndent("  ", "\n").setRootType(context.resolveType(Integer.class)).build();
+    	try(Sequence<Object> seq=scheme.createDecoder(context, "<object>123</object>".getBytes()).decodeAll(Object.class)) {
+    		for(Object o:seq) {
+    			assertEquals(123,o);
+    			System.out.write(scheme.createEncoder(context).encode(o).asBytes());
+    		}
+    	} catch(BaseException|IOException t) {
+    		t.printStackTrace();
+    		fail();
+    	}
+    	
+    }
+
+    @Test
+    public void testFile3() {
+    	Context context=Context.createRootContext();
+    	CodingScheme scheme=XMLCodingScheme.DEFAULT_SCHEME.newBuilder().setIndent("  ", "\n").setRootType(context.resolveType(Object[].class)).build();
+    	try(Sequence<Object> seq=scheme.createDecoder(context, "<object><object class=\"java.lang.String\">Hello World</object><object class=\"int\">123</object></object>\n".getBytes()).decodeAll(Object.class)) {
+    		for(Object o:seq) {
+    			assert(o.getClass().isArray());
+    			System.out.write(scheme.createEncoder(context).encode(o).asBytes());
+    		}
+    	} catch(BaseException|IOException t) {
+    		t.printStackTrace();
+    		fail();
+    	}
+    }
+
+    @Test
+    public void testFile4() {
+    	Context context=Context.createRootContext();
+    	CodingScheme scheme=XMLCodingScheme.DEFAULT_SCHEME.newBuilder().setIndent("  ", "\n").setRootType(context.resolveType(Object[].class)).build();
+    	try(Sequence<Object> seq=scheme.createDecoder(context, "<object is-empty=\"true\"/>\n".getBytes()).decodeAll(Object.class)) {
+    		for(Object o:seq) {
+    			assert(o.getClass().isArray());
+    			System.out.write(scheme.createEncoder(context).encode(o).asBytes());
+    		}
+    	} catch(BaseException|IOException t) {
+    		t.printStackTrace();
+    		fail();
+    	}
+    }
+
 }

@@ -29,7 +29,6 @@ import org.junit.Test;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.yaml.Yaml.Mode;
-import not.alexa.netobjects.types.DefaultTypeLoader;
 import not.alexa.netobjects.utils.Sequence;
 
 public class YamlCodingTest {
@@ -40,9 +39,8 @@ public class YamlCodingTest {
     @Test
     public void testFile1() {
     	YamlCodingScheme scheme=new YamlCodingScheme(new Yaml(Mode.Indented));
-    	Context context=Context.createRootContext(new DefaultTypeLoader());
+    	Context context=Context.createRootContext();
     	List<Object> result=new ArrayList<>();
-
     	try(InputStream stream=getClass().getResourceAsStream("codingtest1.yaml"); 
     		Sequence<Object> seq=scheme.createDecoder(context, stream).decodeAll(Object.class)) {
     		for(Object o:seq) {
@@ -58,9 +56,8 @@ public class YamlCodingTest {
     @Test
     public void testFile2() {
     	YamlCodingScheme scheme=new YamlCodingScheme(new Yaml(Mode.Indented));
-    	Context context=Context.createRootContext(new DefaultTypeLoader());
+    	Context context=Context.createRootContext();
     	List<Object> result=new ArrayList<>();
-
     	try(InputStream stream=getClass().getResourceAsStream("codingtest2.yaml"); 
     		Sequence<Object> seq=scheme.createDecoder(context, stream).decodeAll(Object.class)) {
     		for(Object o:seq) {
@@ -76,7 +73,7 @@ public class YamlCodingTest {
     @Test
     public void testFile3() {
     	YamlCodingScheme scheme=YamlCodingScheme.CONFIGURATION_SCHEME;// YamlCodingScheme(new Yaml(Mode.Indented));
-    	Context context=Context.createRootContext(new DefaultTypeLoader());
+    	Context context=Context.createRootContext();
     	List<Object> result=new ArrayList<>();
     	try(InputStream stream=getClass().getResourceAsStream("codingtest3.yaml"); 
     		Sequence<Object> seq=scheme.createDecoder(context, stream).decodeAll(Object.class)) {
@@ -92,7 +89,7 @@ public class YamlCodingTest {
     @Test
     public void testFile4() {
     	YamlCodingScheme scheme=YamlCodingScheme.builder().setCharset("UTF-8").build();
-    	Context context=Context.createRootContext(new DefaultTypeLoader());
+    	Context context=Context.createRootContext();
     	List<Object> result=new ArrayList<>();
     	Token token=new MapToken()
     			.add(new Token.SimpleToken("class"), new Token.SimpleToken("int"))
@@ -102,7 +99,6 @@ public class YamlCodingTest {
     		Sequence<Object> seq=scheme.createDecoder(context, token).decodeAll(Object.class)) {
     		for(Object o:seq) {
     			result.add(o);
-    			System.out.println(o);
     		}
     		assertEquals(1,result.size());
     	} catch(BaseException|IOException t) {
@@ -113,9 +109,8 @@ public class YamlCodingTest {
     @Test
     public void testFile5() {
     	YamlCodingScheme scheme=new YamlCodingScheme(new Yaml(Mode.Indented));
-    	Context context=Context.createRootContext(new DefaultTypeLoader());
+    	Context context=Context.createRootContext();
     	List<Object> result=new ArrayList<>();
-
     	try(InputStream stream=new ByteArrayInputStream("%YAML 2.0".getBytes()); 
     		Sequence<Object> seq=scheme.createDecoder(context, stream).decodeAll(Object.class)) {
     		for(Object o:seq) {
@@ -126,6 +121,37 @@ public class YamlCodingTest {
     		//t.printStackTrace();
     		assertEquals(0,result.size());
     	}
+    }
+    
+    @Test
+    public void testFile6() {
+    	Context context=Context.createRootContext();
+    	YamlCodingScheme scheme=YamlCodingScheme.CONFIGURATION_SCHEME.newBuilder().setRootType(context.resolveType(Integer.class)).build();
+    	try(Sequence<Object> seq=scheme.createDecoder(context, "123".getBytes()).decodeAll(Object.class)) {
+    		for(Object o:seq) {
+    			assertEquals(123,o);
+    			System.out.write(scheme.createEncoder(context).encode(o).asBytes());
+    		}
+    	} catch(BaseException|IOException t) {
+    		fail();
+    	}
+    	
+    }
+
+    @Test
+    public void testFile7() {
+    	Context context=Context.createRootContext();
+    	YamlCodingScheme scheme=YamlCodingScheme.CONFIGURATION_SCHEME.newBuilder().setRootType(context.resolveType(Object[].class)).build();
+    	try(Sequence<Object> seq=scheme.createDecoder(context, "- class: java.lang.String\n  .: Hello World\n- class: int\n  .: 123\n".getBytes()).decodeAll(Object.class)) {
+    		for(Object o:seq) {
+    			assert(o.getClass().isArray());
+    			System.out.write(scheme.createEncoder(context).encode(o).asBytes());
+    		}
+    	} catch(BaseException|IOException t) {
+    		t.printStackTrace();
+    		fail();
+    	}
+    	
     }
 
 }

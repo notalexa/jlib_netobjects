@@ -82,23 +82,39 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
 
 	@Override
 	public Encoder encode(Object o) throws BaseException {
-	    if(o!=null) {
+	    if(o!=null) try {
+	    	boolean root=parent==null;
     		if(getType().getFlavour()==Flavour.ArrayType) {
     			Collection<?> col=ArrayTypeAccess.canonicalize(o);
-    			if(col.size()==0) try {
+    			if(col.size()==0) {
     	            if(parent!=null) {
     	                parent.closeOpener();
     	                writer.append(indent);
     	            }
     			    writer.append('<').append(fieldName).append(' ').append(getCodingScheme().getReservedAttributes().getIsEmptyName()).append("=\"true\"/>");
-    			} catch(IOException e) {
-    			    return BaseException.throwException(e);
-    			} else for(Object c:col) {
-    				encode0(c);
+    			} else if(!root) {
+    				for(Object c:col) {
+    					encode0(c);
+    				}
+    			} else {
+    				writer.append('<').append(fieldName);
+    				XMLEncoder level=getChild().init(fieldName, flags, access);
+    				level.codec=codec;
+    				level.encode(o);
+    				if(closed) {
+    					writer.append(indent).append("</").append(fieldName).append('>');
+    				} else {
+    					writer.append("/>");
+    				}
     			}
     		} else {
     			encode0(o);
     		}
+    		if(root) {
+    			writer.append(indent);
+    		}
+	    } catch(IOException e) {
+	    	return BaseException.throwException(e);
 	    }
 		return this;
 	}
@@ -110,7 +126,7 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
 		}
 	}
 	
-	protected void encode0(Object o) throws BaseException {
+	protected void encode0(Object o) throws BaseException, IOException {
         Codec stackedCodec=codec;
         Access stackedAccess=access;
         TypeDefinition type=access.getType();
@@ -225,11 +241,14 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
 
 	public XMLEncoder init(String fieldName,int flags,Access access) {
 		super.init(fieldName, access);
+		this.codec=null;
 		this.flags=flags;
 		if(parent!=null) {
 			parent.hasChildren|=!isAttribute();
+		} else if(!access.getType().isAbstract()) try {
+			this.codec=getCodingScheme().getCodec(getContext(), access.getType().getType(getCodingScheme().getNamespace()), access);
+		} catch(BaseException e) {
 		}
-		this.codec=null;
 		return this;
 	}
 

@@ -208,8 +208,14 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
 
 	public YamlEncoder init(String fieldName,int flags,Access access) {
 		super.init(fieldName, access);
+		if(parent==null&&!access.getType().isAbstract()) try {
+			this.codec=getCodingScheme().getCodec(getContext(), access.getType().getType(getCodingScheme().getNamespace()), access);
+		} catch(BaseException e) {
+			this.codec=null;
+		} else {
+			this.codec=null;
+		}
 		this.flags=flags;
-		this.codec=null;
 		return this;
 	}
 

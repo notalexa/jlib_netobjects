@@ -139,8 +139,8 @@ public class AbstractTextCodingSchemeCodecsTest {
         }
 
         @Override
-        protected Codec createArrayCodec(Context context, ObjectType type, TypeDefinition typeDef) throws BaseException {
-            return walkThrough?null:super.createArrayCodec(context, type, typeDef);
+        protected Codec createArrayCodec(Context context, ObjectType type, Access access) throws BaseException {
+            return walkThrough?null:super.createArrayCodec(context, type, access);
         }
 
         @Override

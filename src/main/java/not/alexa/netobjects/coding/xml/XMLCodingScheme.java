@@ -202,6 +202,33 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         }
     }
     
+	@Override
+	protected Codec createArrayCodec(Access access,Codec componentCodec) throws BaseException {
+		return createInternal(rootTag, access,componentCodec);
+	}
+		
+	private static Codec createInternal(String tagName,Access access,Codec componentCodec) throws BaseException {	
+		return new Codec() {
+            @Override
+            public void encode(Buffer buffer, Object t) throws BaseException {
+                XMLEncoder c=((XMLEncoder)buffer).getChild().init(tagName,0,access);
+                c.codec=this;
+                c.encode(t);
+            }
+
+            @Override
+            public Object decode(not.alexa.netobjects.coding.Decoder.Buffer buffer) throws BaseException {
+                return null;
+            }
+
+            @Override
+            public Codec getComponentCodec() throws BaseException {
+                return componentCodec;
+            }
+        };
+		
+	}
+
     
     public Access getRootDecoder(TextCodingSupport<XMLCodingScheme> root) {
         TypeDefinition anonymous=new ClassTypeDefinition().createBuilder().addField(getRootTag(), getRootType()).build();
@@ -292,26 +319,10 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         
         protected Codec createCodec(String tagName,TypeDefinition type,Access access) throws BaseException {
             switch(type.getFlavour()) {
-                case ArrayType:return new Codec() {
+                case ArrayType:
                     Access componentAccess=access.getComponentAccess();
                     Codec componentCodec=createCodec(tagName, ((ArrayTypeDefinition)type).getComponentType(), componentAccess);
-                    @Override
-                    public void encode(Buffer buffer, Object t) throws BaseException {
-                        XMLEncoder c=((XMLEncoder)buffer).getChild().init(tagName,type.isAbstract()?XMLEncoder.SHOWTYPE_MASK:0,access);
-                        c.codec=this;
-                        c.encode(t);
-                    }
-    
-                    @Override
-                    public Object decode(not.alexa.netobjects.coding.Decoder.Buffer buffer) throws BaseException {
-                        return null;
-                    }
-    
-                    @Override
-                    public Codec getComponentCodec() throws BaseException {
-                        return componentCodec;
-                    }
-                };
+                    return createInternal(tagName,access,componentCodec);
                 case PrimitiveType:return pool.get(access);
                 case EnumType:Codec codec=pool.get(access);
                     if(codec==null) {

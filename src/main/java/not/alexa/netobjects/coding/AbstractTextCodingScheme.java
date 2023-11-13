@@ -124,7 +124,7 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
                     case PrimitiveType:throw new BaseException(BaseException.NOT_FOUND,"Primitive type "+access.getType()+" has no predefined codec.");
                     case InterfaceType:codec=createInterfaceCodec(context, type, access.getType());
                         break;
-                    case ArrayType:codec=createArrayCodec(context, type, access.getType());
+                    case ArrayType:codec=createArrayCodec(context, type, access);
                         break;
                     case MethodType:codec=createMethodCodec(context, type, access.getType());
                         break;
@@ -144,14 +144,20 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
     }
 
     protected Codec createInterfaceCodec(Context context,ObjectType type,TypeDefinition typeDef) throws BaseException {
-        throw new BaseException(BaseException.NOT_FOUND,"Codecs for interface types are not defined.");
+    	return null;
     }
     
     protected Codec createMethodCodec(Context context,ObjectType type,TypeDefinition typeDef) throws BaseException {
         throw new BaseException(BaseException.NOT_FOUND,"Codecs for method types are not defined.");
     }
 
-    protected Codec createArrayCodec(Context context,ObjectType type,TypeDefinition typeDef) throws BaseException {
+	protected Codec createArrayCodec(Context context, ObjectType type, Access access) throws BaseException {
+		Access componentAccess=access.getComponentAccess();
+		Codec componentCodec=getCodec(context, componentAccess.getType().getType(getNamespace()), componentAccess);
+		return createArrayCodec(access,componentCodec);
+	}	
+		
+	protected Codec createArrayCodec(Access access,Codec componentCodec) throws BaseException {
         throw new BaseException(BaseException.NOT_FOUND,"Codecs for array types are not defined.");
     }
     

@@ -188,7 +188,7 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	        int consumed=0;
 	        Access tagAccess=fieldAccess;
 	        TypeDefinition fieldType=fieldAccess.getType();
-	        if(fieldType.getFlavour()==Flavour.ArrayType) {
+	        if(fieldType.getFlavour()==Flavour.ArrayType&&parent!=null) {
 	            defineArray(qName,fieldAccess);
 	            if("true".equals(atts.getValue(getCodingScheme().getReservedAttributes().getIsEmptyName()))) {
 	            	return new SkipHandler(this);
@@ -206,11 +206,13 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	            case InterfaceType:
                     String clazz=atts.getValue(root.getCodingScheme().getTypeRef());
                     consumed++;
-                    try {
+                    if(clazz!=null) try {
                         fieldType=getContext().getTypeLoader().resolveType(getCodingScheme().getNamespace().create(clazz));
                         tagAccess=root.getFactory().resolve(getContext(),fieldType);
                     } catch(Throwable t) {
                         return BaseException.throwException(t);
+                    } else {
+                    	throw new BaseException(BaseException.BAD_REQUEST,"Missing Type Reference in "+qName);
                     }
                     if(fieldType.getFlavour()==Flavour.ClassType) {
                         classType=(ClassTypeDefinition)fieldType;
