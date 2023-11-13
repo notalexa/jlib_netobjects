@@ -21,6 +21,8 @@ import org.slf4j.LoggerFactory;
 import java.security.Permission;
 import java.util.Locale;
 
+import not.alexa.netobjects.types.ObjectType;
+import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.TypeLoader;
 import not.alexa.netobjects.types.access.AccessFactory;
 
@@ -47,7 +49,7 @@ public interface Context extends Adaptable {
      * @return a root context
      */
     public static Context createRootContext() {
-        return new Root();
+        return TypeLoader.createRootContext();
     }
     
     /**
@@ -72,6 +74,14 @@ public interface Context extends Adaptable {
 	 */
 	public default TypeLoader getTypeLoader() {
 		return TypeLoader.DEFAULT_LOADER;
+	}
+	
+	public default TypeDefinition resolveType(ObjectType type) {
+		return getTypeLoader().resolveType(type);
+	}
+	
+	public default TypeDefinition resolveType(Class<?> type) {
+		return getTypeLoader().resolveType(type);
 	}
 	
 	/**

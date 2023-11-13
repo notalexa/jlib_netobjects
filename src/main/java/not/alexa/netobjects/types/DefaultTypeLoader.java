@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 
 import not.alexa.netobjects.Adaptable;
 import not.alexa.netobjects.BaseException;
@@ -51,6 +52,7 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
             return null;
         }
     };
+    static final TypeLoader BASE_LOADER;
     
     private Map<Type,LinkedLocal> linkedLocals=new HashMap<>();
 	private Map<ObjectType,TypeDefinition> resolved=new HashMap<>();
@@ -71,6 +73,14 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 	    if(!defaultResolvers.contains(resolver)) {
 	        defaultResolvers.add(resolver);
 	    }
+	}
+	
+	static {
+		ServiceLoader<TypeResolver> serviceLoader=ServiceLoader.load(TypeResolver.class,DefaultTypeLoader.class.getClassLoader());
+		for(TypeResolver resolver:serviceLoader) {
+			addTypeResolver(resolver);
+		}
+	    BASE_LOADER=new DefaultTypeLoader();
 	}
 	
 	public DefaultTypeLoader() {

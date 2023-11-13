@@ -19,6 +19,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
 
+import not.alexa.netobjects.Context;
 import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.utils.OverlayTypeLoader;
@@ -58,6 +59,10 @@ public interface TypeLoader {
 	public final TypeLoader DEFAULT_LOADER=new TypeLoader() {
 	};
 	
+	public static Context createRootContext() {
+		return DefaultTypeLoader.BASE_LOADER.createContext();
+	}
+	
 	/**
 	 * 
 	 * @return the class loader attached to this type loader
@@ -95,6 +100,10 @@ public interface TypeLoader {
 	 */
 	public default TypeDefinition resolveType(Class<?> clazz) {
 		return resolveType(ObjectType.createClassType(clazz));
+	}
+	
+	public default Context createContext() {
+		return Context.createRootContext(this);
 	}
 
 	/**
