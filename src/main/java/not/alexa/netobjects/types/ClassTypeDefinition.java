@@ -221,7 +221,6 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
             
 			public Builder build() {
 				Field f=new Field(fields.size(),name,type);
-                f.extendible=extendible;
                 f.optional=optional;
                 switch(type.getFlavour()) {
                     case InterfaceType:
