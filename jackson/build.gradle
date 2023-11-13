@@ -18,6 +18,8 @@ publishing {
             groupId = 'not.alexa'
             version = '0.9.1'
             from components.java
+            artifact sourcesJar
+            artifact javadocJar
         }
     }
     repositories {
