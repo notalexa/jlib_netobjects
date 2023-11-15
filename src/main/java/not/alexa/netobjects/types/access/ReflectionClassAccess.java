@@ -15,6 +15,7 @@
  */
 package not.alexa.netobjects.types.access;
 
+import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Map;
 
@@ -22,6 +23,8 @@ import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.Flavour;
+import not.alexa.netobjects.utils.TypeUtils;
+import not.alexa.netobjects.utils.TypeUtils.ClassResolver;
 
 /**
  * Standard class access using reflection ({@link NField}. The field is resolved as follows:
@@ -38,22 +41,22 @@ class ReflectionClassAccess extends AbstractClassAccess {
         Field[] classFields=classType.getFields();
         fields=new NField[classFields.length];
         for(int i=0;i<fields.length;i++) {
-            fields[i]=createFieldAccess(clazz,clazz,classFields[i]);
+            fields[i]=createFieldAccess(new LazyResolver(clazz),clazz,classFields[i]);
         }
     }
     
-    protected NField createFieldAccess(Class<?> original,Class<?> clazz,Field f) {
+    protected NField createFieldAccess(LazyResolver resolver,Class<?> clazz,Field f) {
         if(clazz!=null) {
             try {
                 java.lang.reflect.Field classField=clazz.getDeclaredField(f.getName());
                 classField.setAccessible(true);
-                return new NField.FieldImpl(classField);
+                return new NField.FieldImpl(resolver.resolve(classField),classField);
             } catch(Throwable t) {
                 
             }
-            return createFieldAccess(original,clazz.getSuperclass(),f);
+            return createFieldAccess(resolver,clazz.getSuperclass(),f);
         } else {
-            return new NField.UnknownField(original.getName(),f.getName());
+            return new NField.UnknownField(resolver.getName(),f.getName());
         }
     }
 
@@ -82,5 +85,29 @@ class ReflectionClassAccess extends AbstractClassAccess {
             }
         }
         return super.createFieldAccess(f);
+    }
+    
+    private class LazyResolver {
+    	Class<?> clazz;
+    	ClassResolver resolver;
+    	private LazyResolver(Class<?> clazz) {
+    		this.clazz=clazz;
+    	}
+    	
+    	Class<?> resolve(java.lang.reflect.Field f) {
+    		Type type=f.getGenericType();
+    		if(type instanceof Class) {
+    			return (Class<?>)type;
+    		} else {
+	    		if(resolver==null) {
+	    			resolver=TypeUtils.createClassResolver(clazz);
+	    		}
+	    		return resolver.resolve(f).getResolvedClass();
+    		}
+    	}
+    	
+    	public String getName() {
+    		return clazz.getName();
+    	}
     }
 }

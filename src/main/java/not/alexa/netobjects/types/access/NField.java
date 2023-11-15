@@ -37,8 +37,10 @@ public interface NField {
      *
      */
     public class FieldImpl implements NField {
+    	private Class<?> type;
         private Field f;
-        FieldImpl(Field f) {
+        FieldImpl(Class<?> type,Field f) {
+        	this.type=type;
             this.f=f;
         }
 
@@ -62,7 +64,7 @@ public interface NField {
 
         @Override
         public Class<?> getFieldType() {
-            return f.getType();
+            return type;
         }        
     }
     
