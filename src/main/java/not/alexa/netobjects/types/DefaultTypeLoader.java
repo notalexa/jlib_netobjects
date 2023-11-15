@@ -15,19 +15,18 @@
  */
 package not.alexa.netobjects.types;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.Stack;
 
 import not.alexa.netobjects.Adaptable;
-import not.alexa.netobjects.BaseException;
-import not.alexa.netobjects.Context;
-import not.alexa.netobjects.coding.xml.XMLCodingScheme;
 import not.alexa.netobjects.types.JavaClass.Type;
+import not.alexa.netobjects.types.TypeResolver.LoaderIntermediate;
 
 /**
  * The default implementation of a type loader. This loader tries to resolve a type definition as follows:
@@ -59,6 +58,8 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 	protected ClassLoader loader;
 	protected TypeLoader parent;
 	private TypeResolver[] resolvers;
+	// Used in synchronized blocks only!!
+	private Intermediate intermediate=new Intermediate();
 	
 	/**
 	 * Add a resolver to the list of default resolvers. Resolvers already contained in the list (with respect to {@link Object#equals(Object)}) are ignored.
@@ -68,7 +69,7 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 	 */
 	public static synchronized void addTypeResolver(TypeResolver resolver) {
 	    if(defaultResolvers==null) {
-	        defaultResolvers=new ArrayList<DefaultTypeLoader.TypeResolver>();
+	        defaultResolvers=new ArrayList<TypeResolver>();
 	    }
 	    if(!defaultResolvers.contains(resolver)) {
 	        defaultResolvers.add(resolver);
@@ -126,10 +127,13 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 					if(type==null) {
 	                    type=t.resolveDefault(this);
 					}
-					if(type==null&&resolvers!=null) for(TypeResolver r:resolvers) {
-					    if((type=r.resolve(this, t))!=null) {
+					if(type==null&&resolvers!=null) for(TypeResolver r:resolvers) try {
+						intermediate.init();
+					    if((type=r.resolve(intermediate, t))!=null) {
 					        break;
 					    }
+					} finally {
+						intermediate.destruct();
 					}
 					if(type==null) {
 						type=NULL_TYPE;
@@ -168,63 +172,39 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
         return linkedLocal.isLocallyLinked()?linkedLocal:null;
     }
 
-
-
-    /**
-     * Interface for type resolution extensions. Typical examples are resolvers for namespaces different from the normal java namespace or
-     * resolvers using annotation schemes like <a href="https://www.oracle.com/technical-resources/articles/javase/jaxb.html">JAXB</a>.
-     * 
-     * @author notalexa
-     *
-     */
-	public interface TypeResolver {
-	    /**
-	     * Resolve the given type. Neither the parent nor the default lookup resolved the type. The implementation should
-	     * take care of infinite loops while looking up a type using the supplied type loader.
-	     * 
-	     * @param loader the default type loader requesting the type
-	     * @param type the type
-	     * @return the resolved type definition or <code>null/code> if not resolveable.
-	     */
-	    public TypeDefinition resolve(DefaultTypeLoader loader,ObjectType type);
-	}
 	
-	/**
-	 * Type resolver serving as a delegate. If the namespace of the type is the normal Java namespace, take the name of the type (typically the classname)
-	 * and resolve the file <code>&lt;name&gt;.resolver</code>. If this file exist, the content is assumed to be a network object representing a type resolver.
-	 * This resolver is instantiated and the type is resolved using the this resolver.
-	 * 
-	 * @author notalexa
-	 *
-	 */
-	public static class TypeResolverDelegate implements TypeResolver {
-	    private Context context;
-	    
-	    /**
-	     * Construct the delegate
-	     * 
-	     * @param context the context to resolve the type resolver for a given class.
-	     */
-	    public TypeResolverDelegate(Context context) {
-	        this.context=context;
-	    }
+	private class Intermediate implements LoaderIntermediate {
+		private Map<ObjectType,TypeDefinition> map=new HashMap<>();
+		private Stack<Set<ObjectType>> registered=new Stack<>();
 
-        @Override
-        public TypeDefinition resolve(DefaultTypeLoader loader, ObjectType type) {
-            if(type.getNamespace()==Namespace.getJavaNamespace()) {
-                String n=type.getName().replace('.','/')+".resolver";
-                try(InputStream stream=loader.getClassLoader().getResourceAsStream(n)) {
-                    if(stream!=null) {
-                        TypeResolver resolver=XMLCodingScheme.DEFAULT_SCHEME.createDecoder(context, stream).decode(TypeResolver.class);
-                        if(resolver!=null) {
-                            return resolver.resolve(loader, type);
-                        }
-                    }
-                } catch(IOException|BaseException e) {
-                    // Silently ignore problems in this case
-                }
-            }
-            return null;
-        }
+		@Override
+		public ClassLoader getClassLoader() {
+			return DefaultTypeLoader.this.getClassLoader();
+		}
+
+		@Override
+		public void register(ObjectType type, TypeDefinition intermediateTypeDefinition) {
+			map.put(type, intermediateTypeDefinition);
+			registered.peek().add(type);
+		}
+
+		@Override
+		public TypeDefinition resolveType(ObjectType type) {
+			TypeDefinition def=map.get(type);
+			return def==null?DefaultTypeLoader.this.resolveType(type):def;
+		}
+		
+		private void init() {
+			registered.push(new HashSet<>());
+		}
+		
+		private void destruct() {
+			for(ObjectType type:registered.pop()) {
+				map.remove(type);
+			}
+			if(registered.size()==0) {
+				map.clear();
+			}
+		}
 	}
 }
