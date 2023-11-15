@@ -367,8 +367,9 @@ public class TypeUtils {
                     return new ResolvedClass((Class<?>)rawType,annotatedType,resolvedParameters);
                 }
             } else if(type instanceof GenericArrayType) {
-//                AnnotatedArrayType array=(AnnotatedArrayType)type;
-                return new ResolvedClass(Object[].class,new ResolvedClass[] { resolve(FACTORY.getAnnotatedGenericComponentType(annotatedType))});
+            	ResolvedClass componentType=resolve(FACTORY.getAnnotatedGenericComponentType(annotatedType));
+            	Class<?> clazz=Array.newInstance(componentType.getResolvedClass(), 0).getClass();
+                return new ResolvedClass(clazz,new ResolvedClass[] { componentType});
             } else if(type instanceof WildcardType) {
                 AType[] bounds=FACTORY.getAnnotatedUpperBounds(annotatedType);
                 if(bounds.length!=1) {
@@ -378,9 +379,9 @@ public class TypeUtils {
             } else if(type instanceof Class) {
                 Class<?> clazz=(Class<?>)type;
                 if(clazz.isArray()) {
-                    return new ResolvedClass(Object[].class,annotatedType,new ResolvedClass[] { resolve(new AType(clazz.getComponentType(),annotatedType))});
+                    return new ResolvedClass(clazz,annotatedType,new ResolvedClass[] { resolve(new AType(clazz.getComponentType(),annotatedType))});
                 } else {
-                    return new ResolvedClass((Class<?>)type,annotatedType,null);
+                    return new ResolvedClass(clazz,annotatedType,null);
                 }
             }
             throw new RuntimeException("Unresolved type: "+type);
