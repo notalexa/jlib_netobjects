@@ -28,6 +28,7 @@ import not.alexa.netobjects.api.NetworkObject;
 import not.alexa.netobjects.api.Overlay;
 import not.alexa.netobjects.types.JavaClass.Type.InstanceSupport;
 import not.alexa.netobjects.types.TypeLoader.LinkedLocal;
+import not.alexa.netobjects.types.access.Constructor;
 import not.alexa.netobjects.utils.TypeUtils;
 import not.alexa.netobjects.utils.TypeUtils.NameBuilder;
 
@@ -229,7 +230,7 @@ public final class JavaClass extends Namespace {
 		}
 		
 		public InstanceSupport createInstanceSupport(ClassLoader loader,Class<?> overlay) {
-		    InstanceSupport support=new InstanceSupport(overlay);
+		    InstanceSupport support=new InstanceSupport(asLinkedLocal(loader),overlay);
 		    OverlayRef ref;
 		    while((ref=(OverlayRef)OVERLAY_RECYCLER.poll())!=null) {
 		        ref.release();
@@ -277,8 +278,25 @@ public final class JavaClass extends Namespace {
 
 		
         public class InstanceSupport extends LinkedLocal {
-            public InstanceSupport(Class<?> overlay) {
+        	LinkedLocal clazz;
+        	/**
+        	 * Constructor for network objects
+        	 * @param clazz
+        	 */
+            InstanceSupport(Class<?> clazz) {
+            	super(clazz);
+            	this.clazz=this;
+            }
+            
+            /**
+             * Constructor for overlays
+             * 
+             * @param clazz the underlying base class
+             * @param overlay the overlay class
+             */
+            InstanceSupport(LinkedLocal clazz,Class<?> overlay) {
                 super(overlay);
+                this.clazz=clazz;
             }
             public InstanceSupport(Method m) {
                 super(m);
@@ -287,6 +305,10 @@ public final class JavaClass extends Namespace {
             public ObjectType getType() {
                 return Type.this;
             }
+			@Override
+			public Constructor getConstructor() {
+				return isClass()?Constructor.get(clazz,this):null;
+			}
         }
         
         private class OverlayRef extends PhantomReference<Type.InstanceSupport> {

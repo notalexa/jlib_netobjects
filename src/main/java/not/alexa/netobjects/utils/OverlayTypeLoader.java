@@ -15,6 +15,7 @@
  */
 package not.alexa.netobjects.utils;
 
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -77,7 +78,7 @@ public class OverlayTypeLoader implements TypeLoader {
     
     @Override
     public boolean hasOverlays(Class<?> clazz) {
-        return overloaded.contains(clazz);
+        return clazz!=null&&overloaded.contains(clazz);
     }
     
     public TypeLoader overlay(Class<?>... overlays) {
@@ -99,8 +100,16 @@ public class OverlayTypeLoader implements TypeLoader {
                 overlays.put(ObjectType.createClassType(overloaded), type.createInstanceSupport(getClassLoader(),overlay));
                 this.overloaded.add(overloaded);
                 this.overloaded.add(Object.class);
-                for(Class<?> i:overloaded.getInterfaces()) {
-                    this.overloaded.add(i);
+                while(overloaded!=null) {
+                	if(Modifier.isAbstract(overloaded.getModifiers())&&overloaded.getTypeParameters().length==0) {
+                		this.overloaded.add(overloaded);
+                	}
+	                for(Class<?> i:overloaded.getInterfaces()) {
+	                	if(i.getTypeParameters().length==0) {
+	                		this.overloaded.add(i);
+	                	}
+	                }
+	                overloaded=overloaded.getSuperclass();
                 }
             }
         } catch(Throwable t) {

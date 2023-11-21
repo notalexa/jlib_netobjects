@@ -171,7 +171,7 @@ public class AbstractTextCodingSchemeTest {
         }
         @Override
         public Constructor resolve(Context context, Type type) {
-            return new Constructor.DefaultConstructor(type,type.asLinkedLocal(context.getTypeLoader().getClassLoader()).asClass());
+            return null;//new ConstructorHelper.DefaultConstructor(type.asLinkedLocal(context.getTypeLoader().getClassLoader()));
         }
 	}
 }

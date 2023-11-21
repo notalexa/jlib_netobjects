@@ -27,6 +27,7 @@ import not.alexa.netobjects.types.EnumTypeDefinition;
 import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
+import not.alexa.netobjects.types.access.AccessContext;
 
 public class Data {
 	private static ClassTypeDefinition DESCR=new ClassTypeDefinition(Data.class);
@@ -105,6 +106,10 @@ public class Data {
     public String helloUniverse(Context context) throws Throwable {
         return "Hello Universe";
     }
+	
+	protected Object finish(AccessContext context) {
+		return this;
+	}
 
 	public enum State {
 		active,passive,failed;

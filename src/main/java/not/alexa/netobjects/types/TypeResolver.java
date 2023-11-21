@@ -6,6 +6,7 @@ import java.io.InputStream;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.xml.XMLCodingScheme;
+import not.alexa.netobjects.types.access.Constructor.Provider;
 
 /**
  * Interface for type resolution extensions. Typical examples are resolvers for namespaces different from the normal java namespace or
@@ -52,6 +53,14 @@ public interface TypeResolver {
 		 * @return the (intermediate) type definition of the type
 		 */
 		public TypeDefinition resolveType(ObjectType type);
+		
+		/**
+		 * Add the provider to the system. This provider should be only registered if {@link #resolveType(ObjectType)} returns a non null value.
+		 * 
+		 * @type the type this provider is intended for
+		 * @param provider the provider for the given type
+		 */
+		public void addProvider(ObjectType type,Provider provider);
 	}
 	
 	/**

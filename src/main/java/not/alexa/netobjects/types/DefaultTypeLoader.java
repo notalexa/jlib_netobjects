@@ -27,6 +27,8 @@ import java.util.Stack;
 import not.alexa.netobjects.Adaptable;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.TypeResolver.LoaderIntermediate;
+import not.alexa.netobjects.types.access.Constructor;
+import not.alexa.netobjects.types.access.Constructor.Provider;
 
 /**
  * The default implementation of a type loader. This loader tries to resolve a type definition as follows:
@@ -130,6 +132,10 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 					if(type==null&&resolvers!=null) for(TypeResolver r:resolvers) try {
 						intermediate.init();
 					    if((type=r.resolve(intermediate, t))!=null) {
+					    	Provider provider=intermediate.providerMap.remove(t);
+					    	if(provider!=null) {
+					    		Constructor.addProvider(provider);
+					    	}
 					        break;
 					    }
 					} finally {
@@ -164,6 +170,11 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
                         public ObjectType getType() {
                             return type;
                         }
+
+						@Override
+						public Constructor getConstructor() {
+							return null;
+						}
                     };
                 }
                 linkedLocals.put(type,linkedLocal);
@@ -175,6 +186,7 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 	
 	private class Intermediate implements LoaderIntermediate {
 		private Map<ObjectType,TypeDefinition> map=new HashMap<>();
+		private Map<ObjectType,Provider> providerMap=new HashMap<>();
 		private Stack<Set<ObjectType>> registered=new Stack<>();
 
 		@Override
@@ -205,6 +217,11 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 			if(registered.size()==0) {
 				map.clear();
 			}
+		}
+
+		@Override
+		public void addProvider(ObjectType type, Provider provider) {
+			providerMap.put(type, provider);
 		}
 	}
 }

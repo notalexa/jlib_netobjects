@@ -48,7 +48,7 @@ class ReflectionClassAccess extends AbstractClassAccess {
     protected NField createFieldAccess(LazyResolver resolver,Class<?> clazz,Field f) {
         if(clazz!=null) {
             try {
-                java.lang.reflect.Field classField=clazz.getDeclaredField(f.getName());
+                java.lang.reflect.Field classField=clazz.getDeclaredField(constructor.mapField(clazz,f.getName()));
                 classField.setAccessible(true);
                 return new NField.FieldImpl(resolver.resolve(classField),classField);
             } catch(Throwable t) {

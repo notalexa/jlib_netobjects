@@ -22,6 +22,7 @@ import java.util.Collection;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.types.JavaClass.Type;
+import not.alexa.netobjects.types.access.Constructor;
 import not.alexa.netobjects.utils.OverlayTypeLoader;
 
 /**
@@ -236,6 +237,8 @@ public interface TypeLoader {
         public Class<?> asClass() {
             return clazz;
         }
+        
+        public abstract Constructor getConstructor();
         
         /**
          * 

@@ -12,6 +12,10 @@
 			<attribute name="gradle_used_by_scope" value="main,test"/>
 		</attributes>
 	</classpathentry>
+	<!-- Overlay development
+	<classpathentry kind="src" output="src/test/overlay" path="src/test/overlay">
+	</classpathentry>
+	-->
 	<classpathentry kind="src" output="bin/test" path="src/test/java">
 		<attributes>
 			<attribute name="gradle_scope" value="test"/>

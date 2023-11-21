@@ -20,11 +20,9 @@ import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import not.alexa.netobjects.Adaptable;
 import not.alexa.netobjects.BaseException;
@@ -152,7 +150,7 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
             Map<Object,AccessHolder> typeMap=getTypeMap(typeLoader);
             AccessHolder accessHolder=typeMap.get(javaType);
             if(accessHolder==null) {
-                accessHolder=new AccessHolder(typeLoader, getClassAccess(typeLoader.getLinkedClass(javaType),javaType));
+                accessHolder=new AccessHolder(typeLoader, getClassAccess(typeLoader.getLinkedLocal(javaType)));
                 typeMap.put(javaType,accessHolder);
                 typeMap.put(accessHolder.getAccessClass(),accessHolder);
             }
@@ -209,12 +207,11 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
 	    return NULL_CASTER;
 	}
 	
-	protected synchronized RootAccessHolder getClassAccess(Class<?> clazz,Type type) {
-	    RootAccessHolder access=loaded.get(clazz);
+	protected synchronized RootAccessHolder getClassAccess(LinkedLocal localClass) {
+	    RootAccessHolder access=loaded.get(localClass.asClass());
 	    if(access==null) {
-	        //System.out.println("CREATE FOR "+clazz+", (type="+type+") in "+this);
-	        access=new RootAccessHolder(clazz, type==null?ObjectType.createClassType(clazz):type);
-	        loaded.put(clazz, access);
+	        access=new RootAccessHolder(localClass);
+	        loaded.put(localClass.asClass(), access);
 	    }
 	    return access;
 	}
@@ -229,8 +226,8 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
 	 */
     protected RootAccessHolder resolve(ClassLoader usedClassLoader,TypeDefinition type) {
 	    Type classType=type.getJavaClassType();
-	    Class<?> clazz=classType==null?null:classType.asLinkedLocal(usedClassLoader).asClass();
-	    RootAccessHolder accessHolder=clazz==null?null:getClassAccess(clazz,classType);
+	    LinkedLocal localClass=classType==null?null:classType.asLinkedLocal(usedClassLoader);
+	    RootAccessHolder accessHolder=localClass==null?null:getClassAccess(classType.asLinkedLocal(usedClassLoader));
 		if(accessHolder!=null&&!accessHolder.hasAccessCreated()) {
 		    accessHolder.createAccess(type);
 		}
@@ -293,8 +290,8 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
         Access access;
         Constructor constructor;
         
-        private RootAccessHolder(Class<?> clazz,Type type) {
-            this(clazz,new Constructor.DefaultConstructor(type, clazz));
+        private RootAccessHolder(LinkedLocal localClass) {
+            this(localClass.asClass(),localClass.getConstructor());
         }
         
         private RootAccessHolder(Class<?> clazz,Constructor constructor) {
@@ -403,7 +400,8 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
             if(caster==null) {
                 TypeLoader l=loader.get();
                 if(l!=null) {
-                    caster=resolveCaster(l, l.resolveType(getAccessClass()));    
+                	Access access=getAccess();
+                    caster=resolveCaster(l,this, access.getType().isAbstract(),access);
                 } else {
                     caster=NULL_CASTER;
                 }
@@ -432,7 +430,7 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
             return o;
         }
         public CasterContext upcast(CasterContext context,Object o) throws BaseException {
-            return context.getChildContext(o,o);
+            return context.getChildContext(o,CastMode.Unmodified);
         }
     }
     
@@ -452,70 +450,104 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
                 int n=Array.getLength(o);
                 if(n>0) {
                     Object a=Array.newInstance(clazz.getComponentType(),n);
-                    CasterContext arrayContext=context.getChildContext(o,a);
+                    CasterContext arrayContext=context.getChildContext(o,CastMode.Unmodified);
                     for(int i=0;i<n;i++) {
                         Object s=Array.get(o,i);
                         CasterContext child=componentCaster.upcast(arrayContext,s);
-                        arrayContext.update(child);
-                        Array.set(a, i, child.n);
+                        arrayContext.update(child,a);
+                        Array.set(a, i, child.getResult());
                     }
                     return arrayContext;
                 }
-            } else if(Collection.class.isAssignableFrom(o.getClass())) try {
+            } else if(Collection.class.isAssignableFrom(o.getClass())) {
                 Collection<?> c=(Collection<?>)o;
                 if(c.size()>0) {
-                    Collection<Object> a=(Collection)o.getClass().newInstance();
-                    CasterContext arrayContext=context.getChildContext(o,a);
+                    Collection<Object> a;
+                    try {
+                    	a=(Collection)o.getClass().newInstance();
+                    } catch(Throwable t) {
+                    	a=new ArrayList<>();
+                    }
+                    CasterContext arrayContext=context.getChildContext(o,CastMode.Unmodified);
                     for(Object s:c) {
-                        CasterContext child=componentCaster.upcast(context,s);
-                        arrayContext.update(child);
-                        a.add(child.n);
+                        CasterContext child=componentCaster.upcast(arrayContext,s);
+                        arrayContext.update(child,a);
+                        a.add(child.getResult());
                     }
                     return arrayContext;
                 }
-            } catch(IllegalAccessException|InstantiationException e) {
-            } else if(Map.class.isAssignableFrom(o.getClass())) try {
+            } else if(Map.class.isAssignableFrom(o.getClass())) {
                 Map<Object,Object> c=(Map<Object,Object>)o;
                 if(c.size()>0) {
-                    Map<Object,Object> a=(Map<Object,Object>)o.getClass().newInstance();
-                    CasterContext arrayContext=context.getChildContext(o,a);
+                    Map<Object,Object> a;
+                    try {
+                    	a=(Map<Object,Object>)o.getClass().newInstance();
+                    } catch(Throwable t) {
+                    	a=new HashMap<>();
+                    }
+                    CasterContext arrayContext=context.getChildContext(o,CastMode.Unmodified);
                     for(Map.Entry<Object,Object> s:c.entrySet()) {
-                        CasterContext child=componentCaster.upcast(context,s);
-                        arrayContext.update(child);
-                        Map.Entry<Object,Object> t=(Map.Entry<Object,Object>)child.n;
+                        CasterContext child=componentCaster.upcast(arrayContext,s);
+                        arrayContext.update(child,a);
+                        Map.Entry<Object,Object> t=(Map.Entry<Object,Object>)child.getResult();
                         a.put(t.getKey(),t.getValue());
                     }
                     return arrayContext;
                 }
-            } catch(IllegalAccessException|InstantiationException e) {
             }
-            return context.getChildContext(o,o);
+            return context.getChildContext(o,CastMode.Unmodified);
         }
     }
+    
+    private Caster resolveCasterPreferHolder(TypeLoader loader,Access access) {
+    	return resolveCasterPreferHolder(loader, access.getType().isAbstract(), access);
+    }
+    
+    private Caster resolveCasterPreferHolder(TypeLoader loader,boolean abstractType,Access access) {
+    	AccessHolder accessHolder=resolveHolder(loader, access.getType().getJavaClassType());
+    	if(accessHolder!=null&&!abstractType&&accessHolder.hasAccessCreated()) {
+    		return accessHolder.getCaster();
+    	} else {
+    		return resolveCaster(loader, accessHolder, abstractType,access);
+    	}
+    }
 
-    private Caster resolveCaster(TypeLoader loader,TypeDefinition typeDef) {
-        Map<Type,Boolean> overlayMap=new HashMap<>();
+    private Caster resolveCaster(TypeLoader loader,AccessHolder holder,boolean abstractType,Access access) {
+        TypeDefinition typeDef=access.getType();
+        if(abstractType&&holder!=null) {
+        	return loader.hasOverlays(TypeUtils.resolve(holder.root.clazz))?INTERFACE_CASTER:NULL_CASTER;
+        }
         Type type=typeDef.getJavaClassType();
-        boolean b=false;
-        overlayMap.put(type,b);
         switch(typeDef.getFlavour()) {
+        	case InterfaceType:
             case PrimitiveType:
             case EnumType:
             case UnknownType:
             case MethodType:return NULL_CASTER;
-            case ArrayType:Caster componentCaster=resolveCaster(loader,((ArrayTypeDefinition)typeDef).getComponentType());
-                return componentCaster.needsCast()?new ArrayCaster(componentCaster):NULL_CASTER;
-            case InterfaceType:b=loader.hasOverlays(type.asLinkedLocal(loader.getClassLoader()).asClass());
-                return b?INTERFACE_CASTER:NULL_CASTER;
-            case ClassType:AccessHolder accessHolder=resolveHolder(loader, type);
-                if(accessHolder!=null&&accessHolder.getConstructor().isOverlay(loader)) {
-                    return new ClassCaster((ClassTypeDefinition)typeDef,accessHolder);
-                } else for(Field f:((ClassTypeDefinition)typeDef).getFields()) {
-                    if(needsCaster(loader,f.getType(),overlayMap)) {
-                        return new ClassCaster((ClassTypeDefinition)typeDef,accessHolder);
-                    }
+            case ArrayType:try {
+	            	Caster componentCaster=resolveCasterPreferHolder(loader,access.getComponentAccess());
+	                return componentCaster.needsCast()?new ArrayCaster(componentCaster):NULL_CASTER;
+	            } catch(BaseException e) {
+	            	break;
+	            }
+            case ClassType:
+            	ClassTypeDefinition classType=(ClassTypeDefinition)typeDef;
+            	boolean overloaded=holder!=null&&holder.root.clazz.getAnnotation(Overlay.class)!=null;
+            	boolean inner=holder!=null&&Constructor.getEnclosingClass(holder.root.clazz)!=null;
+            	boolean fieldOverlay=false;
+                Map<Type,Boolean> overlayMap=new HashMap<>();
+                overlayMap.put(type,false);
+                for(Field f:classType.getFields()) {
+                	if(needsCaster(loader, f.getType(), overlayMap)) {
+                		fieldOverlay=true;
+                		break;
+                	}
                 }
-                break;
+                if(overloaded||inner||fieldOverlay) {
+                	return new ClassCaster(overloaded,fieldOverlay,classType,holder,access,inner?new Class<?>[] { Constructor.getEnclosingClass(holder.root.clazz) } : new Class<?>[0]);
+                } else {
+                	return NULL_CASTER;
+                }
         }
         return NULL_CASTER;
     }
@@ -555,14 +587,20 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
     }
     
     private class ClassCaster extends Caster {
+    	Class<?>[] dependentClasses;
+    	boolean overloaded;
+    	boolean fieldOverlays;
         ClassTypeDefinition classDef;
         Constructor c;
         Access access;
         Caster[] fieldCaster;
-        public ClassCaster(ClassTypeDefinition classDef,AccessHolder access) {
+        public ClassCaster(boolean overloaded,boolean fieldOverlays,ClassTypeDefinition classDef,AccessHolder accessHolder,Access access,Class<?>...dependentClasses) {
+        	this.overloaded=overloaded;
+        	this.fieldOverlays=fieldOverlays;
+        	this.dependentClasses=dependentClasses;
             this.classDef=classDef;
-            this.access=access.getAccess();
-            this.c=access.getConstructor();
+            this.access=access;
+            this.c=accessHolder==null?Constructor.create(access):accessHolder.getConstructor();
         }
         
         @Override
@@ -574,8 +612,11 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
             if(fieldCaster==null) {
                 Field[] fields=classDef.getFields();
                 fieldCaster=new Caster[fields.length];
-                for(int i=0;i<fields.length;i++) {
-                    fieldCaster[i]=resolveCaster(context.getContext().getTypeLoader(), fields[i].getType());
+                for(int i=0;i<fields.length;i++) try {
+                	Access fieldAccess=access.getFieldAccess(fields[i]);
+                    fieldCaster[i]=resolveCasterPreferHolder(context.getContext().getTypeLoader(),fields[i].isAbstract()||fieldAccess.getType().isAbstract(),fieldAccess);
+                } catch(BaseException e) {
+                	fieldCaster[i]=NULL_CASTER;
                 }
             }
             return fieldCaster;
@@ -585,34 +626,49 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
         public CasterContext upcast(CasterContext context, Object o) throws BaseException {
             Ref ref=classDef.enableObjectRefs()?context.get(o):null;
             if(ref!=null) {
-                CasterContext child=context.getChildContext(o,ref.n);
-                child.update(ref);
-                return child;
+                return context.getChildContext(o,ref.mode).update(ref);
             }
-            AccessibleObject instance=c.newInstance(context).makeAccessible(access);
-            CasterContext child=context.getChildContext(o,instance.getObject());
-            if(classDef.enableObjectRefs()) {
-                context.put(o,ref=new Ref(o,child.n,child.mode));
+            CastMode mode=overloaded?CastMode.Modified:CastMode.Unmodified;
+            if(mode==CastMode.Unmodified&&dependentClasses.length>0) for(Class<?> clazz:dependentClasses) {
+				CasterContext c=context.getContext(clazz);
+				if(c!=null) {
+					mode=mode.update(c.mode);
+				}
             }
-            Caster[] fieldCaster=resolveFieldCasters(context);
-            Object[] f=new Object[fieldCaster.length];
-            Field[] fields=classDef.getFields();
-            for(int i=0;i<f.length;i++) {
-                Object t=access.getField(o, fields[i]);
-                CasterContext cc=fieldCaster[i].upcast(child, t);
-                f[i]=cc.n;
-                child.update(cc);
-            }
-            if(child.finish(ref)!=CastMode.Unmodified) {
-                //System.out.println("Object "+o.getClass()+" was upcasted to "+n.getClass()+" ("+child.mode+", conditions="+child.getConditions()+")");
-                for(int i=0;i<f.length;i++) {
-                    access.setField(instance.getObject(), fields[i], f[i]);
-                }
-                Object finished=instance.getAssignable();
-                if(ref!=null&&finished!=child.n) {
-                    throw new BaseException(BaseException.FORBIDDEN,"Reference object of type "+access.getType().getJavaClassType()+" changed.");
-                }
-                child.n=finished;
+            CasterContext child=context.getChildContext(o,mode);
+            if(mode==CastMode.Modified||fieldOverlays) {
+	            AccessibleObject instance=c.newInstance(context).makeAccessible(access);
+	            if(classDef.enableObjectRefs()) {
+	                context.put(o,ref=new Ref(o,mode).update(instance.getObject()));
+	            }
+	            Caster[] fieldCaster=resolveFieldCasters(context);
+	            Field[] fields=classDef.getFields();
+	            for(int j=0;j<2;j++) {
+		            for(int i=0;i<fields.length;i++) {
+		                Object t=access.getField(o, fields[i]);
+		                if(t!=null) {
+			                CasterContext cc=fieldCaster[i].upcast(child, t);
+			                instance.setField(fields[i], new DefaultAccessibleObject(access.getFieldAccess(fields[i]), cc.getResult()));
+			                child.update(cc,instance.getObject());
+			                if(ref!=null) { 
+			                	ref=ref.update(instance.getObject());
+		                	}
+		                }
+		            }
+		            if(child.finish(ref)!=CastMode.Unmodified) {
+		                Object finished=instance.getAssignable();
+		                if(j==0) {
+			                if(finished!=child.n&&child.isReferenced(ref)) {
+			                	// Finished changed the value.
+				                child.n=finished;
+			                	continue;
+			                } else if(child.hasInvalidReferences(ref)) {
+			                	continue;
+			                }
+		                }
+		            }
+		            break;
+	            }
             }
             return child;
         }
@@ -624,77 +680,68 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
         Object o,n;
         Context context;
         CasterContext parent;
-        Set<Ref> conditions;
+        int refCount=0;
+        boolean itemReferenced;
         CastMode mode;
         private CasterContext(Context context) {
             this.context=context;
             this.referenced=new IdentityHashMap<>();
         }
-        private CasterContext(CasterContext parent) {
+        
+        public CasterContext getContext(Class<?> enclosingClass) {
+        	if(enclosingClass.isInstance(o)) {
+        		refCount++;
+        		itemReferenced=true;
+        		return this;
+        	}
+			return parent!=null?parent.getContext(enclosingClass):null;
+		}
+        
+        private Object getResult() {
+        	return mode==CastMode.Unmodified?o:n;
+        }
+        
+		private boolean hasInvalidReferences(Ref ref) {
+			return refCount>0||(ref!=null&&ref.refCount>0);
+		}
+		private boolean isReferenced(Ref ref) {
+			return itemReferenced||(ref!=null&&ref.itemReferenced);
+		}
+		private CasterContext(CasterContext parent) {
             this.context=parent.getContext();
             this.parent=parent;
             this.referenced=parent.referenced;
         }
-        
-        public void addConditions(Set<Ref> conditions) {
-            if(conditions!=null&&mode==CastMode.ConditionallyModified) {
-                if(this.conditions==null) {
-                    this.conditions=new HashSet<DefaultAccessFactory.Ref>();
-                }
-                this.conditions.addAll(conditions);
-            }
-        }
-        
-        public Set<Ref> getConditions() {
-            return mode==CastMode.ConditionallyModified?conditions:null;
-        }
-        
-        public CastMode upcasted() {
-            return mode;
-        }
-        
+                
         public Ref get(Object o) {
             return referenced.get(o);
         }
         
-        public void update(CasterContext child) {
-            switch(child.mode) {
-                case Modified:mode=CastMode.Modified;
-                    break;
-                case ConditionallyModified:if(mode==CastMode.ConditionallyModified) {
-                        addConditions(child.getConditions());
-                    }
-                    break;
-            }
+        public void update(CasterContext child,Object n) {
+        	if(child.mode!=CastMode.Unmodified) {
+        		mode=child.mode;
+        	}
+        	if(n!=null) {
+        		this.n=n;
+        	}
         }
 
-        public void update(Ref ref) {
-            switch(ref.mode) {
-                case Modified:mode=CastMode.Modified;
-                    break;
-                case ConditionallyModified:if(mode==CastMode.ConditionallyModified) {
-                        addConditions(ref.conditions);
-                    }
-                    break;
-            }
+        public CasterContext update(Ref ref) {
+        	mode=mode.update(ref.mode);
+        	n=ref.n;
+        	ref.incr();
+            return this;
         }
 
-        public CasterContext getChildContext(Object o,Object n) {
+        public CasterContext getChildContext(Object o,CastMode mode) {
             if(child==null) {
                 child=new CasterContext(this);
             }
             child.o=o;
-            child.n=n;
-            if(o==n) {
-                child.mode=CastMode.Unmodified;
-            } else if(o.getClass().equals(n.getClass())) {
-                child.mode=CastMode.ConditionallyModified;
-                if(child.conditions!=null) {
-                    child.conditions.clear();
-                }
-            } else {
-                child.mode=CastMode.Modified;
-            }
+            child.n=o;
+            child.mode=mode;
+            child.refCount=0;
+            child.itemReferenced=false;
             return child;
         }
         
@@ -704,7 +751,11 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
         
         @Override
         public <T> T castTo(Context context, Class<T> clazz) {
-            T t=context.cast(clazz,o);
+            T t=context.cast(clazz,mode==CastMode.Unmodified?o:n);
+            if(t!=null&&(mode==CastMode.Unmodified)||(o==n)) {
+            	// We need to reiterate in this case
+            	refCount++;
+            }
             return t==null?(parent==null?context.castTo(clazz):parent.castTo(context,clazz)):t;
         }
 
@@ -729,60 +780,50 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
         }
         
         public CastMode finish(Ref ref) {
-            if(ref!=null&&conditions!=null) {
-                conditions.remove(ref);
-            }
-            if(mode==CastMode.ConditionallyModified&&(conditions==null||conditions.size()==0)) {
-                mode=CastMode.Unmodified;
-                n=o;
-            }
             if(ref!=null) {       
-                ref.mode=mode;
-                ref.n=n;
-                if(mode==CastMode.ConditionallyModified) {
-                    ref.conditions=new HashSet<DefaultAccessFactory.Ref>(conditions);
-                }
+            	mode=mode.update(ref.mode);
             }
             return mode;
         }
     }
     
     private static class Ref {
+    	private boolean itemReferenced;
+		private int refCount;
         private Object o;
         private Object n;
         private CastMode mode;
-        private Set<Ref> conditions;
-        private Ref(Object o,Object n,CastMode mode) {
+        private Ref(Object o,CastMode mode) {
             this.o=o;
-            this.n=n;
+            this.n=o;
             this.mode=mode;
-            if(mode==CastMode.ConditionallyModified) {
-                conditions=new HashSet<>();
-                conditions.add(this);
-            }
         }
         
-        public CastMode upcasted() {
-            return mode;//o!=null&&!o.getClass().equals(n.getClass());
+        public Ref update(Object n) {
+        	if(n!=null) {
+        		this.n=n;
+        		mode=o!=n?CastMode.Modified:CastMode.Unmodified;
+        	}
+        	return this;
+        }
+        
+        private void incr() {
+        	if(mode==CastMode.Unmodified||o==n) {
+        		refCount++;
+        	}
+        	itemReferenced=true;
         }
     }
     
     private static enum CastMode {
         Unmodified,
-        ConditionallyModified,
         Modified;
         
         public CastMode update(CastMode mode) {
             switch(this) {
                 case Unmodified:return mode;
-                case Modified:return this;
-                case ConditionallyModified:switch(mode) {
-                    case Unmodified:return this;
-                    case Modified:return mode;
-                    case ConditionallyModified:return this;
-                }
+                default: return this;
             }
-            return this;
         }
     }
 }

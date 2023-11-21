@@ -15,27 +15,27 @@
  */
 package not.alexa.netobjects.jackson;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import org.junit.Test;
+import static org.junit.Assert.fail;
 
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.Test;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.api.Field;
 import not.alexa.netobjects.api.Overlay;
 import not.alexa.netobjects.api.ResolvableBy;
+import not.alexa.netobjects.coding.CodingScheme;
 import not.alexa.netobjects.coding.xml.XMLCodingScheme;
-import not.alexa.netobjects.jackson.JacksonResolver;
-import not.alexa.netobjects.types.DefaultTypeLoader;
-import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.TypeDefinition;
-import not.alexa.netobjects.types.TypeLoader;
-import not.alexa.netobjects.utils.TypeUtils.ClassResolver;
+import not.alexa.netobjects.utils.Sequence;
 
 public class ClassResolverTest {
 
@@ -44,17 +44,9 @@ public class ClassResolverTest {
 
     @Test
     public void test() {
-//        ClassResolver resolver=TypeUtils.createClassResolver(A.class);
-//        for(Class<?> c=resolver.getRootClass();!c.equals(Object.class);c=c.getSuperclass()) {
-//            for(java.lang.reflect.Field f:c.getDeclaredFields()) {
-//                System.out.println(f.getName()+"->"+resolver.resolve(f.getGenericType()));
-//            }
-//        }
-        JacksonResolver typeResolver=new JacksonResolver();
-        DefaultTypeLoader loader=new DefaultTypeLoader();
-        Context context=Context.createRootContext(loader);
+        Context context=Context.createRootContext();
         try {
-            TypeDefinition type=typeResolver.resolve(loader, ObjectType.createClassType(A.class));
+            TypeDefinition type=context.getTypeLoader().resolveType(A.class);
             byte[] serialized=XMLCodingScheme.DEFAULT_SCHEME.newBuilder().setIndent("  ","\n").build().createEncoder(context).encode(type).asBytes();
             System.out.write(serialized);
         } catch(Throwable t) {
@@ -65,20 +57,17 @@ public class ClassResolverTest {
     @Test
     public void writeOut() {
     	A a=new A("xxx",Collections.singletonList("yyy"));
-        JacksonResolver typeResolver=new JacksonResolver();
-        DefaultTypeLoader.addTypeResolver(typeResolver);
-        DefaultTypeLoader loader=new DefaultTypeLoader();//.overlay(AOverlay.class);
-        Context context=Context.createRootContext(loader);
+        Context context=Context.createRootContext();
         try {
-            TypeDefinition type=typeResolver.resolve(loader, ObjectType.createClassType(A.class));
+            TypeDefinition type=context.getTypeLoader().resolveType(A.class);
             byte[] serialized=XMLCodingScheme.DEFAULT_SCHEME.newBuilder().setIndent("  ","\n").build().createEncoder(context).encode(a).asBytes();
             System.out.write(serialized);
             System.out.println();
             String data="<object>\r\n"
-            		+ "  <s class=\"java.lang.String\">xxx</s>\r\n"
-            		+ "  <a1 class=\"java.lang.String\">yyy</a1>\r\n"
+            		+ "  <property>xxx</property>\r\n"
+            		+ "  <a1>yyy</a1>\r\n"
             		+ "</object>";
-            Context overlayContext=Context.createRootContext(loader.overlay(AOverlay.class));
+            Context overlayContext=Context.createRootContext(context.getTypeLoader().overlay(AOverlay.class));
             System.out.println(overlayContext.getTypeLoader().getLinkedLocal(type).asClass());
             a=XMLCodingScheme.DEFAULT_SCHEME.newBuilder().setRootType(type).build().createDecoder(overlayContext, data.getBytes()).decode(A.class);
             System.out.println(a);
@@ -87,26 +76,41 @@ public class ClassResolverTest {
         }
     	
     }
-    
+
+    @Test
+    public void xmlTest() {
+    	Context context=Context.createRootContext();
+    	CodingScheme scheme=XMLCodingScheme.DEFAULT_SCHEME;//.newBuilder().setRootType(context.resolveType(Object[].class)).build();
+    	try(Sequence<Object> seq=scheme.createDecoder(context, "<object class=\"not.alexa.netobjects.jackson.ClassResolverTest$F\"><o class=\"java.lang.Object[]\"><o class=\"java.lang.String\">Hello World</o><o class=\"int\">123</o></o></object>\n".getBytes()).decodeAll(Object.class)) {
+    		for(Object o:seq) {
+    			assert(((F)o).o.getClass().isArray());
+    		}
+    	} catch(BaseException t) {
+    		t.printStackTrace();
+    		fail();
+    	}
+    }
+
     public static class A0 extends @ResolvableBy("jackson") A {
 
         public A0(String s, List<String> a1) {
             super(s, a1);
         }
     }
-// TODO Lis<Date> is WRONG!! Set object type Object.class (List is an interface?) Same with array...
+
     public static class A extends B<Date,Date[]> {
-        @JsonProperty("s") String s;
+        @JsonProperty(value="property",defaultValue="test") String s;
         @JsonProperty("a1") List<String> a1;
         @JsonProperty("a2") List<? extends B<String,String>> a2;
         @JsonProperty("a3") Map<@Field(name="key-word") String,@Field(name="v") Map<@Field(name="k") String,Object>> a3;
-        protected A() {}
+        @JsonProperty A[] alternatives;
+        
         @JsonCreator
-        public A(@JsonProperty("s") String s,@JsonProperty("a1") List<String> a1) {
+        public A(@JsonProperty("property") String s,@JsonProperty("a1") List<String> a1) {
             this.s=s;
             this.a1=a1;
             t=new Date();
-            r=new Date[] {t,t};//new ArrayList<Date>(Collections.singleton(new Date()));
+            r=new Date[] {t,t};
         }
     }
     
@@ -120,5 +124,12 @@ public class ClassResolverTest {
     @Overlay
     public static class AOverlay extends A {
     	
+        public AOverlay(@JsonProperty("property") String s,@JsonProperty("a1") List<String> a1) {
+        	super(s,a1);
+        }
+    }
+    
+    public static class F {
+    	@JsonProperty Object o;
     }
 }
