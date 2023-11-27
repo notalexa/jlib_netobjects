@@ -37,13 +37,11 @@ import not.alexa.netobjects.utils.Sequence;
 public class MapEntryAccess implements Access {
 	protected ClassTypeDefinition type;
 	protected AccessFactory factory;
-	protected Access referrer;
 	protected Access[] fieldAccess;
-	public MapEntryAccess(AccessFactory factory,Access referrer,ClassTypeDefinition type) {
+	public MapEntryAccess(AccessFactory factory,ClassTypeDefinition type,Access[] fieldAccess) {
 		this.type=type;
-		this.referrer=referrer;
 		this.factory=factory;
-		fieldAccess=new Access[2];
+		this.fieldAccess=fieldAccess;
 	}
 
     @Override
@@ -92,16 +90,7 @@ public class MapEntryAccess implements Access {
 
 	@Override
 	public Access getFieldAccess(Field f) throws BaseException {
-		Access access=fieldAccess[f.getIndex()];
-		if(access==null) {
-			synchronized (factory) {
-				access=fieldAccess[f.getIndex()];
-				if(access==null) {
-					access=fieldAccess[f.getIndex()]=factory.resolve(referrer,f.getType());
-				}				
-			}
-		}
-		return access;
+		return fieldAccess[f.getIndex()];
 	}
 
 	private class Instance implements AccessibleObject,Sequence<AccessibleObject>,Map.Entry<Object,Object> {

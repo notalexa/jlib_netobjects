@@ -18,6 +18,8 @@ package not.alexa.netobjects.types.access;
 import java.lang.reflect.Field;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.utils.TypeUtils;
+import not.alexa.netobjects.utils.TypeUtils.ResolvedClass;
 
 /**
  * Represents a linked field in a network object.
@@ -26,7 +28,7 @@ import not.alexa.netobjects.BaseException;
  *
  */
 public interface NField {
-    public Class<?> getFieldType();
+    public ResolvedClass getFieldType();
     public Object get(Object o) throws BaseException;
     public void set(Object o,Object v) throws BaseException;
     
@@ -37,9 +39,9 @@ public interface NField {
      *
      */
     public class FieldImpl implements NField {
-    	private Class<?> type;
+    	private ResolvedClass type;
         private Field f;
-        FieldImpl(Class<?> type,Field f) {
+        FieldImpl(ResolvedClass type,Field f) {
         	this.type=type;
             this.f=f;
         }
@@ -63,7 +65,7 @@ public interface NField {
         }
 
         @Override
-        public Class<?> getFieldType() {
+        public ResolvedClass getFieldType() {
             return type;
         }        
     }
@@ -75,6 +77,7 @@ public interface NField {
      *
      */
     public class UnknownField implements NField {
+    	private static final ResolvedClass OBJECT_CLASS=TypeUtils.createClassResolver(Object.class).resolve(Object.class);
         private BaseException e;
         
         public UnknownField(String clazz,String field) {
@@ -82,8 +85,8 @@ public interface NField {
         }
         
         @Override
-        public Class<?> getFieldType() {
-            return Object.class;
+        public ResolvedClass getFieldType() {
+            return OBJECT_CLASS;
         }
 
         @Override

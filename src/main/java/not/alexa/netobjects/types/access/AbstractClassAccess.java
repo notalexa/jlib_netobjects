@@ -15,6 +15,7 @@
  */
 package not.alexa.netobjects.types.access;
 
+import java.util.Collections;
 import java.util.Map;
 
 import not.alexa.netobjects.BaseException;
@@ -24,6 +25,7 @@ import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Constructor.PreAccessible;
+import not.alexa.netobjects.utils.TypeUtils.ResolvedClass;
 
 /**
  * Abstract access implementation useful for network objects implementing it's own explicit
@@ -98,6 +100,35 @@ public abstract class AbstractClassAccess implements Access {
 	
 	protected abstract void setField(Object o,int index,Object v) throws BaseException;
 
+	/**
+	 * Create access for the given resolved class. This method supports (over {@link ResolvedClass}
+	 * generics and arrays.
+	 * 
+	 * @param type the type of the class
+	 * @param clazz the (resolved) class access should be created
+	 * @return access for this class
+	 * @throws BaseException if access cannot be created
+	 */
+    protected Access createAccess(TypeDefinition type,ResolvedClass clazz) throws BaseException {
+    	if(clazz.isArray()) {
+    		Class<?> c=clazz.getResolvedClass();
+    		ResolvedClass[] parameters=clazz.getParameters();
+    		if(parameters.length==1) {
+    			if(c.isArray()||Collections.class.isAssignableFrom(c)) {
+    				return new ArrayTypeAccess(type, createAccess(((ArrayTypeDefinition)type).getComponentType(),parameters[0]),c);
+	    		}
+    		} else if(parameters.length==2&&Map.class.isAssignableFrom(c)) {
+    			ClassTypeDefinition mapType=(ClassTypeDefinition)((ArrayTypeDefinition)type).getComponentType();
+    			Access keyAccess=createAccess(mapType.getFields()[0].getType(),parameters[0]);
+    			Access valueAccess=createAccess(mapType.getFields()[1].getType(), parameters[1]);
+    			Access mapAccess=new MapEntryAccess(factory,mapType,new Access[] { keyAccess,valueAccess});
+    			return new ArrayTypeAccess(type, mapAccess,c);
+    		}
+        	throw new BaseException(BaseException.GENERAL,"Unsupported field access: "+type+" is not an array type (most likely, this is a known generic type parameter bug).");
+    	}
+    	return factory.resolve(this,type);
+    }
+    
 	@Override
 	public Access getFieldAccess(Field f) throws BaseException {
 		Access access=fieldAccess[f.getIndex()];
@@ -116,6 +147,15 @@ public abstract class AbstractClassAccess implements Access {
 		return factory.resolve(this,f.getType());
 	}
 	
+	/**
+	 * This method has limited usage because it doesn't support generics.
+	 * 
+	 * @param description the type description
+	 * @param clazz the resulting class
+	 * @return access for this (array) class
+	 * @see #createAccess(TypeDefinition, ResolvedClass)
+	 */
+	@Deprecated
 	protected Access forArray(TypeDefinition description,Class<?> clazz) {
 		if(clazz.isArray()) {
 			return new ArrayTypeAccess(description, forArray(((ArrayTypeDefinition)description).getComponentType(),clazz.getComponentType()),clazz);
@@ -124,11 +164,33 @@ public abstract class AbstractClassAccess implements Access {
 		}
 	}
 
+	/**
+	 * This method has limited usage because it doesn't support generics and arrays.
+	 * 
+	 * @param description the type description
+	 * @param clazz the resulting class
+	 * @return access for this (collection) class
+	 * @see #createAccess(TypeDefinition, ResolvedClass)
+	 */
+	@Deprecated
 	protected Access forCollection(TypeDefinition description,Class<?> clazz) {
 	    return new ArrayTypeAccess(description, factory.resolve(this,((ArrayTypeDefinition)description).getComponentType()),clazz);
 	}
 
+	/**
+	 * This method has limited usage because it doesn't support generics and arrays.
+	 * 
+	 * @param description the type description
+	 * @param clazz the resulting class
+	 * @return access for this (map) class
+	 * @see #createAccess(TypeDefinition, ResolvedClass)
+	 */
+	@Deprecated
 	protected Access forMap(TypeDefinition description,Class<? extends Map> clazz) {
-		return new ArrayTypeAccess(description,new MapEntryAccess(factory,this,(ClassTypeDefinition)((ArrayTypeDefinition)description).getComponentType()), clazz);
+		ClassTypeDefinition mapType=(ClassTypeDefinition)((ArrayTypeDefinition)description).getComponentType();
+		Access keyAccess=factory.resolve(this,mapType.getFields()[0].getType());
+		Access valueAccess=factory.resolve(this,mapType.getFields()[1].getType());
+		Access mapAccess=new MapEntryAccess(factory,mapType,new Access[] { keyAccess,valueAccess});
+		return new ArrayTypeAccess(description, mapAccess,clazz);
 	}
 }

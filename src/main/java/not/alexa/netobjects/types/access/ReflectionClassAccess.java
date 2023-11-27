@@ -15,16 +15,12 @@
  */
 package not.alexa.netobjects.types.access;
 
-import java.lang.reflect.Type;
-import java.util.Collection;
-import java.util.Map;
-
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
-import not.alexa.netobjects.types.Flavour;
 import not.alexa.netobjects.utils.TypeUtils;
 import not.alexa.netobjects.utils.TypeUtils.ClassResolver;
+import not.alexa.netobjects.utils.TypeUtils.ResolvedClass;
 
 /**
  * Standard class access using reflection ({@link NField}. The field is resolved as follows:
@@ -41,11 +37,11 @@ class ReflectionClassAccess extends AbstractClassAccess {
         Field[] classFields=classType.getFields();
         fields=new NField[classFields.length];
         for(int i=0;i<fields.length;i++) {
-            fields[i]=createFieldAccess(new LazyResolver(clazz),clazz,classFields[i]);
+            fields[i]=createFieldAccess(new Resolver(clazz),clazz,classFields[i]);
         }
     }
     
-    protected NField createFieldAccess(LazyResolver resolver,Class<?> clazz,Field f) {
+    protected NField createFieldAccess(Resolver resolver,Class<?> clazz,Field f) {
         if(clazz!=null) {
             try {
                 java.lang.reflect.Field classField=clazz.getDeclaredField(constructor.mapField(clazz,f.getName()));
@@ -72,38 +68,19 @@ class ReflectionClassAccess extends AbstractClassAccess {
     
     @Override
     public Access createFieldAccess(Field f) throws BaseException {
-        if(f.getType().getFlavour()==Flavour.ArrayType) {
-            Class<?> type=fields[f.getIndex()].getFieldType();
-            if(type.isArray()) {
-                return forArray(f.getType(), type);
-            } else if(Collection.class.isAssignableFrom(type)) {
-                return forCollection(f.getType(),type);
-            } else if(Map.class.isAssignableFrom(type)) {
-                return forMap(f.getType(),(Class<Map>)type);
-            } else {
-            	throw new BaseException(BaseException.GENERAL,"Unsupported field access: "+type+" is not an array type (most likely, this is a known generic type parameter bug).");
-            }
-        }
-        return super.createFieldAccess(f);
+    	return createAccess(f.getType(),fields[f.getIndex()].getFieldType());
     }
     
-    private class LazyResolver {
+    private class Resolver {
     	Class<?> clazz;
     	ClassResolver resolver;
-    	private LazyResolver(Class<?> clazz) {
+    	private Resolver(Class<?> clazz) {
     		this.clazz=clazz;
+    		resolver=TypeUtils.createClassResolver(clazz);
     	}
     	
-    	Class<?> resolve(java.lang.reflect.Field f) {
-    		Type type=f.getGenericType();
-    		if(type instanceof Class) {
-    			return (Class<?>)type;
-    		} else {
-	    		if(resolver==null) {
-	    			resolver=TypeUtils.createClassResolver(clazz);
-	    		}
-	    		return resolver.resolve(f).getResolvedClass();
-    		}
+    	ResolvedClass resolve(java.lang.reflect.Field f) {
+    		return resolver.resolve(f);
     	}
     	
     	public String getName() {
