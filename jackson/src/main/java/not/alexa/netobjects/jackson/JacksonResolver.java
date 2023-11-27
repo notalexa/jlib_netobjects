@@ -213,6 +213,7 @@ public class JacksonResolver implements TypeResolver {
     				}
     				parameterCount++;
     			}
+    			c.setAccessible(true);
     			return c;
     		}
     	}
