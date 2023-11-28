@@ -23,6 +23,7 @@ import java.util.List;
 
 import not.alexa.netobjects.coding.yaml.Token.Type;
 import not.alexa.netobjects.coding.yaml.Yaml.Handler;
+import not.alexa.netobjects.utils.BaseUtils;
 
 /**
  * Script which allows scalars and arrays of [arrays of...] scalars as input. Each scalar is interpreted as an URL pointing to
@@ -106,12 +107,7 @@ public class IncludeScript implements YamlScript {
 		public void scalar(boolean key, List<Token> modifier, Token token) throws YamlException {
 			if(token.getType()==Type.Scalar) {
 				String script=token.getValue();
-				boolean classPathScript=false;
-				if(script.startsWith("cp://")) {
-					script=script.substring(script.indexOf("cp://")+5);
-					classPathScript=true;
-				}
-				try(InputStream in=classPathScript?loader.getResourceAsStream(script):new URL(script).openStream()) {
+				try(InputStream in=BaseUtils.resolve(loader, script)) {
 					if(in!=null) {
 						yaml.parse(in,new HandlerWrapper(delegate));
 					} else {
