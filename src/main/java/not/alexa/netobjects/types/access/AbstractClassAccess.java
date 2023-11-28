@@ -15,7 +15,7 @@
  */
 package not.alexa.netobjects.types.access;
 
-import java.util.Collections;
+import java.util.Collection;
 import java.util.Map;
 
 import not.alexa.netobjects.BaseException;
@@ -114,7 +114,7 @@ public abstract class AbstractClassAccess implements Access {
     		Class<?> c=clazz.getResolvedClass();
     		ResolvedClass[] parameters=clazz.getParameters();
     		if(parameters.length==1) {
-    			if(c.isArray()||Collections.class.isAssignableFrom(c)) {
+    			if(c.isArray()||Collection.class.isAssignableFrom(c)) {
     				return new ArrayTypeAccess(type, createAccess(((ArrayTypeDefinition)type).getComponentType(),parameters[0]),c);
 	    		}
     		} else if(parameters.length==2&&Map.class.isAssignableFrom(c)) {
