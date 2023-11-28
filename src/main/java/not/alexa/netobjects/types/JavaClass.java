@@ -19,6 +19,7 @@ import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -349,6 +350,8 @@ public final class JavaClass extends Namespace {
                         return new EnumTypeDefinition((Class<? extends Enum<?>>)clazz);
                     } else if(clazz.isArray()) {
                         return new ArrayTypeDefinition(this,loader.resolveType(ObjectType.createClassType(clazz.getComponentType().getName())));
+                    } else if(clazz.isInterface()||Modifier.isAbstract(clazz.getModifiers())) {
+                    	return new InterfaceTypeDefinition(clazz);
                     } else try {
                         return (TypeDefinition)clazz.getMethod("getTypeDescription").invoke(null);
                     } catch(Throwable t) {
