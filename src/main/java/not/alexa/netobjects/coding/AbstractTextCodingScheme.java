@@ -22,6 +22,7 @@ import java.util.Map;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.text.EnumCodec;
+import not.alexa.netobjects.types.DefaultTypeLoader;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.Namespace;
 import not.alexa.netobjects.types.ObjectType;
@@ -230,6 +231,11 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
         public B setIndent(String indent,String lineTerminator) {
             scheme.indent=indent;
             scheme.lineTerminator=lineTerminator;
+            return myself();
+        }
+        
+        public B setRootType(Class<?> rootClass) {
+            scheme.rootType=new DefaultTypeLoader(rootClass.getClassLoader()).resolveType(rootClass);
             return myself();
         }
         
