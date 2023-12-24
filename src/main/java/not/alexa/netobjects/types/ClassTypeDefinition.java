@@ -226,6 +226,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
                     case InterfaceType:
                     case ClassType:f.extendible=extendible;
                         break;
+                    case EnumType:
                     case PrimitiveType:
                         // Check consistency
                         if(defaultValue!=null&&!ObjectType.createClassType(defaultValue.getClass()).equals(type.getJavaClassType())) {
