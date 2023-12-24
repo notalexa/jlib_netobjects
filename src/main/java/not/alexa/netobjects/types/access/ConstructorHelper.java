@@ -166,16 +166,16 @@ class ConstructorHelper {
 
 		public DefaultConstructor(LinkedLocal linkedLocal) {
 			this(linkedLocal,FieldMapper.IDENTITY);
+		}
+
+		public DefaultConstructor(LinkedLocal linkedLocal, FieldMapper fieldMap) {
+			super(linkedLocal, fieldMap);
             try {
                 constructor=enclosingClass==null?clazz.getDeclaredConstructor():clazz.getDeclaredConstructor(enclosingClass);
                 constructor.setAccessible(true);
             } catch(Throwable t) {
                 initializerException=t;
             }
-		}
-
-		public DefaultConstructor(LinkedLocal linkedLocal, FieldMapper fieldMap) {
-			super(linkedLocal, fieldMap);
 		}
 
 		public DefaultConstructor(LinkedLocal linkedLocal,Throwable error) {
