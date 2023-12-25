@@ -653,7 +653,7 @@ class YamlLine {
 		}
 		
 		private boolean isNextspace() {
-			return offset>=current.length-1||current.content[offset]==' ';
+			return offset>=current.length||current.content[offset]==' ';
 		}
 		
 		private Type getType(int syntaxMode) {
