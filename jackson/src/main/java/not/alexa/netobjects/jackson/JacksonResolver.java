@@ -17,6 +17,7 @@ package not.alexa.netobjects.jackson;
 
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -397,9 +398,11 @@ public class JacksonResolver implements TypeResolver {
 			if(f.getAnnotation(JsonIgnore.class)!=null||f.getType().getAnnotation(JsonIgnoreType.class)!=null) {
 				annotationSeen=true;
 				return true;
-			} else {
+			} else if(!Modifier.isStatic(f.getModifiers())) {
 				JsonAutoDetect.Visibility visibility=getVisibility(f.getDeclaringClass());
 				return !visibility.isVisible(f);
+			} else {
+				return true;
 			}
 		}
     }
