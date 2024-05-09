@@ -21,7 +21,8 @@ import not.alexa.netobjects.types.access.DefaultAccessFactory;
 
 public class ClassLoaderTest {
     private static int ITERATIONS=1000;
-    private String object1="<root class=\"not.alexa.coding.Data\" index=\"100\" state=\"active\">\r\n" + 
+    private String object1="<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"+
+            "<root class=\"not.alexa.coding.Data\" index=\"100\" state=\"active\">\r\n" + 
             "  <text>Hello World</text>\r\n" + 
             "  <ref obj-ref=\"0\"/>\r\n" + 
             "  <data obj-ref=\"0\"/>\r\n" + 
@@ -162,7 +163,7 @@ public class ClassLoaderTest {
     @Test
     public void loaderTest2() throws Throwable {
         TestAccessFactory factory=new TestAccessFactory();
-        XMLCodingScheme scheme=XMLCodingScheme.builder().setAccessFctory(factory).setIndent("  ","\r\n").setRootTag("root").build();
+        XMLCodingScheme scheme=XMLCodingScheme.INLINE_SCHEME.newBuilder().setAccessFctory(factory).setIndent("  ","\r\n").setRootTag("root").build();
         for(int i=0;i<ITERATIONS;i++) {
             TypeLoader resolver=new DefaultTypeLoader(createClassLoader());
             Context context=Context.createRootContext(resolver);
@@ -187,7 +188,7 @@ public class ClassLoaderTest {
     @Test
     public void overlayTest2() throws Throwable {
         TestAccessFactory factory=new TestAccessFactory();
-        XMLCodingScheme scheme=XMLCodingScheme.builder().setAccessFctory(factory).setIndent("  ","\r\n").setRootTag("root").build();
+        XMLCodingScheme scheme=XMLCodingScheme.INLINE_SCHEME.newBuilder().setAccessFctory(factory).setIndent("  ","\r\n").setRootTag("root").build();
         Type type=ObjectType.createClassType("not.alexa.netobjects.types.overlay.Data2");
         for(int i=0;i<ITERATIONS;i++) {
             TypeLoader resolver=new DefaultTypeLoader(createClassLoader());//resolver.overlay(overlayClass);

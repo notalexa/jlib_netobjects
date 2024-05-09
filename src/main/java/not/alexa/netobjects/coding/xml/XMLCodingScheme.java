@@ -15,8 +15,10 @@
  */
 package not.alexa.netobjects.coding.xml;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,6 +67,10 @@ import not.alexa.netobjects.types.access.MapEntryAccess;
  * These attributes can be overridden using {@link Builder#setReservedAttributes(ReservedAttributes)} and retrieved using {@link #getReservedAttributes()}.
  * <li>An additional attribute <code>rootTag</code> configurable in the builder with {@link Builder#setRootTag(String)} and retrievable via {@link XMLCodingScheme#getRootTag()}
  * describes the XML root tag used for encoding. The default value is <code>object</code>.
+ * <li>The XML header will be written out if enabled by {@link Builder#enableHeader()} or {@link Builder#enableHeader(boolean)} (or setting a non null value for
+ * the standalone pseudo attribute)
+ * <li>The standalone pseudo attribute in the XML header can be set using the {@link Builder#setStandalone(String)} builder method. A non nul value will automatically enable
+ * writing out the XML header.
  * </ul>
  * Beside the attributes, the tag for a field can be explicitly set via the {@link FieldBuilder#addTag(String, String)} method with first argument <code>XML</code>.
  * Special values starting with <code>@</code> denotes an attribute. The value <code>#text</code> should be used to indicate that the attribute should be
@@ -75,7 +81,17 @@ import not.alexa.netobjects.types.access.MapEntryAccess;
  *
  */
 public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingScheme {
-    public static final XMLCodingScheme DEFAULT_SCHEME=new XMLCodingScheme();
+	/**
+	 * Writes data without an XML header
+	 */
+    public static final XMLCodingScheme INLINE_SCHEME=new XMLCodingScheme();
+    
+	/**
+	 * Writes data with an XML header (but without the {@code standalone} pseudo attribute.
+	 * @see Builder#enableHeader()
+	 * @see Builder#setStandalone(String)
+	 */
+    public static final XMLCodingScheme DEFAULT_SCHEME=INLINE_SCHEME.newBuilder().enableHeader().build();
     private static final Comparator<ClassTypeDefinition.Field> ATTRIBUTE_FIRST=new Comparator<ClassTypeDefinition.Field>() {
 
         @Override
@@ -102,6 +118,8 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
     }
 
     private String rootTag="object";
+    private boolean enableHeader;
+    private String standalone;
     private ReservedAttributes reservedAttributes=new ReservedAttributes("obj-ref","obj-id","is-empty");
 	
 	public static Charset defaultCharset() {
@@ -172,6 +190,41 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         public Builder setReservedAttributes(ReservedAttributes attributes) {
             scheme.reservedAttributes=attributes;
             return this;
+        }
+
+        /**
+         * Enable writing the header
+         * 
+         * @return this builder
+         */
+        public Builder enableHeader() {
+        	return enableHeader(true);
+        }
+        
+        /**
+         * Set enabling writing the header.
+         * 
+         * @param enable if {@code true} write the header
+         * @return this builder
+         */
+        public Builder enableHeader(boolean enable) {
+        	scheme.enableHeader=enable;
+        	return this;
+        }
+
+        /**
+         * Set the standalone pseudo attribute. No checks are made on the value. If not null, writing the
+         * header will be automatically enabled.
+         * 
+         * @param standalone the value of the pseudo attribute (if {@code null}, the attribute will not be written (default))
+         * @return ths builder
+         */
+        public Builder setStandalone(String standalone) {
+        	if(standalone!=null) {
+        		enableHeader();
+        	}
+        	scheme.standalone=standalone;
+        	return this;
         }
 
 
@@ -556,4 +609,14 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
             }
         }
     }
+
+	public boolean writeHeader(Writer writer) throws IOException {
+		if(enableHeader) {
+			writer.append("<?xml version=\"1.0\" encoding=\"").append(getCodingCharset().name());
+			(standalone==null?writer:writer.append("\" standalone=\"").append(standalone)).append("\"?>").append(getLineTerminator());
+			return true;
+		} else {
+			return false;
+		}
+	}
 }

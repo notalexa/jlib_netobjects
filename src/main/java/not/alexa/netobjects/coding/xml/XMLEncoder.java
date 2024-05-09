@@ -84,6 +84,9 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
 	public Encoder encode(Object o) throws BaseException {
 	    if(o!=null) try {
 	    	boolean root=parent==null;
+	    	if(root) {
+	    		getCodingScheme().writeHeader(writer);
+	    	}
     		if(getType().getFlavour()==Flavour.ArrayType) {
     			Collection<?> col=ArrayTypeAccess.canonicalize(o);
     			if(col.size()==0) {
