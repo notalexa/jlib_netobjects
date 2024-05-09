@@ -16,6 +16,7 @@
 package not.alexa.netobjects.types.access;
 
 import java.lang.reflect.Array;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -61,7 +62,22 @@ public class ArrayTypeAccess implements Access {
 		} else if(o instanceof Map) {
 			return ((Map<?,?>)o).entrySet();
 		} else if(o.getClass().isArray()) {
-			return Arrays.asList((Object[])o);
+			if(o.getClass().getComponentType().isPrimitive()) {
+				return new AbstractList<Object>() {
+					int s=Array.getLength(o);
+					@Override
+					public int size() {
+						return s;
+					}
+
+					@Override
+					public Object get(int index) {
+						return Array.get(o, index);
+					}
+				};
+			} else {
+				return Arrays.asList((Object[])o);
+			}
 		} else {
 			throw new BaseException(BaseException.FORBIDDEN,"Unsupported array type "+o.getClass().getSimpleName());
 		}

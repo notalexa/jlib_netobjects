@@ -23,6 +23,7 @@ import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ArrayTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
+import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Constructor.PreAccessible;
 import not.alexa.netobjects.utils.TypeUtils.ResolvedClass;
@@ -114,7 +115,9 @@ public abstract class AbstractClassAccess implements Access {
     		Class<?> c=clazz.getResolvedClass();
     		ResolvedClass[] parameters=clazz.getParameters();
     		if(parameters.length==1) {
-    			if(c.isArray()||Collection.class.isAssignableFrom(c)) {
+    			if(c.equals(byte[].class)) {
+    				return factory.resolve(this,PrimitiveTypeDefinition.getTypeDescription(byte[].class));
+    			} else if(c.isArray()||Collection.class.isAssignableFrom(c)) {
     				return new ArrayTypeAccess(type, createAccess(((ArrayTypeDefinition)type).getComponentType(),parameters[0]),c);
 	    		}
     		} else if(parameters.length==2&&Map.class.isAssignableFrom(c)) {

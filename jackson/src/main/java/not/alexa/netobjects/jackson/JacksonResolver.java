@@ -47,6 +47,7 @@ import not.alexa.netobjects.types.ClassTypeDefinition.Builder;
 import not.alexa.netobjects.types.Flavour;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.ObjectType;
+import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.TypeLoader.LinkedLocal;
 import not.alexa.netobjects.types.TypeResolver;
@@ -289,8 +290,12 @@ public class JacksonResolver implements TypeResolver {
         if(clazz.isArray()) {
             ResolvedClass[] parameters=clazz.getParameters();
             if(parameters.length==1) {
-                TypeDefinition componentType=resolveType(loader,resolver,parameters[0],infos);
-                return componentType==null?null:new ArrayTypeDefinition(resolveType(loader,resolver,parameters[0],infos));
+            	if(clazz.getResolvedClass().equals(byte[].class)) {
+            		return PrimitiveTypeDefinition.getTypeDescription(byte[].class);
+            	} else {
+            		TypeDefinition componentType=resolveType(loader,resolver,parameters[0],infos);
+            		return componentType==null?null:new ArrayTypeDefinition(resolveType(loader,resolver,parameters[0],infos));
+            	}
             } else if(parameters.length==2) {
                 String keyName=getName(parameters[0],"key");
                 String valueName=getName(parameters[1],"value");
