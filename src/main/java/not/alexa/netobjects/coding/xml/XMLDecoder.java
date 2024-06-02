@@ -309,7 +309,6 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	        return new XMLContentHandler(this);
 	    }
 
-	    @Override
 	    protected XMLContentHandler init(String fieldName, Access access) {
 	        super.init(fieldName,access);
 	        content.setLength(0);

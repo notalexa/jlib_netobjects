@@ -19,19 +19,41 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
 /**
- * Basic annotation to denote the name of a field.
- * 
+ * Basic annotation to denote the name of a field. A field can be specified on a per type
+ * base.
+ * <br>Fields can be defined on a per type (that is serialization type like XML,...) base.
+ * For example, the annotation {@code Field(value=80,type='protobuf')} will set the index of the annotated field
+ * in the protobuf serialization to {@code 80} (and the field name to the default value) while
+ * {@code Field(80)} set's the overall index to 80 (including proto buffers).
  * 
  * @author notalexa
+ * 
+ * @see not.alexa.netobjects.types.ClassTypeDefinition.Field#getTag(String...)
  */
 @Documented
 @Retention(RUNTIME)
 @Target({ElementType.TYPE_USE})
+@Repeatable(Fields.class)
 public @interface Field {
+	/**
+	 * 
+	 * @return the index of the field
+	 */
     public int value() default -1;
+    /**
+     * Typical types are {@code xml}, {@code json}, {@code yaml}.
+     * 
+     * @return the type for the 
+     */
+    public String type() default "*";
+    
+    /*
+     * 
+     */
     public String name() default "";
 }

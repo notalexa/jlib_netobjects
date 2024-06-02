@@ -129,7 +129,19 @@ public interface Access {
 	public default AccessibleObject makeAccessible(Object o) throws BaseException {
 		return new DefaultAccessibleObject(this, o);
 	}
-	
+
+	/**
+	 * Construc an accessible object for the provided default object. The default implementation
+	 * expects default objects to be "normal" objects but arrays and enumeration differ.
+	 * 
+	 * @param o the default value
+	 * @return an accessible object representing the default value
+	 * @throws BaseException if an error occurs
+	 */
+	public default AccessibleObject makeDefault(Object o) throws BaseException {
+		return makeAccessible(o);
+	}
+
 	/**
 	 * The counterpart of {@link #newAccessible(AccessContext)} and {@link #makeAccessible(Object)}.
 	 * This method should return a finalized object, see {@link #finish(Object)}.
@@ -204,7 +216,7 @@ public interface Access {
 		}
 		
 		@Override
-		public AccessibleObject makeAccessible(Object v) {
+		public AccessibleObject makeAccessible(Object v) throws BaseException {
 			return new SimpleTypeAccess(factory,type, v);
 		}
 
@@ -233,35 +245,6 @@ public interface Access {
 			return this;
 		}
 	}
-	
-//	/**
-//	 * Class representing a key uniquely identifying access for a type.
-//	 * 
-//	 * @author notalexa
-//	 *
-//	 */
-//	public class AccessKey {
-//	    private ObjectType type;
-//	    private ClassLoader loader;
-//	    public AccessKey(ObjectType type,ClassLoader loader) {
-//	        this.type=type;
-//	        this.loader=loader;
-//	    }
-//        @Override
-//        public boolean equals(Object obj) {
-//            if(obj==this) {
-//                return true;
-//            } else if(obj instanceof AccessKey) {
-//                AccessKey other=(AccessKey)obj;
-//                return other.loader==loader&&other.type.equals(type);
-//            }
-//            return false;
-//        }
-//        @Override
-//        public int hashCode() {
-//            return type.hashCode()^loader.hashCode();
-//        }
-//	}
 	
 	/**
 	 * Access for types which do not have access. A typical example are interface types which can't be instantiated.

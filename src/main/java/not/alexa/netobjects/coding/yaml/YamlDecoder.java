@@ -32,13 +32,19 @@ import not.alexa.netobjects.coding.yaml.Token.DecoratedToken;
 import not.alexa.netobjects.coding.yaml.Yaml.Document;
 import not.alexa.netobjects.coding.yaml.YamlCodingScheme.YAMLCodingExtraInfo;
 import not.alexa.netobjects.types.AccessibleObject;
+import not.alexa.netobjects.types.ArrayTypeDefinition;
+import not.alexa.netobjects.types.ArrayTypeDefinition.ArrayFlavour;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
+import not.alexa.netobjects.types.Flavour;
+import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Access;
+import not.alexa.netobjects.types.access.Access.SimpleTypeAccess;
 import not.alexa.netobjects.types.access.Constructor;
+import not.alexa.netobjects.types.access.MapEntryAccess;
 
 /**
  * Decoder implementation for YAML.
@@ -193,6 +199,8 @@ class YamlDecoder implements Decoder {
                         tagAccess=root.getFactory().resolve(getContext(),fieldType);
                     } catch(Throwable t) {
                         return BaseException.throwException(t);
+                    } else {
+                    	throw new BaseException(BaseException.FORBIDDEN,"Class type (field "+root.getCodingScheme().getTypeRef()+") is not defined but element is abstract.");
                     }
                     switch(fieldType.getFlavour()) {
 	    	    	    case PrimitiveType:
@@ -228,10 +236,10 @@ class YamlDecoder implements Decoder {
 	                		String name=extraInfo.getName(f);
 	                		Token field=o.get(name);
 	                		if(field!=null) {
-	                			AccessibleObject v=getChild().init(name,tagAccess.getFieldAccess(f)).decode(field);
+	                			AccessibleObject v=getChild().init(name,f,tagAccess.getFieldAccess(f)).decode(field);
 	                			current.setField(f, v);
 	                		} else if(f.getDefaultValue()!=null) {
-	                			current.setField(f, tagAccess.getFieldAccess(f).makeAccessible(f.getDefaultValue()));
+	                			current.setField(f, tagAccess.getFieldAccess(f).makeDefault(f.getDefaultValue()));
 	                		} else if(!f.isOptional()) {
                                 throw new BaseException(BaseException.BAD_REQUEST, "Field "+name+" in "+tagAccess.getType()+" is mandatory but not set.");
 	                		}
@@ -242,18 +250,33 @@ class YamlDecoder implements Decoder {
 	                }
 	                break;
 	    	    case ArrayType:
-	    	    	List<Token> a=e.getArray();
 	    	    	AccessibleObject array=tagAccess.newAccessible(this);
 	    	    	if(modifiers.size()>0) for(String modifier:modifiers) {
             			root.addObjectReference(false, modifier, array);
                 	}
 	    	    	Access componentAccess=tagAccess.getComponentAccess();
-	    	    	for(Token c:a) {
+	    	    	boolean inline=false;
+	    	    	if(((ArrayTypeDefinition)tagAccess.getType()).getArrayFlavour()==ArrayFlavour.Map) {
+	    	    		inline=(field!=null&&field.hasHint("inline")&&getCodingScheme().isHintEnabled("inline"))
+	    	    				||getCodingScheme().isInlineKey(componentAccess.getFields()[0].getType());
+	    	    	}
+	    	    	if(inline) {
+    	    			Field[] fields=componentAccess.getFields();
+    	    			AccessibleObject v;
+	    	    		for(Map.Entry<Token,Token> entry:e.getMapArray()) {
+	    	    			AccessibleObject inlineObject=componentAccess.newAccessible(this);
+                			v=getChild().init("key",componentAccess.getFieldAccess(fields[0])).decode(entry.getKey());
+                			inlineObject.setField(fields[0], v);
+                			v=getChild().init("value",componentAccess.getFieldAccess(fields[1])).decode(entry.getValue());
+                			inlineObject.setField(fields[1], v);
+	    	    			array.add(inlineObject);
+	    	    		}
+	    	    	} else for(Token c:e.getArray()) {
 	    	    		array.add(getChild().init(fieldName,componentAccess).decode(c));
 	    	    	}
 	    	    	return array;
 	    	    case PrimitiveType:
-	    	    case EnumType://Access simpleAccess=new Access.SimpleTypeAccess(getCodingScheme().getFactory(),fieldType);
+	    	    case EnumType:
 	            	Codec codec=resolveCodec(fieldType.getJavaClassType(),tagAccess);
 	            	content=e.getValue();
 	            	AccessibleObject simpleType=tagAccess.makeAccessible(codec.decode(this));
@@ -275,13 +298,17 @@ class YamlDecoder implements Decoder {
 	    protected YAMLContentHandler createChild() {
 	        return new YAMLContentHandler(this);
 	    }
-
+	    
 	    @Override
-	    public YAMLContentHandler init(String fieldName, Access access) {
+	    public YAMLContentHandler init(Object fieldName, Access access) {
+	    	return init(fieldName,null,access);
+	    }
+
+	    public YAMLContentHandler init(Object fieldName, Field f,Access access) {
 	        super.init(fieldName,access);
 	        content=null;
 	        current=null;
-	        field=null;
+	        field=f;
 	        return this;
 	    }
 

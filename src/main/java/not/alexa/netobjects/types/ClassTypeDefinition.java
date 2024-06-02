@@ -18,17 +18,22 @@ package not.alexa.netobjects.types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.api.Final;
+import not.alexa.netobjects.types.EnumTypeDefinition.Value;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.AccessContext;
 import not.alexa.netobjects.types.access.AccessFactory;
 import not.alexa.netobjects.types.access.ArrayTypeAccess;
 import not.alexa.netobjects.types.access.DefaultAccessibleObject;
+import not.alexa.netobjects.types.access.EmptyArray;
+import not.alexa.netobjects.types.access.EnumConstant;
 
 @Final
 public class ClassTypeDefinition extends AbstractClassTypeDefinition {
@@ -186,15 +191,35 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
             protected Object defaultValue;
 			protected TypeDefinition type;
 			protected Map<String,String> tags;
+			protected Set<String> hints;
+			
+			protected int fieldIndex=-1;
+			
 			FieldBuilder(String name,TypeDefinition type) {
 				this.name=name;
 				this.type=type;
 			}
+			
+			public FieldBuilder setIndex(int index) {
+				if(index>=0) {
+					fieldIndex=index;
+				}
+				return this;
+			}
+			
 			public FieldBuilder addTag(String scheme,String tag) {
 				if(tags==null) {
 					tags=new HashMap<String, String>();
 				}
-				tags.put(scheme, tag);
+				tags.put(scheme.toLowerCase(), tag);
+				return this;
+			}
+			
+			public FieldBuilder addHint(String hint) {
+				if(hints==null) {
+					hints=new HashSet<String>();
+				}
+				hints.add(hint);
 				return this;
 			}
 			
@@ -220,13 +245,25 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
             }
             
 			public Builder build() {
-				Field f=new Field(fields.size(),name,type);
+				Field f=new Field(fieldIndex<0?fields.size():fieldIndex,name,type);
                 f.optional=optional;
                 switch(type.getFlavour()) {
                     case InterfaceType:
                     case ClassType:f.extendible=extendible;
                         break;
-                    case EnumType:
+                    case ArrayType:if("empty".equals(defaultValue)) {
+	                    	f.defaultValue=new EmptyArray();
+	                    }
+	                    break;
+                    case EnumType:if(defaultValue!=null) {
+	                    	String val=defaultValue.toString();
+	                    	for(Value v:((EnumTypeDefinition)type).getValues()) {
+	                    		if(v.getEnumValue().equals(val)) {
+	                    			f.defaultValue=new EnumConstant(val);
+	                    		}
+	                    	}
+	                    }
+                    	break;
                     case PrimitiveType:
                         // Check consistency
                         if(defaultValue!=null&&!ObjectType.createClassType(defaultValue.getClass()).equals(type.getJavaClassType())) {
@@ -237,6 +274,9 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
                 }
 				if(tags!=null) {
 					f.tags=tags;
+				}
+				if(hints!=null) {
+					f.hints=hints;
 				}
 				Builder.this.fields.add(f);
 				return Builder.this;
@@ -253,6 +293,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
         protected boolean optional;
 		protected TypeDefinition type;
 		protected Map<String,String> tags;
+		protected Set<String> hints;
 		protected Object defaultValue;
 		
 		private Field() {}
@@ -267,16 +308,29 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			h=(index*31)^name.hashCode()^TypeDefinition.typeHash(type);
 		}
 		
-		public Field addTag(String scheme,String tag) {
-			if(tags==null) {
-				tags=new HashMap<String, String>();
-			}
-			tags.put(scheme, tag);
-			return this;
+		public int getIndex(String...schemata) {
+			return index;
 		}
 		
-		public int getIndex() {
-			return index;
+		public boolean isDefault(Object o) {
+			if(defaultValue!=null) {
+				switch(type.getFlavour()) {
+					case PrimitiveType:return o.equals(defaultValue);
+					case EnumType:if(defaultValue instanceof EnumConstant) {
+							return ((EnumConstant)defaultValue).represents(o);
+						} else {
+							return false;
+						}
+					case ArrayType:if(defaultValue instanceof EmptyArray) {
+							return ((EmptyArray)defaultValue).represents(o);
+						} else {
+							return false;
+						}
+					default:
+						break;
+				}
+			}
+			return false;
 		}
 		
 		/**
@@ -303,8 +357,18 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			return type;
 		}
 		
-		public String getTag(String schema) {
-			return tags==null?name:tags.getOrDefault(schema,name);
+		public String getTag(String...schemata) {
+			if(tags!=null) for(String schema:schemata) {
+				String tag=tags.get(schema.toLowerCase());
+				if(tag!=null) {
+					return tag;
+				}
+			}
+			return name;
+		}
+		
+		public boolean hasHint(String hint) {
+			return hints!=null&&hints.contains(hint);
 		}
 		
 		public ClassTypeDefinition getClassDescription() {
@@ -442,7 +506,8 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
                 case 3:return def.optional?Boolean.TRUE:null;
 				case 4:return def.type;
 				case 5:return def.tags;
-                case 6:return def.defaultValue;
+				case 6:return def.hints;
+                case 7:return def.defaultValue;
 			}
 			return null;
 		}
@@ -464,7 +529,9 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 					break;
 				case 5:def.tags=(Map<String,String>)v;
 					break;
-                case 6:def.defaultValue=v;
+				case 6:def.hints=(Set<String>)v;
+					break;
+                case 7:def.defaultValue=v;
                     break;
 			}
 		}
@@ -473,6 +540,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		public Access createFieldAccess(Field f) throws BaseException {
 			switch(f.getIndex()) {
 				case 5:return forMap(f.getType(),Map.class);
+				case 6:return forCollection(f.getType(),Set.class);
 			}
 			return super.createFieldAccess(f);
 		}

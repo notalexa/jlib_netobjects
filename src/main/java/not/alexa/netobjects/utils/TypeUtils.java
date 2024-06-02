@@ -26,6 +26,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -567,40 +568,80 @@ public class TypeUtils {
     public static class AType implements AnnotatedElement {
     	java.lang.reflect.Type type;
     	AnnotatedElement annotationHolder;
+    	AnnotatedElement root;
     	AType(java.lang.reflect.Type type,AnnotatedElement annotationHolder) {
+    		this(type,annotationHolder,annotationHolder);
+    	}
+    	
+    	AType(java.lang.reflect.Type type,AnnotatedElement annotationHolder,AnnotatedElement root) {
     		this.type=type;
     		this.annotationHolder=annotationHolder;
+    		this.root=root;
     	}
     	
     	public java.lang.reflect.Type getType() {
     		return type;
     	}
 		public boolean isAnnotationPresent(Class<? extends Annotation> annotationClass) {
-			return annotationHolder.isAnnotationPresent(annotationClass);
+			return annotationHolder.isAnnotationPresent(annotationClass)||root.isAnnotationPresent(annotationClass);
 		}
 
 		public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
-			return annotationHolder.getAnnotation(annotationClass);
+			T t=annotationHolder.getAnnotation(annotationClass);
+			return t==null&&root!=annotationHolder?root.getAnnotation(annotationClass):t;
 		}
 
 		public Annotation[] getAnnotations() {
-			return annotationHolder.getAnnotations();
+			Annotation[] a=annotationHolder.getAnnotations();
+			if(root!=annotationHolder) {
+				Annotation[] b=root.getAnnotations();
+				if(b.length>0) {
+					a=Arrays.copyOf(a, a.length+b.length);
+					System.arraycopy(b, 0, a, a.length-b.length,b.length);
+				}
+			}
+			return a;
 		}
 
 		public <T extends Annotation> T[] getAnnotationsByType(Class<T> annotationClass) {
-			return annotationHolder.getAnnotationsByType(annotationClass);
+			T[] a=annotationHolder.getAnnotationsByType(annotationClass);
+			if(root!=annotationHolder) {
+				T[] b=root.getAnnotationsByType(annotationClass);
+				if(b.length>0) {
+					a=Arrays.copyOf(a, a.length+b.length);
+					System.arraycopy(b, 0, a, a.length-b.length,b.length);
+				}
+			}
+			return a;
 		}
 
 		public <T extends Annotation> T getDeclaredAnnotation(Class<T> annotationClass) {
-			return annotationHolder.getDeclaredAnnotation(annotationClass);
+			T t=annotationHolder.getDeclaredAnnotation(annotationClass);
+			return t==null&&root!=annotationHolder?root.getDeclaredAnnotation(annotationClass):t;
 		}
 
 		public <T extends Annotation> T[] getDeclaredAnnotationsByType(Class<T> annotationClass) {
-			return annotationHolder.getDeclaredAnnotationsByType(annotationClass);
+			T[] a=annotationHolder.getDeclaredAnnotationsByType(annotationClass);
+			if(root!=annotationHolder) {
+				T[] b=root.getDeclaredAnnotationsByType(annotationClass);
+				if(b.length>0) {
+					a=Arrays.copyOf(a, a.length+b.length);
+					System.arraycopy(b, 0, a, a.length-b.length,b.length);
+				}
+			}
+			return a;
 		}
 
 		public Annotation[] getDeclaredAnnotations() {
-			return annotationHolder.getDeclaredAnnotations();
+			Annotation[] a=annotationHolder.getDeclaredAnnotations();
+			if(root!=annotationHolder) {
+				Annotation[] b=root.getDeclaredAnnotations();
+				if(b.length>0) {
+					a=Arrays.copyOf(a, a.length+b.length);
+					System.arraycopy(b, 0, a, a.length-b.length,b.length);
+				}
+			}
+			return a;
 		}
     	
     }

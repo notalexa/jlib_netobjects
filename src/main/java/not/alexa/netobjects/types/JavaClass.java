@@ -132,6 +132,13 @@ public final class JavaClass extends Namespace {
 			}
 		}
 		
+		private Type(String className,String version) {
+			this.className=className;
+			this.version=version;
+			this.method="";
+		}
+
+		
 		private void preload() {
             if(preloaded==null&&!isMethod()) try {
                 preloaded=new InstanceSupport(defineClass(Type.class.getClassLoader(),this.className));
@@ -188,6 +195,18 @@ public final class JavaClass extends Namespace {
 			} else {
 				return className+(method.length()>0?"::"+method:"");
 			}
+		}
+		
+		public Type getArrayType() {
+			if(!isMethod()) {
+				if(preloaded!=null) try {
+					Class<?> arrayClass=defineClass(Type.class.getClassLoader(), className+"[]");
+					return ObjectType.createClassType(arrayClass);
+				} catch(Throwable t) {
+				}
+				return new Type(className+"[]",version);
+			}
+			return null;
 		}
 		
 		public String getClassName() {
@@ -349,7 +368,7 @@ public final class JavaClass extends Namespace {
                     if(clazz.isEnum()) {
                         return new EnumTypeDefinition((Class<? extends Enum<?>>)clazz);
                     } else if(clazz.isArray()) {
-                        return new ArrayTypeDefinition(this,loader.resolveType(ObjectType.createClassType(clazz.getComponentType().getName())));
+                        return new ArrayTypeDefinition(loader.resolveType(ObjectType.createClassType(clazz.getComponentType().getName())));
                     } else if(clazz.isInterface()||Modifier.isAbstract(clazz.getModifiers())) {
                     	return new InterfaceTypeDefinition(clazz);
                     } else try {

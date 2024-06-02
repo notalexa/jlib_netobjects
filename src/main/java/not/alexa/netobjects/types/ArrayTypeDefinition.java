@@ -15,6 +15,7 @@
  */
 package not.alexa.netobjects.types;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import not.alexa.netobjects.BaseException;
@@ -35,18 +36,23 @@ import not.alexa.netobjects.types.access.DefaultAccessibleObject;
  * <li>Sets
  * <li>Map entries
  * </ul>
- * In general, an array type definition has no explicit type.
+ * Since maps are important but representated as arrays of an (anonymous) class type with two field, the array type definition supports to distinguish between
+ * arrays which are supposed to be maps using the {@link #getArrayFlavour()} method returning a corresponding {@link ArrayFlavour}.
  * 
  * @author notalexa
  *
  */
 @Final
 public class ArrayTypeDefinition extends TypeDefinition {
+	private static final ObjectType[] NO_TYPES=new ObjectType[0];
+	
 	public static ClassTypeDefinition getTypeDescription() {
 		return Types.ARRAY_TYPE;
 	}
 	
 	protected TypeDefinition componentType;
+	protected ArrayFlavour flavour;
+	
 	private ArrayTypeDefinition() {}
 	/**
 	 * Construct an array for the given component type (which can be an array of cours).
@@ -55,15 +61,27 @@ public class ArrayTypeDefinition extends TypeDefinition {
 	 * 
 	 */
 	public ArrayTypeDefinition(TypeDefinition componentType) {
-		this(null,componentType);
+		this(ArrayFlavour.Array,componentType);
 	}
 	
-	public ArrayTypeDefinition(ObjectType type,TypeDefinition componentType) {
-		super(type);
+	public ArrayTypeDefinition(ArrayFlavour flavour,TypeDefinition componentType) {
+		super(resolveArrayTypes(componentType));
 		if(componentType==null) {
 			throw new NullPointerException("component type");
 		}
+		this.flavour=flavour;
 		this.componentType=componentType;
+	}
+	
+	private static ObjectType[] resolveArrayTypes(TypeDefinition types) {
+		List<ObjectType> arrayTypes=new ArrayList<ObjectType>();
+		for(ObjectType type:types.getTypes()) {
+			ObjectType arrayType=type.getArrayType();
+			if(arrayType!=null) {
+				arrayTypes.add(arrayType);
+			}
+		}
+		return arrayTypes.toArray(NO_TYPES);
 	}
 
 	/**
@@ -73,6 +91,13 @@ public class ArrayTypeDefinition extends TypeDefinition {
 	@Override
 	public Flavour getFlavour() {
 		return Flavour.ArrayType;
+	}
+	
+	/**
+	 * @return the array flavour (array or map)
+	 */
+	public ArrayFlavour getArrayFlavour() {
+		return flavour;
 	}
 
 	public TypeDefinition getComponentType() {
@@ -116,7 +141,8 @@ public class ArrayTypeDefinition extends TypeDefinition {
 			switch(index) {
 				case 0:List<ObjectType> types=def.getTypes();
 				    return types.size()==0?null:types.toArray(new ObjectType[types.size()]);
-				case 1:return def.componentType;
+				case 1:return def.flavour;
+				case 2:return def.componentType;
 			}
 			return null;
 		}
@@ -127,7 +153,9 @@ public class ArrayTypeDefinition extends TypeDefinition {
 			switch(index) {
 				case 0:def.addTypes((ObjectType[])v);
 					break;
-				case 1:def.componentType=(TypeDefinition)v;
+				case 1:def.flavour=(ArrayFlavour)v;
+					break;
+				case 2:def.componentType=(TypeDefinition)v;
 					break;
 			}
 		}
@@ -139,5 +167,9 @@ public class ArrayTypeDefinition extends TypeDefinition {
 			}
 			return super.createFieldAccess(f);
 		}		
+	}
+	
+	public enum ArrayFlavour {
+		Array,Map;
 	}
 }

@@ -127,6 +127,16 @@ public class ArrayTypeAccess implements Access {
 	public AccessibleObject makeAccessible(Object o) throws BaseException {
 		return new AccessibleArray(o);
 	}
+
+	@Override
+	public AccessibleObject makeDefault(Object o) throws BaseException {
+		if(o instanceof EmptyArray) {
+			return ((EmptyArray)o).makeAccessible(this);
+		} else {
+			return Access.super.makeDefault(o);
+		}
+	}
+
 	
 	@Override
 	public Access getComponentAccess() throws BaseException {
@@ -140,6 +150,7 @@ public class ArrayTypeAccess implements Access {
 		}
 		
 		public AccessibleArray(Object data) throws BaseException {
+			this();
 			for(Object o:canonicalize(data)) {
 				this.data.add(componentAccess.makeAccessible(o));
 			}

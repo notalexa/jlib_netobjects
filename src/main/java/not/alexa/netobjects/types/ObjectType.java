@@ -90,6 +90,14 @@ public interface ObjectType {
 	public String getUrn();
 	
 	/**
+	 * 
+	 * @return the array type for this object type if supported, {@code null} otherwise
+	 */
+	public default ObjectType getArrayType() {
+		return null;
+	}
+	
+	/**
 	 * Provide a default resolution of this type.
 	 * 
 	 * @param loader the type loader to resolve referenced types

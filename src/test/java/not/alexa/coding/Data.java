@@ -47,7 +47,7 @@ public class Data {
 				.createField("k", PrimitiveTypeDefinition.getTypeDescription(String.class))
 				    .addTag("XML","@k").setOptional(true).build()
 				.addField("v", PrimitiveTypeDefinition.getTypeDescription(Integer.class))
-				.build())).setOptional(true).build()
+				.build())).setOptional(true).addHint("test").build()
 			.createMethod("helloWorld")
 			    .setReturnTypes(PrimitiveTypeDefinition.getTypeDescription(String.class))
 			    .build()

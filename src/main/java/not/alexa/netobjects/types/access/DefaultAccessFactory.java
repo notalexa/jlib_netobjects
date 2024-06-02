@@ -321,9 +321,19 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
                 Access access=null;
                 switch(type.getFlavour()) {
                     case InterfaceType:
-                    case EnumType:
                     case PrimitiveType:access=new SimpleTypeAccess(DefaultAccessFactory.this,type);
                         break;
+                    case EnumType:access=new SimpleTypeAccess(DefaultAccessFactory.this,type) {
+							@Override
+							public AccessibleObject makeDefault(Object v) throws BaseException {
+								if(v instanceof EnumConstant) {
+									return ((EnumConstant)v).makeAccessible(this);
+								} else {
+									return super.makeDefault(v);
+								}
+							}
+	                    };
+                    	break;
                     case ArrayType:
                         JavaClass.Type arrayType=type.getJavaClassType();
                         if(arrayType!=null) try {

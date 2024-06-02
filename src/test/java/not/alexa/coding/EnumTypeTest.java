@@ -64,7 +64,8 @@ public class EnumTypeTest {
 					.createMethod("method").build().build(),
 				UnknownTypeDefinition.getTypeDescription(),
 				new UnknownTypeDefinition(ObjectType.resolve("jvm:not.alexa.unknown.UnknownType")),
-				ClassTypeDefinition.getTypeDescription()
+				ClassTypeDefinition.getTypeDescription(),
+				Data.getTypeDescription()
 		}));
 	}
 	

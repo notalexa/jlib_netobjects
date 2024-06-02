@@ -19,10 +19,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
@@ -39,6 +42,7 @@ import not.alexa.netobjects.coding.text.EnumCodec;
 import not.alexa.netobjects.coding.yaml.Yaml.Document;
 import not.alexa.netobjects.coding.yaml.Yaml.Mode;
 import not.alexa.netobjects.types.ArrayTypeDefinition;
+import not.alexa.netobjects.types.ArrayTypeDefinition.ArrayFlavour;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.ObjectType;
@@ -46,7 +50,6 @@ import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.AccessFactory;
 import not.alexa.netobjects.types.access.DefaultAccessFactory;
-import not.alexa.netobjects.types.access.MapEntryAccess;
 
 /**
  * Coding scheme for YAML. This includes indented mode and flow mode (that is JSON). For clearity, we introduced a formal setup for JSON modes in {@link JsonCodingScheme}
@@ -59,6 +62,12 @@ import not.alexa.netobjects.types.access.MapEntryAccess;
  * </ul>
  * This scheme supports resource branches, which are <b>enabled</b> in mode {@link Mode#Indented} (with branch name {@code resources}) by default and <b>disabled</b>
  * otherwise.
+ * <br>This scheme supports the coding hint {@code inline}. A map is serialized as an associative array if
+ * <ul>
+ * <li>the map entry (that is the corresponding array) is hinted with {@code inline} and {@code inline} is enabled.
+ * <li>the map entry type is registered as an {@code inline key} using {@link Builder#addInlineKeys(Class...)} or {@link Builder#addInlineKeys(ObjectType...)}.
+ * </ul>
+ * The default coding schemes inline the {@code String} class. This can be disabled using the {@link Builder#removeInlineKeys(Class...)} method.
  * 
  * @author notalexa
  *
@@ -67,11 +76,11 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
 	/**
 	 * Default instance for decoding YAML.
 	 */
-    public static final YamlCodingScheme DEFAULT_SCHEME=new YamlCodingScheme(new Yaml(Mode.Indented));
+    public static final YamlCodingScheme DEFAULT_SCHEME=new YamlCodingScheme(new Yaml(Mode.Indented)).newBuilder().addInlineKeys(String.class).build();
     /**
      * Default instance for decoding YAML as a configuration file. This includes the {@link IncludeScript} and the default {@link ScalarMappingScript}.
      */
-    public static final YamlCodingScheme CONFIGURATION_SCHEME=new YamlCodingScheme(new Yaml(Mode.Indented,new IncludeScript(),new ScalarMappingScript()));
+    public static final YamlCodingScheme CONFIGURATION_SCHEME=new YamlCodingScheme(new Yaml(Mode.Indented,new IncludeScript(),new ScalarMappingScript())).newBuilder().addInlineKeys(String.class).build();
     
     /**
      * 
@@ -86,6 +95,8 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
 	}
 	
 	Yaml yaml;
+	Set<ObjectType> inlineKeys;
+	Map<ObjectType,Boolean> inlineMap=new HashMap<ObjectType, Boolean>();
 
 	/**
 	 * Construct a coding scheme with the given yaml instance
@@ -108,7 +119,7 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
 	public Encoder createEncoder(Context context, OutputStream stream) {
 	    TextCodingSupport<YamlCodingScheme> support=new TextCodingSupport<YamlCodingScheme>(this,context);
 		return new YamlEncoder(support,yaml.createOutput(getIndent(),getLineTerminator(), stream))
-		        .init("ROOT",rootType.isAbstract()?YamlEncoder.SHOWTYPE_MASK:0,support.getFactory().resolve(context,rootType));
+		        .init("ROOT",rootType.isAbstract()?YamlEncoder.SHOWTYPE_MASK:0,null,support.getFactory().resolve(context,rootType));
 	}
 
 	@Override
@@ -146,8 +157,55 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
 	public static Builder builder() {
 	    return DEFAULT_SCHEME.newBuilder();
 	}
+
+	public boolean isInlineKey(TypeDefinition keyType) {
+		if(inlineKeys!=null) {
+	    	ObjectType type=keyType.getJavaClassType();
+	    	if(type!=null) {
+	    		Boolean result=inlineMap.get(type);
+	    		if(result==null) {
+	    			result=false;
+	    			for(ObjectType t:keyType.getTypes()) {
+	    				if(inlineKeys.contains(t)) {
+	    					result=true;
+	    					break;
+	    				}
+	    			}
+	    			inlineMap.put(type, result);
+	    		}
+	    		return result;
+	    	} else {
+	    		// rare case: not a java type
+	    		Boolean result=false;
+	    		ObjectType first=null;
+	    		for(ObjectType t:keyType.getTypes()) {
+	    			if(first==null) {
+	    				first=t;
+	    				Boolean r=inlineMap.get(t);
+	    				if(r!=null) {
+	    					return r;
+	    				}
+	    			}
+	    			if(inlineMap.containsKey(t)) {
+	    				result=true;
+	    			}
+	    		}
+	    		if(first!=null) {
+	    			inlineMap.put(first, result);
+	    		}
+	    		return result;
+	    	}
+		} else {
+			return false;
+		}
+	}
+
+	static boolean isInline(Codec codec) {
+		return codec instanceof AccessCodec&&((AccessCodec)codec).inline;
+	}
 	
 	public static class Builder extends AbstractTextCodingScheme.Builder<YamlCodingScheme, Builder> {
+		Set<ObjectType> inlineKeys;
 
         public Builder(YamlCodingScheme scheme) {
             super(scheme);
@@ -157,12 +215,57 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
         public Builder myself() {
             return this;
         }
+        
+        private Set<ObjectType> initInlineKeys() {
+        	if(inlineKeys==null) {
+        		inlineKeys=scheme.inlineKeys==null?new HashSet<ObjectType>():new HashSet<ObjectType>(scheme.inlineKeys);
+        	}
+        	return inlineKeys;
+        }
+        
+        private void add(ObjectType type) {
+        	initInlineKeys().add(type);
+        }
+        
+        public Builder addInlineKeys(Class<?>...keys) {
+        	for(Class<?> key:keys) {
+        		add(ObjectType.createClassType(key));
+        	}
+        	return this;
+        }
+
+        public Builder removeInlineKeys(Class<?>...keys) {
+        	for(Class<?> key:keys) {
+            	initInlineKeys().remove(ObjectType.createClassType(key));
+        	}
+        	return this;
+        }
+
+        public Builder addInlineKeys(ObjectType...keys) {
+        	initInlineKeys().addAll(Arrays.asList(keys));
+        	return this;
+        }
+
+        public Builder removeInlineKeys(ObjectType...keys) {
+        	initInlineKeys().removeAll(Arrays.asList(keys));
+        	return this;
+        }
+
+        public YamlCodingScheme build() {
+        	boolean inlineKeysChanged=inlineKeys!=null&&!inlineKeys.equals(scheme.inlineKeys);
+            YamlCodingScheme builded=build(inlineKeysChanged);
+            if(inlineKeysChanged) {
+            	builded.inlineMap=new HashMap<ObjectType, Boolean>();
+            	builded.inlineKeys=inlineKeys!=null&&inlineKeys.size()==0?null:inlineKeys;
+            }
+            return builded;
+        }
 	}
     
     @Override
     protected Codec createClassCodec(Context context, ObjectType type, Access access) throws BaseException {
         if(access!=null) {
-            return new AccessCodec(((ClassTypeDefinition)access.getType()).enableObjectRefs(),access,codecs);
+            return new AccessCodec(((ClassTypeDefinition)access.getType()).enableObjectRefs(),false,access,codecs);
         } else {
             return null;
         }
@@ -177,7 +280,7 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
 		return new Codec() {
             @Override
             public void encode(Buffer buffer, Object t) throws BaseException {
-                YamlEncoder c=((YamlEncoder)buffer).getChild().init("ROOT",1,access);
+                YamlEncoder c=((YamlEncoder)buffer).getChild().init("ROOT",1,null,access);
                 c.codec=this;
                 c.encode(t);
             }
@@ -200,36 +303,44 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
     }
 
 
-    static class AccessCodec implements Codec {
+    class AccessCodec implements Codec {
         Access access;
+        boolean inline;
         Codecs pool;
         YAMLCodingExtraInfo info;
         Field[] fields;
         Codec[] fieldCodecs;
-        AccessCodec(boolean enableObjectRefs,Access access,Codecs pool) {
+        AccessCodec(boolean enableObjectRefs,boolean inline,Access access,Codecs pool) {
             this.access=access;
+            this.inline=inline;
             info=getExtraInfo(access.getType());
             fields=access.getFields();
             fieldCodecs=new Codec[fields.length];
             this.pool=pool;
         }
         
+        public boolean isInline() {
+        	return inline;
+        }
+        
         @Override
         public void encode(Buffer buffer, Object o) throws BaseException {
             info.check();
             if(!buffer.isReferenced(o)) {
-                for(Field f:fields) {
-                    encode(buffer,o,f);
+            	if(inline) {
+            		Object n=access.getField(o,fields[0]);
+           			encode(buffer,o,n,fields[1]);
+            	} else for(Field f:fields) {
+                    encode(buffer,o,null,f);
                 }
             }
         }
         
-        private void encode(Buffer buffer,Object o,Field f) throws BaseException {
+        private void encode(Buffer buffer,Object o,Object name,Field f) throws BaseException {
             if(f!=null) {
                 Object t=access.getField(o, f);
-                if(t!=null&&(f.getDefaultValue()==null||!f.getDefaultValue().equals(t))) {
-                    Encoder child=buffer.push(info,f);
-                    child.encode(t);
+                if(t!=null&&!f.isDefault(t)) {
+                    buffer.push(info,name,f).encode(t);
                 }
             }
         }
@@ -249,7 +360,7 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
                     case MethodType:return null;
                     case PrimitiveType:codec=pool.get(access.getFieldAccess(f));
                         break;
-                    default:codec=createCodec(f.getTag("YAML"),f.getType(), access.getFieldAccess(f));
+                    default:codec=createCodec(f.getTag("yaml","json"),f.hasHint("inline"),f.getType(), access.getFieldAccess(f));
                         break;
                 }
                 fieldCodecs[f.getIndex()]=codec;
@@ -257,11 +368,18 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
             return codec;
         }
         
-        protected Codec createCodec(String tagName,TypeDefinition type,Access access) throws BaseException {
+        protected Codec createCodec(String tagName,boolean inline,TypeDefinition type,Access access) throws BaseException {
             switch(type.getFlavour()) {
                 case ArrayType:
                     Access componentAccess=access.getComponentAccess();
-                    Codec componentCodec=createCodec(tagName, ((ArrayTypeDefinition)type).getComponentType(), componentAccess);
+                    ArrayTypeDefinition arrayType=(ArrayTypeDefinition)type;
+                    if(arrayType.getArrayFlavour()==ArrayFlavour.Map) {
+                    	inline=(inline&&isHintEnabled("inline"))
+                    			||isInlineKey(componentAccess.getFields()[0].getType());
+                    } else {
+                    	inline=false;
+                    }
+                    Codec componentCodec=createCodec(tagName, inline, ((ArrayTypeDefinition)type).getComponentType(), componentAccess);
                     return createInternal(access, componentCodec);
                 case PrimitiveType:return pool.get(access);
                 case EnumType:Codec codec=pool.get(access);
@@ -271,15 +389,11 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
                     }
                     return codec;
                 case ClassType:if(type.isAnonymous()) {
-                        if(access instanceof MapEntryAccess) {
-                            return new AccessCodec(false, access, pool);
-                        } else {
-                            throw new BaseException(BaseException.BAD_REQUEST,"Anonymous type not defining a map");
-                        }
+                    	return new AccessCodec(false, inline,access, pool);
                     } else {
                         codec=pool.get(access);
                         if(codec==null) {
-                            codec=new AccessCodec(((ClassTypeDefinition)type).enableObjectRefs(),access, pool);
+                            codec=new AccessCodec(((ClassTypeDefinition)type).enableObjectRefs(),inline,access, pool);
                             pool.put(access, codec);
                         }
                     }
@@ -335,7 +449,7 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
                     } else {
                         defaults[i]=MANDATORY;
                     }
-                    String name=f.getTag("YAML");
+                    String name=f.getTag("yaml","json");
                     names[i]=name;
                     if(name.length()==0) {
                         continue;

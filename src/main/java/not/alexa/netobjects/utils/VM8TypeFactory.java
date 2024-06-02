@@ -51,7 +51,7 @@ class VM8TypeFactory implements ATypeFactory {
 
 	@Override
 	public AType getAnnotatedType(Field f) {
-		return new AType(f.getGenericType(),f.getAnnotatedType());
+		return new AType(f.getGenericType(),f.getAnnotatedType(),f);
 	}
 
 	@Override

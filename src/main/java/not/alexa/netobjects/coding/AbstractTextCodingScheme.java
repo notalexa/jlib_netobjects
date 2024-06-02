@@ -16,8 +16,12 @@
 package not.alexa.netobjects.coding;
 
 import java.nio.charset.Charset;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
@@ -65,6 +69,7 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
     protected String lineTerminator="";
     protected String mimeType;
     protected String fileExtension;
+    protected Set<String> disabledHints;
     protected Namespace namespace=Namespace.getJavaNamespace();
     protected String typeRef="class";
     protected String resourceBranch;
@@ -171,6 +176,16 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
     }
     
     /**
+     * Check if the given hint is enabled. Not that an enabled hint doesn't imply that the hint is supported in the given coding scheme.
+     * 
+     * @param hint the hint
+     * @return {@code true} if the hint is enabled in this coding scheme.
+     */
+	public boolean isHintEnabled(String hint) {
+		return !(disabledHints!=null&&disabledHints.contains(hint));
+	}
+    
+    /**
      * Generic abstract builder class which can be extended by builders for non abstract coding schemes.
      * 
      * @author notalexa
@@ -181,6 +196,8 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
     public static abstract class Builder<T extends AbstractTextCodingScheme,B extends Builder<T,B>> {
         protected T scheme;
         private Map<Type,Codec> primitiveTypeCodecs=new HashMap<>();
+        private Map<Type,Codec> primitiveTypeCodecsInScheme=new HashMap<>();
+        private Set<String> disabledHints;
         
         public Builder(T scheme) {
             try {
@@ -189,11 +206,20 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
             }
         }
         
+        private Set<String> getDisabledHints() {
+        	if(disabledHints==null) {
+        		disabledHints=scheme.disabledHints==null?new HashSet<String>():new HashSet<String>(scheme.disabledHints);
+        	}
+        	return disabledHints;
+        }
+        
+        
         @SuppressWarnings("unchecked")
         public T cloneScheme(T scheme) {
             try {
                 if(primitiveTypeCodecs.size()>0) {
-                    scheme.codecs=scheme.codecs.copy(primitiveTypeCodecs);
+                    primitiveTypeCodecsInScheme.putAll(primitiveTypeCodecs);
+                    scheme.codecs=scheme.codecs.copy(primitiveTypeCodecsInScheme);
                     primitiveTypeCodecs.clear();
                 }
                 return (T)scheme.clone();
@@ -202,6 +228,18 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
             return null;
         }
         
+        public B disableCodingHints(String...hints) {
+        	getDisabledHints().addAll(Arrays.asList(hints));
+        	return myself();
+        }
+
+        public B enableCodingHints(String...hints) {
+        	if(scheme.disabledHints!=null) {
+        		getDisabledHints().removeAll(Arrays.asList(hints));
+        	}
+        	return myself();
+        }
+
         /**
          * The codec is registered for the given type. Using the general access
          * keys, this implies restriction to access based on the class loader of the
@@ -259,14 +297,30 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
         }
         
         public B setAccessFctory(AccessFactory factory) {
-            scheme.codecs=scheme.codecs.copy(primitiveTypeCodecs);
+        	primitiveTypeCodecsInScheme.putAll(primitiveTypeCodecs);
+            scheme.codecs=scheme.codecs.copy(primitiveTypeCodecsInScheme);
             primitiveTypeCodecs.clear();
             scheme.factory=factory;
             return myself();
         }
         
-        public T build() {
+        public T build(boolean initCodecs) {
+        	Set<String> schemeHints=scheme.disabledHints==null?Collections.emptySet():scheme.disabledHints;
+        	initCodecs|=disabledHints!=null&&!disabledHints.equals(schemeHints);
+        	if(initCodecs) {
+            	primitiveTypeCodecsInScheme.putAll(primitiveTypeCodecs);
+                scheme.codecs=scheme.codecs.copy(primitiveTypeCodecsInScheme);
+                primitiveTypeCodecs.clear();
+                if(disabledHints!=null) {
+                	scheme.disabledHints=disabledHints.size()>0?disabledHints:null;
+                	disabledHints=null;
+                }
+        	}
             return cloneScheme(scheme);
+        }
+        
+        public T build() {
+            return build(false);
         }
         
         /**
@@ -289,7 +343,7 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
         protected final TextCodingSupport<S> root;
         private T cachedChild;
         protected final T parent;
-        protected String fieldName;
+        protected Object fieldName;
         protected Access access;
 
         protected TextCodingItem(TextCodingSupport<S> root) {
@@ -302,7 +356,7 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
             this.parent=parent;
         }
 
-        protected T init(String fieldName,Access access) {
+        protected T init(Object fieldName,Access access) {
             this.fieldName=fieldName;
             this.access=access;
             return null;

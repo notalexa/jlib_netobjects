@@ -34,6 +34,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonRootName;
 
 import not.alexa.netobjects.Context;
+import not.alexa.netobjects.api.CodingHint;
+import not.alexa.netobjects.api.Helper;
 import not.alexa.netobjects.api.ResolvableBy;
 import not.alexa.netobjects.coding.AbstractTextCodingScheme;
 import not.alexa.netobjects.coding.Codec;
@@ -42,8 +44,10 @@ import not.alexa.netobjects.coding.Decoder;
 import not.alexa.netobjects.coding.text.EnumCodec;
 import not.alexa.netobjects.coding.xml.XMLCodingScheme;
 import not.alexa.netobjects.types.ArrayTypeDefinition;
+import not.alexa.netobjects.types.ArrayTypeDefinition.ArrayFlavour;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Builder;
+import not.alexa.netobjects.types.ClassTypeDefinition.Builder.FieldBuilder;
 import not.alexa.netobjects.types.Flavour;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.ObjectType;
@@ -257,7 +261,8 @@ public class JacksonResolver implements TypeResolver {
             } else if(infos.skip(f)) {
             	continue;
             }
-            TypeDefinition type=resolveType(loader,resolver,resolver.resolve(f),infos);
+            ResolvedClass fieldClass=resolver.resolve(f);
+            TypeDefinition type=resolveType(loader,resolver,fieldClass,infos);
             if(type!=null) {
             	Object d=null;
             	if(defaultValue!=null) try {
@@ -272,18 +277,31 @@ public class JacksonResolver implements TypeResolver {
             		}
             	} catch(Throwable t) {
             	}
-                builder.createField(name, type).setOptional(!required).setAbstract(false).setDefaultValue(d).build();
+                enrich(fieldClass,builder.createField(name, type)).setOptional(!required).setAbstract(false).setDefaultValue(d).build();
             }
         }
         return builder;
     }
-    
+
     private String getName(AnnotatedElement e,String defaultValue) {
-        not.alexa.netobjects.api.Field f=e.getAnnotation(not.alexa.netobjects.api.Field.class);
-        if(f!=null&&f.name().length()>0) {
-            return f.name();
+        for(not.alexa.netobjects.api.Field f:Helper.getFields(e)) {
+	        if("*".equals(f.type())&&f.name().length()>0) {
+	            return f.name();
+	        }
         }
         return defaultValue;
+    }
+    
+    protected FieldBuilder enrich(ResolvedClass fieldClass,FieldBuilder builder) {
+        for(not.alexa.netobjects.api.Field f:Helper.getFields(fieldClass)) {
+	        if(!"*".equals(f.type())&&f.name().length()>0) {
+	            builder.addTag(f.type(),f.name());
+	        }
+        }
+        for(CodingHint hint:Helper.getCodingHints(fieldClass)) {
+        	builder.addHint(hint.value());
+        }
+    	return builder;
     }
     
     private TypeDefinition resolveType(LoaderIntermediate loader,ClassResolver resolver,ResolvedClass clazz,RuntimeInfos infos) {
@@ -302,8 +320,9 @@ public class JacksonResolver implements TypeResolver {
                 TypeDefinition key=resolveType(loader,resolver,parameters[0],infos);
                 TypeDefinition value=resolveType(loader,resolver,parameters[1],infos);
                 if(key!=null&&value!=null) {
-                    return new ArrayTypeDefinition(new ClassTypeDefinition().createBuilder()
-                            .addField(keyName, key).addField(valueName, value).build()
+                    return new ArrayTypeDefinition(ArrayFlavour.Map,
+                    		enrich(parameters[1],enrich(parameters[0],new ClassTypeDefinition().createBuilder()
+                            .createField(keyName, key)).build().createField(valueName, value)).build().build()
                             );
                 }
                 return null;

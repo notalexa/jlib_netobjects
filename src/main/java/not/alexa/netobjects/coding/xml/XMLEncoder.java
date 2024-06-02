@@ -94,18 +94,18 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
     	                parent.closeOpener();
     	                writer.append(indent);
     	            }
-    			    writer.append('<').append(fieldName).append(' ').append(getCodingScheme().getReservedAttributes().getIsEmptyName()).append("=\"true\"/>");
+    			    writer.append('<').append(fieldName.toString()).append(' ').append(getCodingScheme().getReservedAttributes().getIsEmptyName()).append("=\"true\"/>");
     			} else if(!root) {
     				for(Object c:col) {
     					encode0(c);
     				}
     			} else {
-    				writer.append('<').append(fieldName);
-    				XMLEncoder level=getChild().init(fieldName, flags, access);
+    				writer.append('<').append(fieldName.toString());
+    				XMLEncoder level=getChild().init(fieldName.toString(), flags, access);
     				level.codec=codec;
     				level.encode(o);
     				if(closed) {
-    					writer.append(indent).append("</").append(fieldName).append('>');
+    					writer.append(indent).append("</").append(fieldName.toString()).append('>');
     				} else {
     					writer.append("/>");
     				}
@@ -157,7 +157,7 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
     						parent.writeClassOrRefAttribute();
     					}
     				}
-    				writer.append(' ').append(fieldName).append("=\"");
+    				writer.append(' ').append(fieldName.toString()).append("=\"");
     				codec.encode(this, o);
     				writer.append('"');
     				break;
@@ -172,7 +172,7 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
     					parent.closeOpener();
     					writer.append(indent);
     				}
-    				writer.append('<').append(fieldName);
+    				writer.append('<').append(fieldName.toString());
         			if(showType) {
         			    TypeDefinition objectDefinition=type;
         				classOrRefAttribute=new DelayedWrite() {
@@ -188,7 +188,7 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
         				if(hasChildren) {
         					writer.append(indent);
         				}
-        				writer.append("</").append(fieldName).append('>');
+        				writer.append("</").append(fieldName.toString()).append('>');
         			} else {
         				writeClassOrRefAttribute();
         				writer.append("/>");
@@ -261,7 +261,7 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
 	}
 
 	@Override
-	public Encoder push(Object ctx,Field f) throws BaseException {
+	public Encoder push(Object ctx,Object name,Field f) throws BaseException {
 	    if(ctx instanceof XMLCodingExtraInfo) {
 	        XMLCodingExtraInfo info=(XMLCodingExtraInfo)ctx;
 	        XMLEncoder c=getChild().init(info.getName(f),info.getFlags(f),access.getFieldAccess(f));

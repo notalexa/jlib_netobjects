@@ -40,10 +40,10 @@ public class JsonCodingScheme {
 	/**
 	 * The default scheme.
 	 */
-    public static final YamlCodingScheme DEFAULT_SCHEME=new YamlCodingScheme(new Yaml(Mode.ExtendedJson));
+    public static final YamlCodingScheme DEFAULT_SCHEME=new YamlCodingScheme(new Yaml(Mode.ExtendedJson)).newBuilder().addInlineKeys(String.class).build();
     
     /**
      * The restricted scheme. 
      */
-    public static final YamlCodingScheme RESTRICTED_SCHEME=new YamlCodingScheme(new Yaml(Mode.Json));
+    public static final YamlCodingScheme RESTRICTED_SCHEME=new YamlCodingScheme(new Yaml(Mode.Json)).newBuilder().addInlineKeys(String.class).build();
 }

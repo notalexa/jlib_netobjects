@@ -254,7 +254,7 @@ public abstract class Namespace {
 		 */
 		public Class<?> asClass(ClassLoader classLoader) {
 			if(types[0]!=null) {
-				((JavaClass.Type)types[0]).asLinkedLocal(classLoader);
+				return ((JavaClass.Type)types[0]).asLinkedLocal(classLoader).asClass();
 			}
 			return null;
 		}

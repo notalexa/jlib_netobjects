@@ -77,7 +77,7 @@ public interface Encoder extends AutoCloseable {
 	     * @return an encoder for the content of the field
          * @throws BaseException if an error occurs (for example, if the underlying coding scheme encoded into a text)
 	     */
-		public Encoder push(Object ctx,Field f) throws BaseException;
+		public Encoder push(Object ctx,Object name,Field f) throws BaseException;
 		
 		/**
 		 * For simple types, specific codecs directly writes the encoded form into the buffer.

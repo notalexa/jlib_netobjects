@@ -15,6 +15,7 @@
  */
 package not.alexa.netobjects.types;
 
+import not.alexa.netobjects.types.ArrayTypeDefinition.ArrayFlavour;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.EnumTypeDefinition.Value;
 
@@ -64,6 +65,7 @@ class Types {
 				.createField("types",new ArrayTypeDefinition(PrimitiveTypeDefinition.getTypeDescription(ObjectType.class)))
 				    .setOptional(true)
 					.addTag("XML","type").build()
+			    .createField("flavour",new EnumTypeDefinition(ArrayFlavour.class)).setDefaultValue(ArrayFlavour.Array).build()
 				.addField("component",TYPE)
 				.build();
 	static final ClassTypeDefinition METHOD_TYPE=new ClassTypeDefinition(MethodTypeDefinition.class)
@@ -109,7 +111,7 @@ class Types {
 	                .setDefaultValue(false)
                     .addTag("XML","@optional").build()
 				.addField("type",TYPE)
-				.createField("tag",new ArrayTypeDefinition(new ClassTypeDefinition()
+				.createField("tags",new ArrayTypeDefinition(ArrayFlavour.Map,new ClassTypeDefinition()
 						.createBuilder()
 						.createField("schema",PrimitiveTypeDefinition.getTypeDescription(String.class))
 							.addTag("XML","@schema").build()
@@ -118,6 +120,9 @@ class Types {
 						.build()))
 				    .setOptional(true)
 					.addTag("XML","tag").build()
+				.createField("hints",new ArrayTypeDefinition(PrimitiveTypeDefinition.getTypeDescription(String.class)))
+				    .setOptional(true)
+					.addTag("XML","hint").build()
 	            .createField("default",PrimitiveTypeDefinition.getTypeDescription(Object.class))
 	                .setOptional(true)
 	                .build()

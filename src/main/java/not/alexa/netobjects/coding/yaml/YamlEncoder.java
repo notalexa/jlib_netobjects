@@ -49,6 +49,7 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
 	private int flags;
 	protected Codec codec;
 	protected Runnable typeWriter;
+	protected Access nameAccess;
 	
 	YamlEncoder(TextCodingSupport<YamlCodingScheme> root,OutputHandler handler) {
 		super(root);
@@ -83,10 +84,29 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
 
 	@Override
 	public Encoder encode(Object o) throws BaseException {
+    	Access savedNameAccess=nameAccess;
 	    if(o!=null) try {
 	    	if(parent!=null) {
 	    		if(showName()) {
-	    			writer.scalar(true, fieldName);
+	    			if(nameAccess==null) {
+	    				writer.scalar(true, fieldName.toString());
+	    			} else {
+	    		        Codec stackedCodec=codec;
+	    		        Access stackedAccess=access;
+	    		        int savedFlags=flags;
+	    		        try {
+	    	                ObjectType objectType=ObjectType.createClassType(fieldName.getClass());
+	    	    	        access=nameAccess;//==null?null:root.getFactory().resolve(getContext(),type);
+	    	    	        nameAccess=null;
+	    	    	        flags|=0x100;
+	    	    	        codec=access==null||access.getType().isAbstract()?null:resolveCodec(objectType, access);
+	    		        	encode0(false,true,fieldName);
+	    		        } finally {
+	    		        	flags=savedFlags;
+	    		        	codec=stackedCodec;
+	    		        	access=stackedAccess;
+	    		        }
+	    			}
 	    		}
 	    	} else {
 	    		writer.beginDocument();
@@ -94,24 +114,37 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
     		if(getType().getFlavour()==Flavour.ArrayType) {
     			Collection<?> col=ArrayTypeAccess.canonicalize(o);
     			typeWriter=null;
-    			writer.beginArray(false,Collections.emptyList());
-    			for(Object c:col) {
-    				encode0(c);
+    			Codec componentCodec=codec.getComponentCodec();
+    			boolean inline=YamlCodingScheme.isInline(componentCodec);//(0!=(flags&0x8))&&getCodingScheme().isHintEnabled("inline");//componentCodec instanceof AccessCodec&&((AccessCodec)componentCodec).isInline();
+    			if(!inline) {
+    				writer.beginArray(false,Collections.emptyList());
+    			} else {
+    				writer.beginObject(false, Collections.emptyList());
+    				nameAccess=access.getComponentAccess().getFieldAccess(access.getComponentAccess().getFields()[0]);
     			}
-    			writer.endArray(false);
+    			for(Object c:col) {
+    				encode0(inline,false,c);
+    			}
+    			if(!inline) {
+    				writer.endArray(false);
+    			} else {
+    				writer.endObject(false);
+    			}
     		} else {
-    			encode0(o);
+    			encode0(false,false,o);
     		}
     		if(parent==null) {
     			writer.endDocument();
     		}
     	} catch(IOException e) {
     		BaseException.throwException(e);
+	    } finally {
+	    	nameAccess=savedNameAccess;
 	    }
 		return this;
 	}
 	
-	protected void encode0(Object o) throws BaseException {
+	protected void encode0(boolean inline,boolean key,Object o) throws BaseException {
         Codec stackedCodec=codec;
         Access stackedAccess=access;
         TypeDefinition type=access.getType();
@@ -148,11 +181,13 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
     	    	AtomicBoolean closeUp=new AtomicBoolean(false);
     	    	typeWriter=()->{
     	    		try {
-    	    			closeUp.set(true);
-    	    			writer.beginObject(false,Collections.emptyList());
-		    	    	if(showType) {
-		    				writeField(root.getCodingScheme().getTypeRef(),objectDefinition.getType(root.getCodingScheme().getNamespace()).getName());
-		    	    	}
+    	    			if(!inline) {
+	    	    			closeUp.set(true);
+	    	    			writer.beginObject(key,Collections.emptyList());
+			    	    	if(showType) {
+			    				writeField(root.getCodingScheme().getTypeRef(),objectDefinition.getType(root.getCodingScheme().getNamespace()).getName());
+			    	    	}
+    	    			}
 	    	    	} catch(Throwable t) {
 	    	    	} finally {
 	    	    		typeWriter=null;
@@ -160,13 +195,14 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
     	    	};
     	    	if(needsDot) {
     	    		typeWriter.run();
+    	    		flags&=~0x100;
     	    		writer.scalar(true, ".");
         	    	codec.encode(this,o);
     	    	} else {
     	    		codec.encode(this, o);
     	    	}
     	    	if(closeUp.get()) {
-    	    		writer.endObject(false);
+    	    		writer.endObject(key);
     	    	}
     	    }
 		} catch(Throwable t) {
@@ -180,7 +216,7 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
 	@Override
 	public void write(CharSequence encoded) throws BaseException {
 		try {
-			writer.scalar(false,encoded.toString());
+			writer.scalar(0!=(flags&0x100),encoded.toString());
 		} catch(Throwable t) {
 			BaseException.throwException(t);
 		}		
@@ -206,8 +242,9 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
 		}
 	}
 
-	public YamlEncoder init(String fieldName,int flags,Access access) {
+	public YamlEncoder init(Object fieldName,int flags,Access nameAccess,Access access) {
 		super.init(fieldName, access);
+		this.nameAccess=nameAccess;
 		if(parent==null&&!access.getType().isAbstract()) try {
 			this.codec=getCodingScheme().getCodec(getContext(), access.getType().getType(getCodingScheme().getNamespace()), access);
 		} catch(BaseException e) {
@@ -225,10 +262,11 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
 	}
 
 	@Override
-	public Encoder push(Object ctx,Field f) throws BaseException {
+	public Encoder push(Object ctx,Object name,Field f) throws BaseException {
 	    if(ctx instanceof YAMLCodingExtraInfo) {
 	        YAMLCodingExtraInfo info=(YAMLCodingExtraInfo)ctx;
-	        YamlEncoder c=getChild().init(info.getName(f),info.getFlags(f),access.getFieldAccess(f));
+	        int flags=info.getFlags(f);
+	        YamlEncoder c=getChild().init(name==null?info.getName(f):name,flags,nameAccess,access.getFieldAccess(f));
 	        if(codec!=null) {
 	            c.codec=codec.getCodec(f);
 	        }

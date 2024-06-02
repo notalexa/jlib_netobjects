@@ -340,8 +340,8 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         private void encode(Buffer buffer,Object o,Field f) throws BaseException {
             if(f!=null) {
                 Object t=access.getField(o, f);
-                if(t!=null&&(f.getDefaultValue()==null||!f.getDefaultValue().equals(t))) {
-                    Encoder child=buffer.push(info,f);
+                if(t!=null&&!f.isDefault(t)) {
+                    Encoder child=buffer.push(info,null,f);
                     child.encode(t);
                 }
             }
@@ -384,11 +384,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
                     }
                     return codec;
                 case ClassType:if(type.isAnonymous()) {
-                        if(access instanceof MapEntryAccess) {
-                            return new AccessCodec(false, access, pool);
-                        } else {
-                            throw new BaseException(BaseException.BAD_REQUEST,"Anonymous type not defining a map");
-                        }
+                        return new AccessCodec(false, access, pool);
                     } else {
                         codec=pool.get(access);
                         if(codec==null) {
@@ -599,7 +595,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
                             if(a[i]==MANDATORY||access==null) {
                                 throw new BaseException(BaseException.BAD_REQUEST, "Field "+fields[i].getName()+" in "+fields[i].getClassDescription()+" is mandatory but not set.");
                             } else {
-                                obj.setField(fields[i],access.getFieldAccess(fields[i]).makeAccessible(a[i]));
+                                obj.setField(fields[i],access.getFieldAccess(fields[i]).makeDefault(a[i]));
                             }
                         }
                     }

@@ -187,7 +187,7 @@ public class YamlOutput implements OutputHandler {
 				stream.append(":");
 				empty=false;
 				current.scalarKeyWritten=false;
-			} else if((!key||modifier.size()>0)&&arrays.size()>1) {
+			} else if(arrays.size()>1) {
 				appendIndent(false, key,current);
 				empty=false;
 			}
