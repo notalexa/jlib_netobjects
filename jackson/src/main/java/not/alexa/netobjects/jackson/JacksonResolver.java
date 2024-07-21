@@ -243,9 +243,11 @@ public class JacksonResolver implements TypeResolver {
             JsonProperty prop=f.getAnnotation(JsonProperty.class);
             String name=f.getName();
             String defaultValue=null;
+            int number=-1;
             boolean required=false;
             if(prop!=null) {
             	infos.annotationSeen=true;
+            	number=prop.index();
                 String n=prop.value().length()>0?prop.value():name;
                 if(!n.equals(name)) {
                 	infos.fieldMap.put(clazz.getName()+"#"+n,name);
@@ -277,7 +279,10 @@ public class JacksonResolver implements TypeResolver {
             		}
             	} catch(Throwable t) {
             	}
-                enrich(fieldClass,builder.createField(name, type)).setOptional(!required).setAbstract(false).setDefaultValue(d).build();
+                enrich(fieldClass,builder.createField(name, type)).setOptional(!required)
+                		.setAbstract(false)
+                		.setNumber(number)
+                		.setDefaultValue(d).build();
             }
         }
         return builder;

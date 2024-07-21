@@ -18,12 +18,13 @@ To realize the approach, data (and the method signatures) and the implementation
 <li>XML
 <li>JSON
 <li>YAML
+<li>protobuf
 </ul>
 but other mechanisms may be provided in future to serialize network objects (or subsets of) including
 <ul>
-<li>protobuf
 <li>Android's Parcelable
 </ul>
+For descriptions of the capabilities of the provided coding schemes we refer to the corresponding javadocs.
 * Network types are divided into two categories: Anonymous types and named types. Anonymous types do not have a specific name and can be viewed as generics. Examples are arrays and map entries. Named types have "names" identifiying the type. Each name is associated to a specific "namespace" in which the name is assumed to be unique. No assumption on the namespace is done and any type can have a name in multiple namespaces. Currently, the only namespace provided is the Java Class Namespace in which the name of a network type is a Java Class Name.
 * The library introduce a set of "primitive types" which is closely related to Java's primitive types but exceeds them (by string, uuid, large numbers for example). Each primitive type **must** be named in every namespace introduced.
 * The library introduce a "method type" defining the notation of methods. (Network) objects of this type are "callable". Invoking a call on an object of this type triggers execution (possibly on a remote server) of a method implementation somewhere with the provided arguments returning the results. Note that a method doesn't need to be stateless. Typically, the method itself has an underlying (network) type and "contains" an 

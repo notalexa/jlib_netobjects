@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package notalexa.test.proto3;
+
+option java_package = "de.notalexa.proto.test";
+
+message TestPage {
+    optional bool boolean_value = 5;
+    optional string string_value = 1;
+    optional int32 int_value = 2;
+    optional float float_value = 10;
+    optional double double_value = 20;
+    map<string, string> metadata = 3;
+    repeated TestItem items = 4;
+}
+
+message TestItem {
+    string item_name = 1;
+    ItemState state = 2;
+}
+
+enum ItemState {
+    ACTIVE = 0;
+    PENDING = 1;
+}	

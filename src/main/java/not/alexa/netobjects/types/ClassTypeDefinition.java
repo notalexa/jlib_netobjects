@@ -173,7 +173,10 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			synchronized (ClassTypeDefinition.this) {
 				if(!isImmutable()) {
 					super.build();
-					ClassTypeDefinition.this.fields=fields.toArray(new Field[fields.size()]);
+					ClassTypeDefinition.this.fields=fields.toArray(NO_FIELDS);
+					for(int i=0;i<fields.size();i++) {
+						ClassTypeDefinition.this.fields[i].index=i;
+					}
 					ClassTypeDefinition.this.enableObjectRefs=enableObjectRefs;
 					ClassTypeDefinition.this.extendible=extendible;
 					calculateHash();
@@ -184,6 +187,9 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			}
 		}
 		
+		/**
+		 * @author notalexa
+		 */
 		public class FieldBuilder {
 			protected String name;
 			protected boolean extendible;
@@ -192,21 +198,34 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			protected TypeDefinition type;
 			protected Map<String,String> tags;
 			protected Set<String> hints;
-			
-			protected int fieldIndex=-1;
+			protected int number=-1;
 			
 			FieldBuilder(String name,TypeDefinition type) {
 				this.name=name;
 				this.type=type;
 			}
 			
-			public FieldBuilder setIndex(int index) {
-				if(index>=0) {
-					fieldIndex=index;
+			/**
+			 * Set the number (that is the "position" of this field). This should be unique
+			 * per field.
+			 * 
+			 * @param number the number of this field
+			 * @return this builder
+			 */
+			public FieldBuilder setNumber(int number) {
+				if(number>=0) {
+					this.number=number;
 				}
 				return this;
 			}
-			
+
+			/**
+			 * Add a tag to this field.
+			 * 
+			 * @param scheme the scheme this tag is intended for
+			 * @param tag the tag
+			 * @return this builder
+			 */
 			public FieldBuilder addTag(String scheme,String tag) {
 				if(tags==null) {
 					tags=new HashMap<String, String>();
@@ -214,7 +233,13 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 				tags.put(scheme.toLowerCase(), tag);
 				return this;
 			}
-			
+
+			/**
+			 * Add a hint to the field.
+			 * 
+			 * @param hint the hint to add
+			 * @return this builder
+			 */
 			public FieldBuilder addHint(String hint) {
 				if(hints==null) {
 					hints=new HashSet<String>();
@@ -234,18 +259,36 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			    return this;
 			}
 			
+			/**
+			 * Is the field optional? For primitive types, optional fields are initialized using the
+			 * default value.
+			 * <br>Defaults to <code>false</code>
+			 * 
+			 * @param optional is this field optional
+			 * @return the builder
+			 */
             public FieldBuilder setOptional(boolean optional) {
                 this.optional=optional;
                 return this;
             }
             
+            /**
+             * Set the default value for this field. If set, the field is not serialized
+             * if the value equals to the default value.
+             * <br>Default values can be set for primitive types (except Object), enumerations and
+             * arrays (as <code>empty</code> to indicate that the default value is an empty
+             * array (or map)).
+             * 
+             * @param defaultValue the default value
+             * @return this builder
+             */
             public FieldBuilder setDefaultValue(Object defaultValue) {
                 this.defaultValue=defaultValue;
                 return this;
             }
             
 			public Builder build() {
-				Field f=new Field(fieldIndex<0?fields.size():fieldIndex,name,type);
+				Field f=new Field(number<0?fields.size()+1:number,name,type);
                 f.optional=optional;
                 switch(type.getFlavour()) {
                     case InterfaceType:
@@ -284,10 +327,29 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		}
 	}
 	
+	/**
+	 * Class for a field. A field supports the following attributes:
+	 * <ul>
+	 * <li><i>name<(i> is the name of this field. To resolve the name of a field for different
+	 * codings, the name can be resolved using a list of tags where tag values overrides
+	 * the default name using {@link Field#getTag(String...)}.
+	 * <li><i>extendible</i> indicates if the field should be considered as abstract even if the type is not.
+	 * <li><i>defaultValue</i> is the default value of the field
+	 * <li><i>type</i> is the type of the field.
+	 * <li><i>tags</i> is a map of field specific values. Typically, a tag is defined to override the name
+	 * of the field. The XML Coding scheme for example checks if the field name begins with an {@code @} and
+	 * serializes the field as an attribute.
+	 * <li><i>hints</i> is a set of strings giving hints to coding schemes. For example, the protobuf scheme recognizes
+	 * the hints {@code protobuf:signed} and {@code protobuf:fixed} to choose the right serialization method.
+	 * </ul>
+	 * 
+	 * @author notalexa
+	 */
 	@Final
 	public class Field {
 		private int h;
-		protected int index;
+		protected int index=-1;
+		protected int number;
 		protected String name;
         protected boolean extendible;
         protected boolean optional;
@@ -297,8 +359,8 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		protected Object defaultValue;
 		
 		private Field() {}
-		protected Field(int index,String name,TypeDefinition type) {
-			this.index=index;
+		protected Field(int number,String name,TypeDefinition type) {
+			this.number=number;
 			this.type=type;
 			this.name=name;
 			calculateHash();
@@ -308,10 +370,14 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			h=(index*31)^name.hashCode()^TypeDefinition.typeHash(type);
 		}
 		
-		public int getIndex(String...schemata) {
+		public int getIndex() {
 			return index;
 		}
-		
+
+		public int getNumber() {
+			return number;
+		}
+
 		public boolean isDefault(Object o) {
 			if(defaultValue!=null) {
 				switch(type.getFlavour()) {
@@ -357,14 +423,22 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			return type;
 		}
 		
-		public String getTag(String...schemata) {
-			if(tags!=null) for(String schema:schemata) {
-				String tag=tags.get(schema.toLowerCase());
+		public String getTag(String...annotations) {
+			if(tags!=null) for(String annotation:annotations) {
+				String tag=tags.get(annotation.toLowerCase());
 				if(tag!=null) {
 					return tag;
 				}
 			}
 			return name;
+		}
+		
+		public String getAnnotation(String name,String defaultValue) {
+			return tags==null?defaultValue:tags.getOrDefault(name.toLowerCase(),defaultValue);
+		}
+
+		public boolean hasAnnotation(String name) {
+			return tags!=null&&tags.containsKey(name.toLowerCase());
 		}
 		
 		public boolean hasHint(String hint) {
@@ -467,6 +541,10 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			ClassTypeDefinition def=(ClassTypeDefinition)o;
 			if(def.fields==null) {
 			    def.fields=NO_FIELDS;
+			} else {
+				for(int i=0;i<def.fields.length;i++) {
+					def.fields[i].index=i;
+				}
 			}
 			if(def.methods==null) {
 			    def.methods=NO_METHODS;
@@ -500,7 +578,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		public Object getField(Object o, int index) throws BaseException {
 			Field def=(Field)o;
 			switch(index) {
-				case 0:return def.index;
+				case 0:return def.number;
 				case 1:return def.name;
                 case 2:return def.extendible?Boolean.TRUE:null;
                 case 3:return def.optional?Boolean.TRUE:null;
@@ -517,7 +595,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		public void setField(Object o, int index, Object v) throws BaseException {
 			Field def=(Field)o;
 			switch(index) {
-				case 0:def.index=(int)v;
+				case 0:def.number=(int)v;
 					break;
 				case 1:def.name=(String)v;
 					break;

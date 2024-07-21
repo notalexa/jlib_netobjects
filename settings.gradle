@@ -9,4 +9,4 @@
 
 rootProject.name = 'jlib_netobjects'
 
-include ':kafka', ':jackson:'
+include ':kafka', ':jackson:', ':protobuf'

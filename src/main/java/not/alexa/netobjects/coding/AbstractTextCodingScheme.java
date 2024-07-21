@@ -26,7 +26,6 @@ import java.util.Set;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.text.EnumCodec;
-import not.alexa.netobjects.types.DefaultTypeLoader;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.Namespace;
 import not.alexa.netobjects.types.ObjectType;
@@ -45,7 +44,7 @@ import not.alexa.netobjects.types.access.AccessFactory;
  * and [@link {@link #getIndent()} for indentation. This parameters can be set using {@link Builder#setIndent(String, String)}.
  * <li><i>Type infos:</i> The (recommended) file extension and mime type of data produced by this codingscheme can be set using {@link Builder#setTypeInfos(String, String)} and
  * obtained using {@link #getFileExtension()} and {@link #getMimeType()}.
- * <li><i>Charecter Set:</i> The character set used by this coding scheme can be configured using {@link Builder#setCharset(Charset)} or {@link Builder#setCharset(String)} and 
+ * <li><i>Character Set:</i> The character set used by this coding scheme can be configured using {@link Builder#setCharset(Charset)} or {@link Builder#setCharset(String)} and 
  * retrieved using {@link #getCodingCharset().
  * <li><i>Root type:</i> The root type of this coding scheme. This type is typically either a concrete class type (or primitive type) or an interface indicating that the
  * scheme understands a set of types classified by the interface type. The default root type is the primitive type "object" and can be configured using {@link Builder#setRootType(TypeDefinition)}
@@ -61,45 +60,23 @@ import not.alexa.netobjects.types.access.AccessFactory;
  * @author notalexa
  *
  */
-public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneable {
+public abstract class AbstractTextCodingScheme extends AbstractCodingScheme implements CodingScheme, Cloneable {
     protected Charset charset;
-    protected AccessFactory factory;
-    protected TypeDefinition rootType;
     protected String indent="";
     protected String lineTerminator="";
-    protected String mimeType;
-    protected String fileExtension;
     protected Set<String> disabledHints;
-    protected Namespace namespace=Namespace.getJavaNamespace();
     protected String typeRef="class";
     protected String resourceBranch;
     protected Codecs codecs;
     protected AbstractTextCodingScheme(Charset charset,AccessFactory factory) {
+    	super(factory,PrimitiveTypeDefinition.getTypeDescription(Object.class));
         this.charset=charset;
-        this.factory=factory;
-        rootType=PrimitiveTypeDefinition.getTypeDescription(Object.class);
         codecs=Codecs.defaultTextCodecs();
     }
     
     @Override
     public Charset getCodingCharset() {
         return charset;
-    }
-    
-    public AccessFactory getFactory() {
-        return factory;
-    }
-    
-    public String getMimeType() {
-        return mimeType;
-    }
-    
-    public String getFileExtension() {
-        return fileExtension;
-    }
-
-    public TypeDefinition getRootType() {
-        return rootType;
     }
     
     public String getIndent() {
@@ -112,10 +89,6 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
     
     public String getResourceBranch() {
         return resourceBranch;
-    }
-    
-    public Namespace getNamespace() {
-        return namespace;
     }
     
     public String getTypeRef() {
@@ -193,17 +166,13 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
      * @param <T> the coding scheme class this builder creates
      * @param <B> the builder class itself
      */
-    public static abstract class Builder<T extends AbstractTextCodingScheme,B extends Builder<T,B>> {
-        protected T scheme;
+    public static abstract class Builder<T extends AbstractTextCodingScheme,B extends Builder<T,B>> extends AbstractCodingScheme.Builder<T, B> {
         private Map<Type,Codec> primitiveTypeCodecs=new HashMap<>();
         private Map<Type,Codec> primitiveTypeCodecsInScheme=new HashMap<>();
         private Set<String> disabledHints;
         
         public Builder(T scheme) {
-            try {
-                this.scheme=cloneScheme(scheme);
-            } catch(Throwable t) {
-            }
+        	super(scheme);
         }
         
         private Set<String> getDisabledHints() {
@@ -214,15 +183,14 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
         }
         
         
-        @SuppressWarnings("unchecked")
         public T cloneScheme(T scheme) {
             try {
-                if(primitiveTypeCodecs.size()>0) {
+                if(primitiveTypeCodecs!=null&&primitiveTypeCodecs.size()>0) {
                     primitiveTypeCodecsInScheme.putAll(primitiveTypeCodecs);
                     scheme.codecs=scheme.codecs.copy(primitiveTypeCodecsInScheme);
                     primitiveTypeCodecs.clear();
                 }
-                return (T)scheme.clone();
+                return super.cloneScheme(scheme);
             } catch(Throwable t) {
             }
             return null;
@@ -253,32 +221,15 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
             primitiveTypeCodecs.put(type,codec);
             return myself();
         }
-        
-        public B setTypeInfos(String mimeType,String extension) {
-            scheme.mimeType=mimeType;
-            scheme.fileExtension=extension;
-            return myself();
-        }
 
         public B setNamespace(String typeRef,Namespace ns) {
-            scheme.namespace=ns;
             scheme.typeRef=typeRef;
-            return myself();
+            return super.setNamespace(ns);
         }
 
         public B setIndent(String indent,String lineTerminator) {
             scheme.indent=indent;
             scheme.lineTerminator=lineTerminator;
-            return myself();
-        }
-        
-        public B setRootType(Class<?> rootClass) {
-            scheme.rootType=new DefaultTypeLoader(rootClass.getClassLoader()).resolveType(rootClass);
-            return myself();
-        }
-        
-        public B setRootType(TypeDefinition rootType) {
-            scheme.rootType=rootType;
             return myself();
         }
         
@@ -300,8 +251,7 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
         	primitiveTypeCodecsInScheme.putAll(primitiveTypeCodecs);
             scheme.codecs=scheme.codecs.copy(primitiveTypeCodecsInScheme);
             primitiveTypeCodecs.clear();
-            scheme.factory=factory;
-            return myself();
+            return super.setAccessFctory(factory);
         }
         
         public T build(boolean initCodecs) {
@@ -316,19 +266,8 @@ public abstract class AbstractTextCodingScheme implements CodingScheme, Cloneabl
                 	disabledHints=null;
                 }
         	}
-            return cloneScheme(scheme);
+            return super.build(initCodecs);
         }
-        
-        public T build() {
-            return build(false);
-        }
-        
-        /**
-         * Implement this to return <code>this</code>.
-         * 
-         * @return myself
-         */
-        public abstract B myself();
     }
     
     /**

@@ -210,11 +210,6 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
         public Builder(YamlCodingScheme scheme) {
             super(scheme);
         }
-
-        @Override
-        public Builder myself() {
-            return this;
-        }
         
         private Set<ObjectType> initInlineKeys() {
         	if(inlineKeys==null) {

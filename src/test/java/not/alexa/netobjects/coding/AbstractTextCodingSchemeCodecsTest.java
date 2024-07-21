@@ -158,11 +158,6 @@ public class AbstractTextCodingSchemeCodecsTest {
             public Builder(TestScheme scheme) {
                 super(scheme);
             }
-
-            @Override
-            public Builder myself() {
-                return this;
-            }
             
         }
 

@@ -15,6 +15,7 @@
  */
 package not.alexa.coding;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayOutputStream;
@@ -26,7 +27,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-import not.alexa.coding.Data.State;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.api.Overlay;
 import not.alexa.netobjects.coding.CodingScheme;
@@ -62,21 +62,16 @@ public class CodingTest {
 				ObjectType.resolve("oid:2.3.1.24.2")*/}) try(ByteArrayOutputStream out=new ByteArrayOutputStream();
 			Encoder encoder=scheme.createEncoder(context, out)) {
 			encoder.encode(o).flush();
-			System.out.write(out.toByteArray());System.out.println();
+			PackageSchemes.printOut(scheme,out.toByteArray());
 			try(Decoder decoder=scheme.createDecoder(context, out.toByteArray())) {
 				Object decoded=decoder.decode(Object.class);
-				System.out.println(decoded);
 				try(ByteArrayOutputStream out2=new ByteArrayOutputStream();
 						Encoder encoder2=scheme.createEncoder(context, out2)) {
 					encoder2.encode(decoded).flush();
-					System.out.write(out2.toByteArray());System.out.println();
+					assertArrayEquals(out.toByteArray(), out2.toByteArray());
 				}
 			}
 		}
-		System.out.println(State[].class.getCanonicalName());
-		System.out.println(Byte.TYPE.getCanonicalName());
-		System.out.println(String.class.getCanonicalName());
-		System.out.println(String[][].class.getName());
 	}
 	
     @Test
@@ -89,15 +84,14 @@ public class CodingTest {
         for(Object o:new Object[] {new not.alexa.coding.Data("Hello World",100,"T1","T2")}) try(ByteArrayOutputStream out=new ByteArrayOutputStream();
             Encoder encoder=scheme.createEncoder(context, out)) {
             encoder.encode(o).flush();
-            System.out.write(out.toByteArray());System.out.println();
+			PackageSchemes.printOut(scheme,out.toByteArray());
             try(Decoder decoder=scheme.createDecoder(overlayContext, out.toByteArray())) {
                 Object decoded=decoder.decode(Object.class);
                 assertEquals(DataOverlay.class,decoded.getClass());
-                System.out.println(decoded);
                 try(ByteArrayOutputStream out2=new ByteArrayOutputStream();
                         Encoder encoder2=scheme.createEncoder(context, out2)) {
                     encoder2.encode(decoded).flush();
-                    System.out.write(out2.toByteArray());System.out.println();
+					assertArrayEquals(out.toByteArray(), out2.toByteArray());
                 }
             }
         }

@@ -227,12 +227,6 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         	return this;
         }
 
-
-        @Override
-        public Builder myself() {
-            return this;
-        }
-
         @Override
         public XMLCodingScheme build() {
             if(scheme.reservedAttributes==null) {

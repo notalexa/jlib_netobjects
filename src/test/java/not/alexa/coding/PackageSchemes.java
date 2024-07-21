@@ -18,13 +18,16 @@ package not.alexa.coding;
 import java.util.ArrayList;
 import java.util.List;
 
+import not.alexa.netobjects.coding.AbstractTextCodingScheme;
 import not.alexa.netobjects.coding.CodingScheme;
 import not.alexa.netobjects.coding.json.JsonCodingScheme;
+import not.alexa.netobjects.coding.protobuf.ProtobufCodingScheme;
 import not.alexa.netobjects.coding.xml.XMLCodingScheme;
 import not.alexa.netobjects.coding.yaml.YamlCodingScheme;
 
 public class PackageSchemes {
 	public static final CodingScheme[] SCHEMATA= {
+			ProtobufCodingScheme.DEFAULT_SCHEME,
 			XMLCodingScheme.DEFAULT_SCHEME,
 			JsonCodingScheme.DEFAULT_SCHEME,
 			YamlCodingScheme.DEFAULT_SCHEME,
@@ -53,6 +56,14 @@ public class PackageSchemes {
 		
 		public T getTest() {
 			return data;
+		}
+	}
+	
+	public static void printOut(CodingScheme scheme,byte[] content) {
+		if(scheme instanceof AbstractTextCodingScheme) try {
+			System.out.write(content);
+			System.out.println();
+		} catch(Throwable t) {
 		}
 	}
 }

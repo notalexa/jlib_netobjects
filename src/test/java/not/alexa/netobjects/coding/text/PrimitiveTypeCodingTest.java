@@ -81,7 +81,7 @@ public class PrimitiveTypeCodingTest {
         try(ByteArrayOutputStream out=new ByteArrayOutputStream();
             Encoder encoder=scheme.createEncoder(context, out)) {
             encoder.encode(data.getTest()).flush();
-            System.out.write(out.toByteArray());System.out.println();
+            PackageSchemes.printOut(scheme,out.toByteArray());
             byte[] encoded1=out.toByteArray();
             try(Decoder decoder=scheme.createDecoder(context, encoded1)) {
                 Object decoded=decoder.decode(Object.class);

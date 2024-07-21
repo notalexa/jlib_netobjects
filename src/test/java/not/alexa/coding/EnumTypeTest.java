@@ -83,7 +83,7 @@ public class EnumTypeTest {
 		try(ByteArrayOutputStream out=new ByteArrayOutputStream();
 			Encoder encoder=scheme.createEncoder(context, out)) {
 			encoder.encode(typeDef.getTest()).flush();
-			System.out.write(out.toByteArray());System.out.println();
+			PackageSchemes.printOut(scheme,out.toByteArray());
 			try(Decoder decoder=scheme.createDecoder(context, out.toByteArray())) {
 				Object decoded=decoder.decode(Object.class);
 				assertEquals(typeDef.getTest(),decoded);

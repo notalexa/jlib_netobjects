@@ -95,7 +95,7 @@ public class PrimitiveTypeTest {
 			Encoder encoder=scheme.createEncoder(context, out)) {
 			TypeDefinition def=PrimitiveTypeDefinition.getTypeDescription(clazz.getTest());
 			encoder.encode(def).flush();
-			System.out.write(out.toByteArray());System.out.println();
+			PackageSchemes.printOut(scheme, out.toByteArray());
 			try(Decoder decoder=scheme.createDecoder(context, out.toByteArray())) {
 				Object decoded=decoder.decode(Object.class);
 				assertEquals(def,decoded);
