@@ -90,6 +90,57 @@ public class ClassResolverTest {
     		fail();
     	}
     }
+    
+    @Test
+    public void nullTest1() {
+    	Context context=Context.createRootContext();
+        String data="<object class=\"not.alexa.netobjects.jackson.ClassResolverTest$A\">\r\n"
+        		+ "  <property>xxx</property>\r\n"
+//        		+ "  <a1>yyy</a1>\r\n"
+        		+ "</object>";
+        try {
+        	A a=XMLCodingScheme.DEFAULT_SCHEME.createDecoder(context, data.getBytes()).decode(A.class);
+        	System.out.println(a);
+        } catch(BaseException e) {
+        	e.printStackTrace();
+        	fail();
+        }
+    	
+    }
+    
+    @Test
+    public void nullTest2() {
+    	Context context=Context.createRootContext();
+        String data="<object class=\"not.alexa.netobjects.jackson.ClassResolverTest$A\">\r\n"
+//        		+ "  <property>xxx</property>\r\n"
+        		+ "  <a1>yyy</a1>\r\n"
+        		+ "</object>";
+        try {
+        	A a=XMLCodingScheme.DEFAULT_SCHEME.createDecoder(context, data.getBytes()).decode(A.class);
+        	System.out.println(a);
+        } catch(BaseException e) {
+        	e.printStackTrace();
+        	fail();
+        }
+    	
+    }
+    
+    @Test
+    public void nullTest3() {
+    	Context context=Context.createRootContext();
+        String data="<object class=\"not.alexa.netobjects.jackson.ClassResolverTest$A\">\r\n"
+//        		+ "  <property>xxx</property>\r\n"
+//        		+ "  <a1>yyy</a1>\r\n"
+        		+ "</object>";
+        try {
+        	A a=XMLCodingScheme.DEFAULT_SCHEME.createDecoder(context, data.getBytes()).decode(A.class);
+        	System.out.println(a);
+        } catch(BaseException e) {
+        	e.printStackTrace();
+        	fail();
+        }
+    	
+    }
 
     public static class A0 extends @ResolvableBy("jackson") A {
 
@@ -112,6 +163,7 @@ public class ClassResolverTest {
             t=new Date();
             r=new Date[] {t,t};
         }
+        
     }
     
     public static class B<T,R> {

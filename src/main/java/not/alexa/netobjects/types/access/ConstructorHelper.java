@@ -2,6 +2,7 @@ package not.alexa.netobjects.types.access;
 
 import java.lang.ref.ReferenceQueue;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -11,6 +12,7 @@ import java.util.Set;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.types.AccessibleObject;
+import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.TypeLoader.LinkedLocal;
 import not.alexa.netobjects.types.access.Constructor.Provider;
@@ -215,12 +217,25 @@ class ConstructorHelper {
 	}
 		
 	static class DeferredConstructor extends AbstractConstructor {
-		List<String> constructorFields;
+		private List<String> constructorFields;
+		private Set<String> optional;
 		
 		public DeferredConstructor(LinkedLocal linkedLocal, java.lang.reflect.Constructor<?> constructor,List<String> constructorFields, FieldMapper fieldMap) {
 			super(linkedLocal, fieldMap);
 			this.constructor=constructor;
 			this.constructorFields=constructorFields;
+		}
+		
+		private synchronized Set<String> getOptionalConstructorFields(Access access) {
+			if(optional==null) {
+				optional=new HashSet<>();
+				for(Field f:((ClassTypeDefinition)access.getType()).getFields()) {
+					if(f.isOptional()&&constructorFields.contains(f.getName())) {
+						optional.add(f.getName());
+					}
+				}
+			}
+			return optional;
 		}
 
 		@Override
@@ -245,8 +260,36 @@ class ConstructorHelper {
 					public AccessibleObject makeAccessible(Access access) {
 						return new Accessible(access) {
 							Object o;
+							
+							private void create(Set<String> optional) throws Throwable {
+								int offset=enclosingClass==null?0:1;
+								Object[] args=new Object[offset+constructorFields.size()];
+								for(int i=offset;i<args.length;i++) {
+									Value v=values.remove(constructorFields.get(i-offset));
+									if(v!=null) {
+										args[i]=v.val.getAssignable();
+									} else if(!optional.contains(constructorFields.get(i-offset))) {
+										// Just keep o unset.
+										return;
+									}
+								}
+								if(offset>0) {
+									args[0]=enclosingInstance;
+								}
+								o=DeferredConstructor.this.constructor.newInstance(args);
+								if(values.size()>0) for(Map.Entry<String, Value> entry:values.entrySet()) {
+									super.setField(entry.getValue().f,entry.getValue().val);
+								}
+								values.clear();									
+							}
+							
 							@Override
 							public Object getObject() {
+								if(o==null&&fields.size()>0) try {
+									create(getOptionalConstructorFields(access));
+								} catch(Throwable t) {
+									// unset o will cause an error
+								}
 								return o;
 							}
 							
@@ -261,23 +304,13 @@ class ConstructorHelper {
 									values.put(f.getName(), new Value(f,v));
 									if(fields.remove(f.getName())) {
 										if(fields.size()==0) try {
-											int offset=enclosingClass==null?0:1;
-											Object[] args=new Object[offset+constructorFields.size()];
-											for(int i=offset;i<args.length;i++) {
-												args[i]=values.remove(constructorFields.get(i-offset)).val.getAssignable();
-											}
-											if(offset>0) {
-												args[0]=enclosingInstance;
-											}
-											o=DeferredConstructor.this.constructor.newInstance(args);
-											if(values.size()>0) for(Map.Entry<String, Value> entry:values.entrySet()) {
-												super.setField(entry.getValue().f,entry.getValue().val);
-											}
-											values.clear();
+											create(Collections.emptySet());
 										} catch(Throwable t) {
 											BaseException.throwException(t);
 										}
 									}
+								} else if(fields.size()!=0&&fields.contains(f.getName())) {
+									throw new BaseException(BaseException.FORBIDDEN,"Constructor field "+f.getName()+" set after object creation.");
 								} else {
 									super.setField(f, v);
 								}
