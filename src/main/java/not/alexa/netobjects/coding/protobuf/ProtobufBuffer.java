@@ -51,7 +51,7 @@ class ProtobufBuffer {
 		this.len=offset+len;
 	}
 	
-	public void consume(ProtobufListener listener) {
+	public <T extends ProtobufListener> T consume(T listener) {
 		try {
 			while(offset<len) {
 				int tag=readInt();
@@ -73,6 +73,7 @@ class ProtobufBuffer {
 		} catch(IOException e) {
 			listener.onError(offset,e);
 		}
+		return listener;
 	}
 	
 	public int readFixed32() {

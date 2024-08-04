@@ -16,10 +16,9 @@
 package not.alexa.netobjects.protobuf;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
@@ -52,7 +51,7 @@ public class ProtobufTest {
 		return data;
 	}
 
-	//@Test
+	@Test
 	public void test10() {
 		test(createData(10));
 	}
@@ -60,6 +59,41 @@ public class ProtobufTest {
 	@Test
 	public void test8192() {
 		test(createData(8192));
+	}
+	
+	@Test
+	public void testDirectType() {
+		Data data=createData(10);
+		Context context=Context.createRootContext();
+		CodingScheme scheme=ProtobufCodingScheme.DEFAULT_SCHEME.newBuilder().setRootType(Data.class).build();
+		try {
+			byte[] content0=scheme.createEncoder(context).encode(data).asBytes();
+			// Field 1 with encoding 0 (int)
+			assertEquals(8, content0[0]);
+			Data d=scheme.createDecoder(context, content0).decode(Data.class);
+			byte[] content1=scheme.createEncoder(context).encode(d).asBytes();
+			assertArrayEquals(content0,content1);
+		} catch(Throwable t) {
+			t.printStackTrace();
+			fail(t.getMessage());
+		}
+	}
+
+	@Test
+	public void testDirectIntegerType() {
+		Context context=Context.createRootContext();
+		CodingScheme scheme=ProtobufCodingScheme.DEFAULT_SCHEME.newBuilder().setRootType(Integer.class).build();
+		try {
+			byte[] content0=scheme.createEncoder(context).encode(2l).asBytes();
+			// Field 1 with encoding 0 (int)
+			assertEquals(8, content0[0]);
+			int d=scheme.createDecoder(context, content0).decode(Integer.class);
+			byte[] content1=scheme.createEncoder(context).encode(d).asBytes();
+			assertArrayEquals(content0,content1);
+		} catch(Throwable t) {
+			t.printStackTrace();
+			fail(t.getMessage());
+		}
 	}
 
 	private void test(Data data) {

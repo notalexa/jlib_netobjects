@@ -22,6 +22,7 @@ import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.DefaultCodingSupport;
 import not.alexa.netobjects.coding.Encoder;
+import not.alexa.netobjects.coding.protobuf.ProtobufCodingScheme.PrimitiveTypeCodec;
 
 /**
  * Encoder class of the {@link ProtobufCodingScheme}
@@ -70,8 +71,19 @@ class ProtobufEncoder extends DefaultCodingSupport implements Encoder {
 
 	@Override
 	public Encoder encode(Object o) throws BaseException {
-		AbstractCodec codec=scheme.getClassCodec(context, scheme.getRootType());
-		codec.encode(this, buffer, o);
+		if(o!=null) {
+			AbstractCodec codec=scheme.getClassCodec(context, scheme.getRootType());
+			if(codec==null) {
+				PrimitiveTypeCodec primitiveTypeCodec=scheme.getPrimitiveTypeCodec(o.getClass());
+				if(primitiveTypeCodec!=null) {
+					primitiveTypeCodec.encode(buffer, 1, o);
+				} else {
+					throw new BaseException(BaseException.BAD_REQUEST,"Encoding object of class "+o.getClass().getSimpleName());
+				}
+			} else {
+				codec.encode(this, buffer, o);
+			}
+		}
 		return this;
 	}
 }

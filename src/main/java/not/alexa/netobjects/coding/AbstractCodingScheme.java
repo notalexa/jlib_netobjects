@@ -29,7 +29,7 @@ import not.alexa.netobjects.types.access.AccessFactory;
  * <li>Mime type and file extension of the scheme
  * </ul>
  */
-public abstract class AbstractCodingScheme implements CodingScheme {
+public abstract class AbstractCodingScheme implements CodingScheme, Cloneable {
     protected AccessFactory factory;
     protected TypeDefinition rootType;
     protected Namespace namespace=Namespace.getJavaNamespace();

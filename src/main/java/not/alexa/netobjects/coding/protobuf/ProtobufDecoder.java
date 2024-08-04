@@ -24,6 +24,7 @@ import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.Decoder;
 import not.alexa.netobjects.coding.DefaultCodingSupport;
 import not.alexa.netobjects.coding.protobuf.ProtobufBuffer.ProtobufListener;
+import not.alexa.netobjects.coding.protobuf.ProtobufCodingScheme.PrimitiveTypeCodec;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.TypeDefinition;
@@ -85,9 +86,17 @@ class ProtobufDecoder extends DefaultCodingSupport implements Decoder {
 		ProtobufBuffer buffer=getBuffer();
 		if(def!=null) {
 			AbstractCodec codec=scheme.getClassCodec(context, def);
-			ClassDefListener listener=new ClassDefListener(codec);
-			buffer.consume(listener);
-			return context.cast(clazz,listener.getResult());
+			if(codec==null) {
+				Class<?> c=def.asClass(context.getTypeLoader().getClassLoader());
+				PrimitiveTypeCodec primitiveTypeCodec=scheme.getPrimitiveTypeCodec(c);
+				if(primitiveTypeCodec!=null) {
+					return context.cast(clazz,buffer.consume(new PrimitiveTypeListener(primitiveTypeCodec)).getResult());
+				} else {
+					throw new BaseException(BaseException.BAD_REQUEST,"Decoding object of class "+c.getSimpleName());
+				}
+			} else {
+				return context.cast(clazz,buffer.consume(new ClassDefListener(codec)).getResult());
+			}
 		}
 		return null;
 	}
@@ -95,6 +104,50 @@ class ProtobufDecoder extends DefaultCodingSupport implements Decoder {
 	@Override
 	public boolean hasNext() {
 		return !read;
+	}
+	
+	class PrimitiveTypeListener implements ProtobufListener {
+		PrimitiveTypeCodec codec;
+		Object result;
+		BaseException e;
+		private PrimitiveTypeListener(PrimitiveTypeCodec codec) {
+			this.codec=codec;
+		}
+		
+		private Object getResult() throws BaseException {
+			if(e!=null) {
+				throw e;
+			} else {
+				return result;
+			}
+		}
+
+		@Override
+		public void consume(int field, int value) {
+			try {
+				result=codec.decode(value);
+			} catch(BaseException e) {
+				this.e=e;
+			}
+		}
+
+		@Override
+		public void consume(int field, long value) {
+			try {
+				result=codec.decode(value);
+			} catch(BaseException e) {
+				this.e=e;
+			}
+		}
+
+		@Override
+		public void consume(int field, byte[] value, int offset, int len) {
+			try {
+				result=codec.decode(value,offset,len);
+			} catch(BaseException e) {
+				this.e=e;
+			}
+		}
 	}
 	
 	class ClassDefListener implements ProtobufListener, AccessContext {
