@@ -363,7 +363,8 @@ public final class JavaClass extends Namespace {
                     }
                 }
             } else {
-                Class<?> clazz=asLinkedLocal(loader.getClassLoader()).asClass();
+            	LinkedLocal linkedLocal=asLinkedLocal(loader.getClassLoader());
+                Class<?> clazz=linkedLocal==null?null:linkedLocal.asClass();
                 if(clazz!=null) {
                     if(clazz.isEnum()) {
                         return new EnumTypeDefinition((Class<? extends Enum<?>>)clazz);

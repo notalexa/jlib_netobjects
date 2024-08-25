@@ -57,7 +57,17 @@ public class EnumTypeDefinition extends TypeDefinition {
 		super();
 		setValues(values);
 	}
-	
+
+	/**
+	 * An anonymous enum type with the given values
+	 * 
+	 * @param values the values of this enum
+	 */
+	public EnumTypeDefinition(ObjectType type,Value...values) {
+		super(type);
+		setValues(values);
+	}
+
 	/**
 	 * An enumeration constructed from the given type.
 	 * 

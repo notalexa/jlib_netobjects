@@ -138,11 +138,15 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
 	    }
 	    return current;
 	}
-
+	
 	@Override
     public final Access resolve(Context context,TypeDefinition type) {
 	    RootAccessHolder rootAccess=resolve(context.getTypeLoader().getClassLoader(),type);
-	    return rootAccess==null?null:rootAccess.getAccess();
+	    if(rootAccess!=null) {
+	    		return rootAccess.getAccess();
+	    } else {
+	    		return DeferredAccess.get(this, type);
+	    }
 	}
 
 	protected synchronized AccessHolder resolveHolder(TypeLoader typeLoader,Type javaType) {
@@ -177,7 +181,11 @@ public class DefaultAccessFactory extends Adaptable.Default implements  AccessFa
 	@Override
 	public final Access resolve(Access referrer,TypeDefinition type) {
 	    RootAccessHolder accessHolder=resolve(referrer.getAccessLoader(),type);
-	    return accessHolder==null?null:accessHolder.getAccess();
+	    if(accessHolder!=null) {
+	    		return accessHolder.getAccess();
+	    } else {
+    			return DeferredAccess.get(this, type);
+	    }
 	}
 	
 	public <T> T upcast(Context context,T t) {
