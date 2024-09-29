@@ -15,17 +15,16 @@
  */
 package not.alexa.netobjects.utils;
 
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.function.Function;
 
 /**
  * A weak key map stores values for a given key. The map doesn't prevent the key from
  * being garbage collected. In contrast to the <code>WeakHashMap</code> class two keys
  * are considered as equal if they represent the same object. If a key is garbage collected,
- * the entry is removed from the table.s
+ * the entry is removed from the table.
  *
  * @author notalexa
  *
@@ -34,8 +33,7 @@ import java.util.WeakHashMap;
  * @see WeakHashMap
  */
 public class WeakKeyMap<K, V> {
-    private Map<Key<K>, V> map=new HashMap<Key<K>, V>();
-    private ReferenceQueue<K> outdated=new ReferenceQueue<K>();
+    private Map<Key, V> map=new HashMap<Key, V>();
 
     public WeakKeyMap() {
     }
@@ -47,8 +45,7 @@ public class WeakKeyMap<K, V> {
      * @return the resource for the given key or <code>null</code> if no resource is available
      */
     public synchronized V get(K key) {
-        update();
-        return map.get(new Key<>(key));
+        return map.get(new Key(key));
     }
     
     /**
@@ -58,7 +55,29 @@ public class WeakKeyMap<K, V> {
      * @param resource the resource for the key
      */
     public synchronized void put(K key,V resource) {
-        map.put(new Key<K>(key,outdated),resource);
+        map.put(new Key(key),resource);
+    }
+
+    public void putAll(WeakKeyMap<K,V> other) {
+    	// Need to create a new ref.
+        for(Map.Entry<Key, V> entry:other.map.entrySet()) {
+            K k=entry.getKey().get();
+            V v=entry.getValue();
+            if(k!=null&&v!=null) {
+                put(k,v);
+            }
+        }
+    }
+    
+    public synchronized V computeIfAbsent(K key,Function<K,V> creator) {
+    	V v=get(key);
+    	if(v==null) {
+    		v=creator.apply(key);
+    		if(v!=null) {
+    			put(key,v);
+    		}
+    	}
+    	return v;
     }
     
     /**
@@ -67,14 +86,7 @@ public class WeakKeyMap<K, V> {
      * @param key the key
      */
     public synchronized void remove(K key) {
-        map.remove(new Key<>(key));
-    }
-
-    private void update() {
-        Object o;
-        while((o=outdated.poll())!=null) {
-            map.remove(o);
-        }        
+        map.remove(new Key(key));
     }
     
     /**
@@ -83,19 +95,19 @@ public class WeakKeyMap<K, V> {
      * @return the size of the map (after update)
      */
     public synchronized int size() {
-        update();
         return map.size();
     }
     
-    private static class Key<K> extends WeakReference<K> {
+    private class Key extends Finalizer.Ref<K> {
         private int h;
         private Key(K referent) {
             super(referent);
             h=referent.hashCode();
         }
-        private Key(K referent, ReferenceQueue<? super K> q) {
-            super(referent, q);
-            h=referent.hashCode();
+        
+        @Override
+        public void run() {
+        	map.remove(this);
         }
         
         @Override
@@ -105,19 +117,14 @@ public class WeakKeyMap<K, V> {
         
         @Override
         public boolean equals(Object o) {
-            if(o instanceof Key) {
-                Key<?> k=(Key<?>)o;
+        	if(o==this) {
+        		return true;
+        	} else if(o instanceof WeakKeyMap.Key) {
+                WeakKeyMap<K,V>.Key k=(WeakKeyMap<K,V>.Key)o;
                 return k.get()==get();
-            }
-            return false;
-        }
-    }
-
-    public void putAll(WeakKeyMap<K,V> codecs) {
-        for(Map.Entry<Key<K>, V> entry:codecs.map.entrySet()) {
-            K k=entry.getKey().get();
-            if(k!=null) {
-                put(k,entry.getValue());
+            } else {
+            	// Breaks reflexivity. But this class is only used locally.
+            	return false;
             }
         }
     }
