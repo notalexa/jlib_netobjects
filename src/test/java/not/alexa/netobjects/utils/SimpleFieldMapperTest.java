@@ -22,7 +22,7 @@ import java.util.Map;
 
 import org.junit.Test;
 
-import not.alexa.netobjects.types.access.Constructor.FieldMapper;
+import not.alexa.netobjects.types.access.RuntimeInfo.FieldMapper;
 
 public class SimpleFieldMapperTest {
 

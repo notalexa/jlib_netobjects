@@ -22,8 +22,9 @@ import java.util.Collection;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.types.JavaClass.Type;
-import not.alexa.netobjects.types.access.Constructor;
+import not.alexa.netobjects.types.access.RuntimeInfo;
 import not.alexa.netobjects.utils.OverlayTypeLoader;
+import not.alexa.netobjects.utils.TypeUtils.ResolvedClass;
 
 /**
  * A type loader is responsible for maintaining types
@@ -226,6 +227,26 @@ public interface TypeLoader {
         
         /**
          * 
+         * @return this linked local as a resolved link local if possible.
+         */
+		public abstract ResolvedClass asResolvedClass();
+		
+		/**
+		 * 
+		 * @return the locally linked parameters of this linked local.
+		 */
+		public abstract LinkedLocal[] getParameters();
+		
+		/**
+		 * 
+		 * @return {@code true} if this linked local is a class and has parameters
+		 */
+		public boolean hasParameters() {
+			return getParameters().length>0;
+		}
+
+        /**
+         * 
          * @return the type of this linked local
          */
         public abstract ObjectType getType();
@@ -238,7 +259,11 @@ public interface TypeLoader {
             return clazz;
         }
         
-        public abstract Constructor getConstructor();
+        /**
+         * 
+         * @return runtime information about this locally linked type
+         */
+        public abstract RuntimeInfo getRuntimeInfo();
         
         /**
          * 

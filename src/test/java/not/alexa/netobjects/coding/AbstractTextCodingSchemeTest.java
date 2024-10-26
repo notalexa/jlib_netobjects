@@ -24,7 +24,7 @@ import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.Access.SimpleTypeAccess;
 import not.alexa.netobjects.types.access.AccessContext;
 import not.alexa.netobjects.types.access.AccessFactory;
-import not.alexa.netobjects.types.access.Constructor;
+import not.alexa.netobjects.types.access.RuntimeInfo;
 
 @RunWith(org.junit.runners.Parameterized.class)
 public class AbstractTextCodingSchemeTest {
@@ -61,7 +61,7 @@ public class AbstractTextCodingSchemeTest {
         assertEquals("ResourceBranch",testCase.resourceBranch,testCase.scheme.getResourceBranch());
         assertEquals("Indent",testCase.indent,testCase.scheme.getIndent());
         assertEquals("LineTerminator",testCase.lineTerminator,testCase.scheme.getLineTerminator());	    
-        assertEquals("RootType",testCase.rootType,testCase.scheme.getRootType());     
+        assertEquals("RootType",testCase.rootType,testCase.scheme.getRootType(Context.createRootContext(),Object.class));     
         assertEquals("Charset",testCase.charset,testCase.scheme.getCodingCharset());     
         assertEquals("Namespace",Namespace.getJavaNamespace(),testCase.scheme.getNamespace());
         assertEquals("MimeType",testCase.mimeType,testCase.scheme.getMimeType());
@@ -143,7 +143,7 @@ public class AbstractTextCodingSchemeTest {
                 default:return new DummyAccess(type);
             }
         }
-        public class DummyAccess implements Access {
+        public class DummyAccess extends Access.AbstractAccess implements Access {
             TypeDefinition type;
             DummyAccess(TypeDefinition type) {
                 this.type=type;
@@ -165,8 +165,8 @@ public class AbstractTextCodingSchemeTest {
             }
         }
         @Override
-        public Constructor resolve(Context context, Type type) {
-            return null;//new ConstructorHelper.DefaultConstructor(type.asLinkedLocal(context.getTypeLoader().getClassLoader()));
+        public RuntimeInfo resolve(Context context, Type type) {
+            return null;
         }
 	}
 }

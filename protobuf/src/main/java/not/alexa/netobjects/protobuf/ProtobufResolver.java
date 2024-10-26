@@ -208,7 +208,7 @@ public class ProtobufResolver implements TypeResolver {
 				    .setNumber(field.getNumber())
 				    .setDefaultValue(defaultValue);
 				if(!field.getName().equals(field.getJsonName())) {
-					fieldBuilder.addTag("json",field.getJsonName());
+					fieldBuilder.addTag("json:alt",field.getJsonName());
 				}
 				addHints(protobufFieldType, fieldBuilder);
 				fieldBuilder.build();
@@ -250,7 +250,7 @@ public class ProtobufResolver implements TypeResolver {
 		
 	}
 
-	static class ProtobufAccess implements Access {
+	static class ProtobufAccess extends Access.AbstractAccess implements Access {
 		DefaultAccessFactory factory;
 		TypeDefinition type;
 		Class<?> clazz;
@@ -312,7 +312,7 @@ public class ProtobufResolver implements TypeResolver {
 		}
 
 		@Override
-		public Object getField(Object o, Field f) throws BaseException {
+		public Object getField(AccessContext context,Object o, Field f) throws BaseException {
 			RuntimeInfo info=descriptors.get(f.getName());
 			if(info!=null) try {
 				return info.accessor.get(o);
@@ -324,7 +324,7 @@ public class ProtobufResolver implements TypeResolver {
 
 
 		@Override
-		public void setField(Object o, Field f, Object v) throws BaseException {
+		public void setField(AccessContext context,Object o, Field f, Object v) throws BaseException {
 			RuntimeInfo info=descriptors.get(f.getName());
 			if(info!=null) try {
 				info.accessor.put(o,v);
@@ -345,13 +345,13 @@ public class ProtobufResolver implements TypeResolver {
 					}
 					
 					@Override
-					public void setField(Field f, AccessibleObject v) throws BaseException {
+					public void setField(AccessContext context,Field f, AccessibleObject v) throws BaseException {
 						o=null;
-						super.setField(f, v);
+						super.setField(context,f, v);
 					}
 
 					@Override
-					public synchronized Object getAssignable() throws BaseException {
+					public synchronized Object getAssignable(AccessContext context) throws BaseException {
 						if(o==null) {
 							o=builder.build();
 						}

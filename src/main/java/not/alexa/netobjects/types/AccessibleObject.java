@@ -18,6 +18,8 @@ package not.alexa.netobjects.types;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
+import not.alexa.netobjects.types.access.Access;
+import not.alexa.netobjects.types.access.AccessContext;
 import not.alexa.netobjects.utils.Sequence;
 
 /**
@@ -41,7 +43,7 @@ public interface AccessibleObject extends TypedObject {
 	 * @param value the (new) value of the field
 	 * @throws BaseException if an error occurs
 	 */
-	public default void setField(Field f,AccessibleObject value) throws BaseException {
+	public default void setField(AccessContext context,Field f,AccessibleObject value) throws BaseException {
 		throw new BaseException(BaseException.BAD_REQUEST, "Field "+f.getName()+" is unknown in "+getType());
 	}
 	
@@ -52,7 +54,7 @@ public interface AccessibleObject extends TypedObject {
 	 * @return the value of the field
 	 * @throws BaseException if an error occurs
 	 */
-	public default AccessibleObject getField(Field f) throws BaseException {
+	public default AccessibleObject getField(AccessContext context,Field f) throws BaseException {
 		throw new BaseException(BaseException.BAD_REQUEST, "Field "+f.getName()+" is unknown in "+getType());
 	}
 	
@@ -70,10 +72,10 @@ public interface AccessibleObject extends TypedObject {
 	 * <li>The enumeration type has no (java) representation or the requested value is not a value of the local representation
 	 * </ul>
 	 */
-	public default Object getPrimitiveOrEnumField(Field f) throws BaseException {
+	public default Object getPrimitiveOrEnumField(AccessContext context,Field f) throws BaseException {
 		switch(f.getType().getFlavour()) {
-		case PrimitiveType:return getField(f).getObject();
-		case EnumType:Object o=getField(f).getObject();
+		case PrimitiveType:return getField(context,f).getObject();
+		case EnumType:Object o=getField(context,f).getObject();
 			if(o==null||Enum.class.isInstance(o)) {
 				return o;
 			} else {
@@ -146,7 +148,7 @@ public interface AccessibleObject extends TypedObject {
 	 * @return a suitable object of type for (field) assignments.
 	 * @throws BaseException if the assignable object cannot be created (because of security reasons for example)
 	 */
-	public default Object getAssignable() throws BaseException {
+	public default Object getAssignable(AccessContext context) throws BaseException {
 		return getObject();
 	}
 	

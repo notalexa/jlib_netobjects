@@ -26,7 +26,10 @@ import not.alexa.netobjects.coding.yaml.YamlCodingScheme;
  * <ul>
  * <li>The {@link #DEFAULT_SCHEME} uses the {@link Mode#ExtendedJson} mode. Therefore,
  * anchors and alias are allowed.
- * <li>The {@link #RESTRICTED_SCHEME} uses the {@link Mode#Json} mode. Therefore, anchros and
+ * <li>The {@link #REST_SCHEME} uses the {@link Mode#Json} mode. Therefore, anchors and
+ * alias are not allowed. This implies that some objects cannot be serialized (or deserialized)
+ * with this scheme. No root object is set.
+ * <li>The {@link #RESTRICTED_SCHEME} uses the {@link Mode#Json} mode. Therefore, anchors and
  * alias are not allowed. This implies that some objects cannot be serialized (or deserialized)
  * with this scheme.
  * </ul>
@@ -40,10 +43,15 @@ public class JsonCodingScheme {
 	/**
 	 * The default scheme.
 	 */
-    public static final YamlCodingScheme DEFAULT_SCHEME=new YamlCodingScheme(new Yaml(Mode.ExtendedJson)).newBuilder().addInlineKeys(String.class).build();
+    public static final YamlCodingScheme DEFAULT_SCHEME=new YamlCodingScheme(new Yaml(Mode.ExtendedJson)).newBuilder().setRootType(Object.class).addInlineKeys(String.class).build();
+    
+    /**
+     * The restricted scheme for rest (that is without a root type)
+     */
+    public static final YamlCodingScheme REST_SCHEME=new YamlCodingScheme(new Yaml(Mode.Json)).newBuilder().addInlineKeys(String.class).addDefaultTags().build();
     
     /**
      * The restricted scheme. 
      */
-    public static final YamlCodingScheme RESTRICTED_SCHEME=new YamlCodingScheme(new Yaml(Mode.Json)).newBuilder().addInlineKeys(String.class).build();
+    public static final YamlCodingScheme RESTRICTED_SCHEME=REST_SCHEME.newBuilder().setRootType(Object.class).build();
 }

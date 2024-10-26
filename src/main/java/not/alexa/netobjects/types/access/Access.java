@@ -16,12 +16,16 @@
 package not.alexa.netobjects.types.access;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.Context;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.Flavour;
+import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.utils.Sequence;
+import not.alexa.netobjects.utils.StrongRefPool;
+import not.alexa.netobjects.utils.StrongRefPoolSupport;
 
 /**
  * The static counterpart to {@link AccessibleObject}. In general,
@@ -32,7 +36,7 @@ import not.alexa.netobjects.utils.Sequence;
  * @author notalexa
  *
  */
-public interface Access {
+public interface Access extends StrongRefPool {
     
     /**
      * @return the factory which created this access
@@ -57,6 +61,36 @@ public interface Access {
 	 */
 	public default ClassLoader getAccessLoader() {
 		return getClass().getClassLoader();
+	}
+	
+	public default AccessContext createContext(Context context) {
+		return new AccessContext() {
+			
+			@Override
+			public Access resolve(Access referrer, TypeDefinition type) {
+				return getFactory().resolve(referrer, type);
+			}
+			
+			@Override
+			public Access resolve(Context context, TypeDefinition type) {
+				return getFactory().resolve(context, type);
+			}
+			
+			@Override
+			public RuntimeInfo resolve(Context context, Type type) {
+				return getFactory().resolve(context, type);
+			}
+			
+			@Override
+			public <T> T castTo(Context c, Class<T> clazz) {
+				return context.castTo(clazz);
+			}
+			
+			@Override
+			public Context getContext() {
+				return context;
+			}
+		};
 	}
 	
 	/**
@@ -94,7 +128,7 @@ public interface Access {
 	 * @throws BaseException if an error occurs
 	 * @see AccessibleObject#getField(Field)
 	 */
-	public default Object getField(Object o,ClassTypeDefinition.Field f) throws BaseException {
+	public default Object getField(AccessContext context,Object o,ClassTypeDefinition.Field f) throws BaseException {
 		throw new BaseException(BaseException.BAD_REQUEST, "Field "+f.getName()+" is unknown in "+getType());
 	}
 
@@ -106,7 +140,7 @@ public interface Access {
 	 * @throws BaseException if an error occurs
 	 * @see AccessibleObject#setField(Field, AccessibleObject)
 	 */
-	public default void setField(Object o,Field f, Object v) throws BaseException {
+	public default void setField(AccessContext context,Object o,Field f, Object v) throws BaseException {
 		throw new BaseException(BaseException.BAD_REQUEST, "Field "+f.getName()+" is unknown in "+getType());
 	}
 
@@ -126,7 +160,7 @@ public interface Access {
 	 * @return an accessible object
 	 * @throws BaseException if an error occurs
 	 */
-	public default AccessibleObject makeAccessible(Object o) throws BaseException {
+	public default AccessibleObject makeAccessible(AccessContext context,Object o) throws BaseException {
 		return new DefaultAccessibleObject(this, o);
 	}
 
@@ -138,8 +172,8 @@ public interface Access {
 	 * @return an accessible object representing the default value
 	 * @throws BaseException if an error occurs
 	 */
-	public default AccessibleObject makeDefault(Object o) throws BaseException {
-		return makeAccessible(o);
+	public default AccessibleObject makeDefault(AccessContext context,Object o) throws BaseException {
+		return makeAccessible(context,o);
 	}
 
 	/**
@@ -151,8 +185,8 @@ public interface Access {
 	 * @return the corresponding raw object
 	 * @throws BaseException if an error occurs
 	 */
-	public default Object getObject(AccessibleObject o) throws BaseException {
-		return o.getAssignable();
+	public default Object getObject(AccessContext context,AccessibleObject o) throws BaseException {
+		return o.getAssignable(context);
 	}
 	
 	/**
@@ -177,6 +211,74 @@ public interface Access {
 		throw new BaseException(BaseException.BAD_REQUEST, getType()+" is not an array type.");
 	}
 
+	public static abstract class AbstractAccess extends StrongRefPoolSupport implements Access {
+	}
+
+	public static class DelegatingAccess extends AbstractAccess implements Access {
+		Access delegate;
+		
+		protected DelegatingAccess(Access delegate) {
+			this.delegate=delegate;
+		}
+
+		public AccessFactory getFactory() {
+			return delegate.getFactory();
+		}
+
+		public TypeDefinition getType() {
+			return delegate.getType();
+		}
+
+		public ClassLoader getAccessLoader() {
+			return delegate.getAccessLoader();
+		}
+
+		public AccessContext createContext(Context context) {
+			return delegate.createContext(context);
+		}
+
+		public Object finish(Object o) {
+			return delegate.finish(o);
+		}
+
+		public Field[] getFields() {
+			return delegate.getFields();
+		}
+
+		public Object getField(AccessContext context, Object o, Field f) throws BaseException {
+			return delegate.getField(context, o, f);
+		}
+
+		public void setField(AccessContext context, Object o, Field f, Object v) throws BaseException {
+			delegate.setField(context, o, f, v);
+		}
+
+		public AccessibleObject newAccessible(AccessContext context) throws BaseException {
+			return delegate.newAccessible(context);
+		}
+
+		public AccessibleObject makeAccessible(AccessContext context, Object o) throws BaseException {
+			return delegate.makeAccessible(context, o);
+		}
+
+		public AccessibleObject makeDefault(AccessContext context, Object o) throws BaseException {
+			return delegate.makeDefault(context, o);
+		}
+
+		public Object getObject(AccessContext context, AccessibleObject o) throws BaseException {
+			return delegate.getObject(context, o);
+		}
+
+		public Access getFieldAccess(Field f) throws BaseException {
+			return delegate.getFieldAccess(f);
+		}
+
+		public Access getComponentAccess() throws BaseException {
+			return delegate.getComponentAccess();
+		}
+		
+	}
+
 	/**
 	 * Class suitable for primitive and enumeration types. This class implements {@link Access} and {@link AccessibleObject}. Viewed
 	 * as an access, the value is the default value of the access (and used for {@link #newAccessible(AccessContext)}.
@@ -184,20 +286,14 @@ public interface Access {
 	 * @author notalexa
 	 *
 	 */
-	public static class SimpleTypeAccess implements Access, AccessibleObject,Sequence<AccessibleObject> {
+	public static class SimpleTypeAccess extends AbstractAccess implements Access {
 		private static final ClassTypeDefinition.Field[] NO_FIELDS=new ClassTypeDefinition.Field[0];
 		protected AccessFactory factory;
 		protected TypeDefinition type;
-		protected Object value;
 		
 		public SimpleTypeAccess(AccessFactory factory,TypeDefinition type) {
-			this(factory,type,null);
-		}
-		
-		public SimpleTypeAccess(AccessFactory factory,TypeDefinition type,Object value) {
 		    this.factory=factory;
 			this.type=type;
-			this.value=value;
 		}
 		
         @Override
@@ -211,38 +307,54 @@ public interface Access {
 		}
 		
 		@Override
-		public AccessibleObject newAccessible(AccessContext context) {
-			return this;
+		public AccessibleObject newAccessible(AccessContext context) throws BaseException {
+			throw new BaseException();
+		}
+
+		public AccessibleObject makeAccessible(Object v) {
+			return new Obj(v);
+		}
+
+		@Override
+		public AccessibleObject makeAccessible(AccessContext context,Object v) {
+			return new Obj(v);
 		}
 		
-		@Override
-		public AccessibleObject makeAccessible(Object v) throws BaseException {
-			return new SimpleTypeAccess(factory,type, v);
-		}
+		private class Obj implements AccessibleObject, Sequence<AccessibleObject> {
+			Object o;
+			Obj(Object o) {
+				this.o=o;
+			}
+	
+			@Override
+			public Object getObject() {
+				return o;
+			}
+	
+			@Override
+			public boolean busy() {
+				return true;
+			}
+	
+			@Override
+			public AccessibleObject current() {
+				return this;
+			}
+	
+			@Override
+			public Sequence<AccessibleObject> next() {
+				return Sequence.emptySequence();
+			}
+	
+			@Override
+			public Sequence<AccessibleObject> asSequence() {
+				return this;
+			}
 
-		@Override
-		public Object getObject() {
-			return value;
-		}
-
-		@Override
-		public boolean busy() {
-			return true;
-		}
-
-		@Override
-		public AccessibleObject current() {
-			return this;
-		}
-
-		@Override
-		public Sequence<AccessibleObject> next() {
-			return Sequence.emptySequence();
-		}
-
-		@Override
-		public Sequence<AccessibleObject> asSequence() {
-			return this;
+			@Override
+			public TypeDefinition getType() {
+				return type;
+			}
 		}
 	}
 	
@@ -253,7 +365,7 @@ public interface Access {
 	 * @author notalexa
 	 *
 	 */
-	public class IllegalAccess implements Access {
+	public class IllegalAccess extends AbstractAccess implements Access {
         private AccessFactory factory;
 	    private TypeDefinition type;
 	   

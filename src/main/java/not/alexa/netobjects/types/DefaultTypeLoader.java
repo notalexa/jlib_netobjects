@@ -27,8 +27,9 @@ import java.util.Stack;
 import not.alexa.netobjects.Adaptable;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.TypeResolver.LoaderIntermediate;
-import not.alexa.netobjects.types.access.Constructor;
-import not.alexa.netobjects.types.access.Constructor.Provider;
+import not.alexa.netobjects.types.access.RuntimeInfo;
+import not.alexa.netobjects.types.access.RuntimeInfo.Provider;
+import not.alexa.netobjects.utils.TypeUtils.ResolvedClass;
 
 /**
  * The default implementation of a type loader. This loader tries to resolve a type definition as follows:
@@ -132,9 +133,9 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 					if(type==null&&resolvers!=null) for(TypeResolver r:resolvers) try {
 						intermediate.init();
 					    if((type=r.resolve(intermediate, t))!=null) {
-					    	Provider provider=intermediate.providerMap.remove(t);
-					    	if(provider!=null) {
-					    		Constructor.addProvider(provider);
+					    	List<Provider> providers=intermediate.providerMap.remove(t);
+					    	if(providers!=null) for(Provider provider:providers) {
+					    		RuntimeInfo.addProvider(provider);
 					    	}
 					        break;
 					    }
@@ -165,6 +166,7 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
                     linkedLocal=TypeLoader.super.getLinkedLocal(type);
                 }
                 if(linkedLocal==null) {
+                	// will never delivered since it's not locally linked
                     linkedLocal=new LinkedLocal() {
                         @Override
                         public ObjectType getType() {
@@ -172,8 +174,18 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
                         }
 
 						@Override
-						public Constructor getConstructor() {
+						public RuntimeInfo getRuntimeInfo() {
 							return null;
+						}
+
+						@Override
+						public ResolvedClass asResolvedClass() {
+							return null;
+						}
+
+						@Override
+						public LinkedLocal[] getParameters() {
+							return JavaClass.NO_PARAMETER_CLASSES;
 						}
                     };
                 }
@@ -186,7 +198,7 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 	
 	private class Intermediate implements LoaderIntermediate {
 		private Map<ObjectType,TypeDefinition> map=new HashMap<>();
-		private Map<ObjectType,Provider> providerMap=new HashMap<>();
+		private Map<ObjectType,List<Provider>> providerMap=new HashMap<>();
 		private Stack<Set<ObjectType>> registered=new Stack<>();
 
 		@Override
@@ -221,7 +233,11 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 
 		@Override
 		public void addProvider(ObjectType type, Provider provider) {
-			providerMap.put(type, provider);
+			List<Provider> l=providerMap.get(type);
+			if(l==null) {
+				providerMap.put(type, l=new ArrayList<>());
+			}
+			l.add(provider);
 		}
 	}
 }

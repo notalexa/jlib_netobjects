@@ -15,7 +15,10 @@
  */
 package not.alexa.netobjects.types;
 
-import not.alexa.netobjects.types.access.DeferredAccess;
+import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.types.access.Access;
+import not.alexa.netobjects.types.access.AccessContext;
+import not.alexa.netobjects.types.access.AccessFactory;
 
 /**
  * Deferred objects are created when a type is either unknown at parsing time or the type is not
@@ -35,11 +38,39 @@ import not.alexa.netobjects.types.access.DeferredAccess;
  * @see DeferredObject
  * @see DeferredAccess
  */
-public interface Deferred {
+public interface Deferred<T,C> {
+		
+	public boolean isResolved();
 	/**
 	 * The object type of the deferred object in a given namespace if known.
 	 * @param ns the namespace
 	 * @return the object type of the object if known, {@code null} otherwise.
 	 */
 	public ObjectType getObjectType(Namespace ns);
+
+	/**
+	 * 
+	 * @param clazz the class which should be proxied
+	 * @return a proxy object representing {@code clazz} based on this deferred object
+	 * @throws BaseException if this object cannot be proxied by the given class (for example, if {@link clazz}
+	 * is not an interface
+	 */
+	public Object makeProxy(Class<?> clazz) throws BaseException;
+
+	/**
+	 * The object which should be encoded.
+	 * 
+	 * @param <R> the type of the object which should be encoded
+	 * @param context the context to use
+	 * @return the object which should be encoded.
+	 */
+	public <R extends C> C getCodingObject(AccessContext context);
+
+	/**
+	 * 
+	 * @param context the context to use
+	 * @param factory the access factory
+	 * @return access for the object which should be encoded
+	 */
+	public Access getCodingAccess(AccessContext context, AccessFactory factory);
 }

@@ -62,6 +62,7 @@ public abstract class Namespace {
 	Class<? extends ObjectType> typeClass;
 	static {
 		JAVA_CLASS_INSTANCE=new JavaClass();
+		JAVA_CLASS_INSTANCE.loadResources();
 	}
 	
 	protected Namespace(Class<? extends ObjectType> typeClass) {

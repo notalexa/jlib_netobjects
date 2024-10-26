@@ -26,6 +26,8 @@ import java.util.List;
 
 import org.junit.Test;
 
+import not.alexa.netobjects.utils.BackingClassLoader;
+
 public class ClassLoaderTestWrapper {
 	static ReferenceQueue<Class<?>> QUEUE=new ReferenceQueue<>();
 	
@@ -44,7 +46,7 @@ public class ClassLoaderTestWrapper {
 			while(QUEUE.poll()!=null) {
 				count--;
 			}
-			ClassLoader classLoader=new URLClassLoader(new URL[] { new File("src/test/overlay").getAbsoluteFile().toURI().toURL()}, ClassLoaderTestWrapper.class.getClassLoader());
+			ClassLoader classLoader=new BackingClassLoader(new URL[] { new File("src/test/overlay").getAbsoluteFile().toURI().toURL()}, ClassLoaderTestWrapper.class.getClassLoader());
 			Object o=Class.forName("not.alexa.netobjects.jackson.ClassLoaderTest", false, classLoader).newInstance();
 			o.getClass().getMethod("run",List.class,ReferenceQueue.class).invoke(o,refList,QUEUE);
 		} catch(Throwable t) {

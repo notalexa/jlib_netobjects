@@ -92,6 +92,14 @@ public class Data {
 	public String test(Context context,String msg) throws BaseException {
 	    return msg;
 	}
+
+	public void list(AccessContext context,String[] list) {
+		this.list=list;
+	}
+
+	public void map(Context context,Map<String,Integer> map) {
+		this.map=map;
+	}
 	
 	public Data setRef(Object ref) {
 	    this.ref=ref;

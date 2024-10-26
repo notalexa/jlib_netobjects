@@ -107,5 +107,12 @@ public interface Adaptable extends Castable {
 				adapters.put(clazz,o);
 			}
 		}
+
+		@Override
+		protected Object clone() throws CloneNotSupportedException {
+			Default o=(Default)super.clone();
+			o.adapters=null;
+			return o;
+		}
 	}
 }

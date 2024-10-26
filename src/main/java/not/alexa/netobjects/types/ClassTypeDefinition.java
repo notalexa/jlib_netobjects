@@ -26,6 +26,7 @@ import java.util.Set;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.types.EnumTypeDefinition.Value;
+import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.AccessContext;
@@ -36,7 +37,7 @@ import not.alexa.netobjects.types.access.EmptyArray;
 import not.alexa.netobjects.types.access.EnumConstant;
 
 @Final
-public class ClassTypeDefinition extends AbstractClassTypeDefinition {
+public class ClassTypeDefinition extends AbstractClassTypeDefinition implements Cloneable {
     private static final Field[] NO_FIELDS=new Field[0];
     private static final MethodTypeDefinition[] NO_METHODS=new MethodTypeDefinition[0];
 	public static ClassTypeDefinition getTypeDescription() {
@@ -63,6 +64,26 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
     public boolean isAbstract() {
         return extendible;
     }
+	
+
+	@Override
+	public Type getJavaClassType() {
+		Type type=super.getJavaClassType();getAdapter(Type.class);
+		return type==null?getAdapter(Type.class):type;
+	}
+	
+	public ClassTypeDefinition forType(Type type) {
+		if(super.getJavaClassType()==null) try {
+			ClassTypeDefinition def=(ClassTypeDefinition)clone();
+			def.putAdapter(Type.class,type);
+			return def;
+		} catch(Throwable t) {
+			return this;
+		} else {
+			return this;
+		}
+	}
+
     
 	/**
 	 * Add interfaces to this class type declaration. This interfaces are <b>not part of the global class definition</b> but can be 
@@ -203,6 +224,13 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 			FieldBuilder(String name,TypeDefinition type) {
 				this.name=name;
 				this.type=type;
+			}
+			
+			/**
+			 * @return the index of this field in the class definition.
+			 */
+			public int getIndex() {
+				return fields.size();
 			}
 			
 			/**
@@ -497,7 +525,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		}
 		
 		@Override
-		public Object getField(Object o, int index) throws BaseException {
+		public Object getField(AccessContext context,Object o, int index) throws BaseException {
 			ClassTypeDefinition def=(ClassTypeDefinition)o;
 			switch(index) {
 				case 0:List<ObjectType> types=def.getTypes();
@@ -511,7 +539,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		}
 
 		@Override
-		public void setField(Object o, int index, Object v) throws BaseException {
+		public void setField(AccessContext context,Object o, int index, Object v) throws BaseException {
 			ClassTypeDefinition def=(ClassTypeDefinition)o;
 			switch(index) {
 				case 0:def.addTypes((ObjectType[])v);
@@ -575,7 +603,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 		}
 		
 		@Override
-		public Object getField(Object o, int index) throws BaseException {
+		public Object getField(AccessContext context,Object o, int index) throws BaseException {
 			Field def=(Field)o;
 			switch(index) {
 				case 0:return def.number;
@@ -592,7 +620,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition {
 
 		@SuppressWarnings("unchecked")
 		@Override
-		public void setField(Object o, int index, Object v) throws BaseException {
+		public void setField(AccessContext context,Object o, int index, Object v) throws BaseException {
 			Field def=(Field)o;
 			switch(index) {
 				case 0:def.number=(int)v;

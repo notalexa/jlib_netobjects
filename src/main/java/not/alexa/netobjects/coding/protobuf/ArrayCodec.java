@@ -21,6 +21,7 @@ import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.coding.protobuf.ProtobufCodingScheme.CodecType;
 import not.alexa.netobjects.coding.protobuf.ProtobufDecoder.ClassDefListener;
 import not.alexa.netobjects.types.AccessibleObject;
+import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.ArrayTypeAccess;
 
@@ -34,8 +35,8 @@ class ArrayCodec extends AbstractCodec {
 	private int offset;
 	private ComponentCodec componentCodec;
 
-	ArrayCodec(ProtobufCodingScheme scheme, int offset,Access fieldAccess) {
-		super(scheme, fieldAccess);
+	ArrayCodec(int offset,Access fieldAccess) {
+		super(fieldAccess);
 		this.offset=offset;
 		componentCodec=new ComponentCodec(fieldAccess);
 	}
@@ -79,7 +80,7 @@ class ArrayCodec extends AbstractCodec {
 	}
 	
 	@Override
-	public void consumeInternal(ClassDefListener listener,int field, long value) throws BaseException {
+	public void consumeInternal(ClassDefListener listener,int field, Field f,long value) throws BaseException {
 		componentCodec.consume(listener,field,value);
 	}
 
@@ -99,8 +100,8 @@ class ArrayCodec extends AbstractCodec {
 		}
 
 		@Override
-		protected void resolveArrayCodec(Access fieldAccess) {
-			classCodec=new ArrayCodec(scheme, offset, fieldAccess) {
+		protected void resolveArrayCodec(ProtobufCodingScheme scheme,Access fieldAccess) {
+			classCodec=new ArrayCodec(offset, fieldAccess) {
 				@Override
 				public ClassDefListener createListener(ClassDefListener parent) throws BaseException {
 					return parent.createChild(newAccessible(parent), this);
@@ -125,9 +126,10 @@ class ArrayCodec extends AbstractCodec {
 		
 		public boolean encode(ProtobufEncoder encoder,ProtobufBuffer buffer,int index,Object o) throws BaseException {
 			if(!super.encode(encoder, buffer, index, o)) {
+				ProtobufCodingScheme scheme=encoder.getCodingScheme();
 				byte[] content=scheme.getProtobufContent(o);
 				if(content==null) {
-					resolveCodec(CodecType.Default, access.getComponentAccess());
+					resolveCodec(scheme,CodecType.Default, access.getComponentAccess());
 					encode(encoder,buffer,index,o);
 				} else {
 					buffer.write(index, content);
@@ -137,16 +139,16 @@ class ArrayCodec extends AbstractCodec {
 		}
 		
 		public void consume(ClassDefListener listener, int field, long value) throws BaseException {
-			AccessibleObject array=getArray(listener);//listener.getArray(this.offset,ArrayCodec.this);
+			AccessibleObject array=getArray(listener);
 			if(primitiveTypeCodec!=null) {
-				array.add(access.getComponentAccess().makeAccessible(primitiveTypeCodec.decode(value)));
+				array.add(access.getComponentAccess().makeAccessible(listener,primitiveTypeCodec.decode(value)));
 			} else if(classCodec!=null) {
 				AccessibleObject obj=listener.resolveObjectReference((int)value);
 				if(obj!=null) {
 					getArray(listener).add(obj);
 				}
 			} else {
-				resolveCodec(CodecType.Default,access.getComponentAccess());
+				resolveCodec(listener.getCodingScheme(),CodecType.Default,access.getComponentAccess());
 				// Recursion of maximum one
 				consume(listener,field,value);
 			}
@@ -155,17 +157,18 @@ class ArrayCodec extends AbstractCodec {
 		public void consume(ClassDefListener listener, int field, byte[] value, int offset, int len) throws BaseException {
 			AccessibleObject array=getArray(listener);
 			if(primitiveTypeCodec!=null) {
-				array.add(access.getComponentAccess().makeAccessible(primitiveTypeCodec.decode(value,offset,len)));
+				array.add(access.getComponentAccess().makeAccessible(listener,primitiveTypeCodec.decode(value,offset,len)));
 			} else if(classCodec!=null) {
 				ClassDefListener childListener=classCodec.createListener(listener);
-				new ProtobufBuffer(value, offset,len).consume(childListener);
+				classCodec.consume(value, offset,len,childListener);
 				array.add(childListener.finalized());
 			} else {
-				AccessibleObject fieldValue=scheme.getProtobufObject(access.getComponentAccess(),value,offset,len);
+				ProtobufCodingScheme scheme=listener.getCodingScheme();
+				AccessibleObject fieldValue=scheme.getProtobufObject(listener,access.getComponentAccess(),value,offset,len);
 				if(fieldValue!=null) {
 					array.add(fieldValue);
 				} else {
-					resolveCodec(CodecType.Default,access.getComponentAccess());
+					resolveCodec(scheme,CodecType.Default,access.getComponentAccess());
 					// Recursion of maximum one
 					consume(listener,field,value,offset,len);
 				}

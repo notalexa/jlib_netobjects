@@ -24,6 +24,7 @@ import not.alexa.netobjects.coding.json.JsonCodingScheme;
 import not.alexa.netobjects.coding.protobuf.ProtobufCodingScheme;
 import not.alexa.netobjects.coding.xml.XMLCodingScheme;
 import not.alexa.netobjects.coding.yaml.YamlCodingScheme;
+import not.alexa.netobjects.types.access.AccessFactory;
 
 public class PackageSchemes {
 	public static final CodingScheme[] SCHEMATA= {
@@ -37,8 +38,10 @@ public class PackageSchemes {
 		List<TestData<T>> result=new ArrayList<>();
 		for(CodingScheme scheme:SCHEMATA) {
 			data.forEach((d)->result.add(new TestData<T>(scheme,d)));
-			
 		}
+		System.out.println("Create volatile scheme...");
+		CodingScheme volatileScheme=new XMLCodingScheme(XMLCodingScheme.defaultCharset(),AccessFactory.getDefault()).newBuilder().setRootTag("test").setRootType(Object.class).build();
+		data.forEach((d)->result.add(new TestData<T>(volatileScheme,d)));
 		return result;
 	}
 	

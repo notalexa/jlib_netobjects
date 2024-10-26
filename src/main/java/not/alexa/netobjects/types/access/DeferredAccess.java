@@ -33,7 +33,7 @@ import not.alexa.netobjects.types.TypeDefinition;
  * @see DeferredClassAccess
  * @see DeferredEnumAccess
  */
-public abstract class DeferredAccess implements Access,Cloneable {
+public abstract class DeferredAccess extends Access.AbstractAccess implements Access,Cloneable {
 	protected AccessFactory factory;
 	private TypeDefinition type;
 	public DeferredAccess(AccessFactory factory,TypeDefinition type) {
@@ -58,7 +58,7 @@ public abstract class DeferredAccess implements Access,Cloneable {
 				synchronized (type) {
 					access=type.getAdapter(DeferredAccess.class);
 					if(access==null) {
-	    	    				type.putAdapter(access=createAccess(factory,type));
+	    	    		type.putAdapter(DeferredAccess.class,access=createAccess(factory,type));
 					}
 				}
 			}
@@ -91,7 +91,7 @@ public abstract class DeferredAccess implements Access,Cloneable {
 	}
 
 	@Override
-	public Object getObject(AccessibleObject o) throws BaseException {
-		return o==null?null:o.getAssignable();
+	public Object getObject(AccessContext context,AccessibleObject o) throws BaseException {
+		return o==null?null:o.getAssignable(context);
 	}
 }

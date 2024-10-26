@@ -31,19 +31,16 @@ import not.alexa.netobjects.coding.AbstractCodingScheme;
 import not.alexa.netobjects.coding.CodingScheme;
 import not.alexa.netobjects.coding.Decoder;
 import not.alexa.netobjects.coding.Encoder;
-import not.alexa.netobjects.coding.protobuf.ProtobufDecoder.ClassDefListener;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ClassTypeDefinition;
-import not.alexa.netobjects.types.ClassTypeDefinition.Field;
-import not.alexa.netobjects.types.Flavour;
-import not.alexa.netobjects.types.JavaClass.Type;
+import not.alexa.netobjects.types.DeferredObject;
 import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.AccessContext;
 import not.alexa.netobjects.types.access.AccessFactory;
-import not.alexa.netobjects.types.access.DefaultAccessibleObject;
+import not.alexa.netobjects.utils.WeakReferenceKeyMap;
 
 /**
  * Entrypoint to protobuf serialization/deserialization. This coding scheme encodes objects into
@@ -89,7 +86,6 @@ public class ProtobufCodingScheme extends AbstractCodingScheme implements Coding
 
 		@Override
 		public PrimitiveTypeCodec get(Object key) {
-			// TODO Auto-generated method stub
 			PrimitiveTypeCodec codec=super.get(key);
 			if(codec==null&&ObjectType.class.isAssignableFrom((Class<?>)key)) {
 				return PrimitiveTypeCodecs.OBJECT_TYPE_CODEC;
@@ -119,7 +115,8 @@ public class ProtobufCodingScheme extends AbstractCodingScheme implements Coding
 			return codec==null?PRIMITIVE_CODECS.get(arg0):codec;
 		}
 	};
-	private Map<Type,AbstractCodec> classCodecs=new HashMap<>();
+	private WeakReferenceKeyMap<Access,AbstractCodec> classCodecs=new WeakReferenceKeyMap<>();
+	
 	static {
 		PRIMITIVE_CODECS.put(ObjectType.class, PrimitiveTypeCodecs.OBJECT_TYPE_CODEC);
 		PRIMITIVE_CODECS.put(UUID.class, PrimitiveTypeCodecs.UUID_CODEC);
@@ -164,189 +161,16 @@ public class ProtobufCodingScheme extends AbstractCodingScheme implements Coding
 		FIXED_LENGTH_CODECS.put(Long.TYPE, PrimitiveTypeCodecs.FIXED_LONG_CODEC);
 	}
 	
-	public static final ProtobufCodingScheme DEFAULT_SCHEME=new ProtobufCodingScheme();
-	//protected AccessFactory factory=new DefaultAccessFactory();
-	protected ClassCodec anyCodec=new ClassCodec(this, new Access() {
-		Access objectTypeAccess=new SimpleTypeAccess(getFactory(), PrimitiveTypeDefinition.getTypeDescription(ObjectType.class));
+	public static final ProtobufCodingScheme REST_SCHEME=new ProtobufCodingScheme();
+	public static final ProtobufCodingScheme DEFAULT_SCHEME=new ProtobufCodingScheme().newBuilder().setRootType(Object.class).build();
 
-        @Override
-        public AccessFactory getFactory() {
-            return factory;
-        }
-        
-        @Override
-        public TypeDefinition getType() {
-            return ANY;
-        }
-
-        @Override
-        public AccessibleObject newAccessible(AccessContext context) throws BaseException {
-            return new AccessibleObject.Adapter() {
-            	AccessibleObject type;
-            	AccessibleObject delegate;
-
-            	@Override
-            	public AccessibleObject getField(Field f) throws BaseException {
-            		switch(f.getIndex()) {
-	            		case 0: return type;
-	            		case 1: return delegate;
-	            		default: return super.getField(f);
-            		}
-            	}
-
-            	@Override
-            	public void setField(Field f,AccessibleObject value) throws BaseException {
-            		switch(f.getIndex()) {
-            			case 0: type=value;
-            				break;
-            			case 1: delegate=value;
-            				break;
-            		}
-            	}
-            	
-				@Override
-				public TypeDefinition getType() {
-					return ANY;
-				}
-
-				@Override
-				public Object getAssignable() throws BaseException {
-					return delegate.getAssignable();
-				}
-
-				@Override
-				public Object getObject() {
-					return delegate==null?null:delegate.getObject();
-				}
-			};
-        }
-
-        @Override
-        public Access getFieldAccess(Field f) throws BaseException {
-        	switch(f.getIndex()) {
-	        	case 0: return objectTypeAccess;
-	        	case 1:
-	        	default: throw new BaseException(BaseException.NOT_FOUND, "Field #"+f.getIndex());
-        	}
-        }
-
-		@Override
-		public Object getField(Object o, Field f) throws BaseException {
-			switch(f.getIndex()) {
-				case 1: return ObjectType.createClassType(o.getClass());
-				default: return Access.super.getField(o, f);
-			}
-		}   
-    }) {
-		@Override
-		public void encode(ProtobufEncoder encoder,ProtobufBuffer buffer, Object o) throws BaseException {
-			TypeDefinition type=encoder.getContext().resolveType(o.getClass());
-			ObjectType classType=type.getType(getNamespace());
-			if(classType!=null) {
-				fieldCodecs[0].encode(encoder,buffer,classType);
-				switch(type.getFlavour()) {
-					case PrimitiveType:
-						ProtobufCodingScheme.this.getPrimitiveTypeCodec(o.getClass()).encode(buffer,2,o);
-						break;
-					case EnumType:
-						ProtobufCodingScheme.this.getEnumCodec(o.getClass()).encode(buffer,2,o);
-						break;
-					case ArrayType:
-					case ClassType:
-						byte[] content=ProtobufCodingScheme.this.getProtobufContent(o);
-						if(content!=null) {
-							buffer.write(2, content);
-						} else {
-							ProtobufCodingScheme.this.getClassCodec(encoder.getContext(),type).encode(encoder,buffer,2,o);
-						}
-						break;
-					default: throw new BaseException(BaseException.BAD_REQUEST,"Unsupported");
-				}
-			} else {
-				throw new BaseException(BaseException.BAD_REQUEST,"Unsupported");
-			}
-		}
-
-		@Override
-		public void consume(ClassDefListener listener, int field, long value) throws BaseException {
-			Field[] fields=ANY.getFields();
-			ObjectType type=(ObjectType)listener.currentObject().getField(fields[0]).getAssignable();
-			TypeDefinition def=listener.getContext().resolveType(type);
-			Object v;
-			switch(def.getFlavour()) {
-				case PrimitiveType: v=ProtobufCodingScheme.this.getPrimitiveTypeCodec(def.asClass(getClass().getClassLoader())).decode(value);
-					break;
-				case EnumType: v=ProtobufCodingScheme.this.getEnumCodec(def.asClass(getClass().getClassLoader())).decode(value);
-					break;
-				case ClassType:
-					listener.currentObject().setField(fields[1],listener.resolveObjectReference((int)value));
-					listener.mark(1);
-					return;
-				default:
-					throw new BaseException(BaseException.FORBIDDEN,"Unsupported Any of type "+def.getFlavour());
-			}
-			listener.mark(1);
-			listener.currentObject().setField(fields[1],new DefaultAccessibleObject(factory.resolve(listener.getContext(), def),v));
-		}
-
-		@Override
-		public void consume(ClassDefListener listener, int field, byte[] value, int offset, int len)
-				throws BaseException {
-			if(field==2) {
-				Field[] fields=ANY.getFields();
-				ObjectType type=(ObjectType)listener.currentObject().getField(fields[0]).getAssignable();
-				TypeDefinition def=listener.getContext().resolveType(type);
-				switch(def.getFlavour()) {
-				case PrimitiveType:
-					Object v=ProtobufCodingScheme.this.getPrimitiveTypeCodec(def.asClass(getClass().getClassLoader())).decode(value,offset,len);
-					listener.mark(1);
-					listener.currentObject().setField(fields[1],new DefaultAccessibleObject(factory.resolve(listener.getContext(), def),v));
-					break;
-				case ArrayType:
-				case ClassType:
-					Access classAccess=factory.resolve(listener.getContext(), def);
-					if(def.getFlavour()==Flavour.ArrayType) {
-						classAccess=classAccess.getComponentAccess();
-					}
-					AccessibleObject o=ProtobufCodingScheme.this.getProtobufObject(classAccess,value,offset,len);
-					if(o!=null) {
-						if(def.getFlavour()==Flavour.ArrayType) {
-							listener.getArray(1, new ProtobufDecoder.Creator() {
-								
-								@Override
-								public AccessibleObject newAccessible(AccessContext context) throws BaseException {
-									return factory.resolve(listener.getContext(), def).newAccessible(context);
-								}
-							}).add(o);
-						} else {
-							listener.mark(1);
-							listener.currentObject().setField(fields[1],o);
-						}
-					} else {
-						AbstractCodec codec=ProtobufCodingScheme.this.getClassCodec(listener.getContext(),listener.getContext().resolveType(type));
-						ClassDefListener childListener=codec.createListener(listener);//.createChild(codec);
-						new ProtobufBuffer(value, offset, len).consume(childListener);
-						if(!codec.isArrayCodec()) {
-							listener.mark(1);
-							listener.currentObject().setField(fields[1],childListener.finalized());
-						}
-					}
-					break;
-				default:
-					break;
-				}
-			} else {
-				super.consume(listener, field, value, offset, len);
-			}
-		}
-	};
 
 	public ProtobufCodingScheme() {
-		this(AccessFactory.getDefault(),PrimitiveTypeDefinition.getTypeDescription(Object.class));
+		this(AccessFactory.getDefault());
 	}
 	
-	public ProtobufCodingScheme(AccessFactory factory,TypeDefinition rootType) {
-		super(factory,rootType);
+	public ProtobufCodingScheme(AccessFactory factory) {
+		super(factory);
 		mimeType="application/x-protobuf";
 		fileExtension="pwf"; // protobuf wire format
 	}
@@ -360,7 +184,16 @@ public class ProtobufCodingScheme extends AbstractCodingScheme implements Coding
 	public Decoder createDecoder(Context context, InputStream stream) {
 		return new ProtobufDecoder(context,this,stream);
 	}
-	
+
+	public Decoder createDecoder(Context context, ProtobufBuffer buffer) {
+		return new ProtobufDecoder(context,this,null) {
+			@Override
+			protected ProtobufBuffer getBuffer() throws BaseException {
+				return buffer;
+			}
+		};
+	}
+
 	public PrimitiveTypeCodec getPrimitiveTypeCodec(Class<?> clazz) {
 		return getPrimitiveTypeCodec(CodecType.Default,clazz);
 	}
@@ -372,30 +205,32 @@ public class ProtobufCodingScheme extends AbstractCodingScheme implements Coding
 	public PrimitiveTypeCodec getEnumCodec(Class<?> enumClass) {
 		return new EnumCodec(enumClass);
 	}
-
-	public AbstractCodec getClassCodec(Context context,TypeDefinition def) {
-		Access access=factory.resolve(context, def);
-		return access==null?null:classCodecs.computeIfAbsent(def.getJavaClassType(),(c)-> {
-			switch(def.getFlavour()) {
-				case InterfaceType: return getAnyCodec();
-				case ClassType: return new ClassCodec(ProtobufCodingScheme.this,access);
-				case ArrayType: return new ArrayCodec(ProtobufCodingScheme.this, 1, access);
-				default: return null;
-			}
-		});
-	}
-
-	public AbstractCodec getClassCodec(Access typeAccess/*,TypeDefinition def*/) {
-		//Access access=factory.resolve(context, def);
-		return typeAccess==null||typeAccess.getType().getJavaClassType()==null?null:classCodecs.computeIfAbsent(typeAccess.getType().getJavaClassType(),(c)-> {
-			return new ClassCodec(ProtobufCodingScheme.this,typeAccess);
-		});
-	}
-//
-//	AccessFactory getAccessFactory() {
-//		return factory;
-//	}
 	
+	public AbstractCodec getClassCodec(Context context,TypeDefinition def) {
+		return getClassCodec(factory.resolve(context, def));
+	}
+
+	public AbstractCodec getClassCodec(Access typeAccess) {
+		if(typeAccess!=null) {
+			AbstractCodec codec=classCodecs.get(typeAccess);
+			if(codec==null) {
+				switch(typeAccess.getType().getFlavour()) {
+					case InterfaceType: codec=getAnyCodec(typeAccess);
+						break;
+					case ClassType: codec=typeAccess instanceof DeferredObject.ClassAccess?new DeferredCodec(typeAccess):new ClassCodec(typeAccess);
+						break;
+					case ArrayType: codec=new ArrayCodec(1, typeAccess);
+						break;
+				}
+				if(codec!=null) {
+					classCodecs.put(typeAccess,codec);
+				}
+			}
+			return codec;
+		} else {
+			return null;
+		}
+	}
 	
 	public interface PrimitiveTypeCodec {
 		public void encode(ProtobufBuffer buffer,int field, Object o);
@@ -411,19 +246,19 @@ public class ProtobufCodingScheme extends AbstractCodingScheme implements Coding
 		return NATIVE_SUPPORT.getProtobufContent(o);
 	}
 
-	public AccessibleObject getProtobufObject(Access fieldAccess, byte[] value, int offset, int len) {
-		return NATIVE_SUPPORT.getProtobufObject(fieldAccess, value, offset, len);
+	public AccessibleObject getProtobufObject(AccessContext context,Access fieldAccess, byte[] value, int offset, int len) {
+		return NATIVE_SUPPORT.getProtobufObject(context,fieldAccess, value, offset, len);
 	}
 
-	public ClassCodec getAnyCodec() {
-		return anyCodec;
+	public ClassCodec getAnyCodec(Access access) {
+		return new AnyCodec(access);
 	}
 	
 	public interface NativeProtobufSupport {
 		public default byte[] getProtobufContent(Object o) {
 			return null;
 		}
-		public default AccessibleObject getProtobufObject(Access fieldAccess, byte[] value, int offset, int len) {
+		public default AccessibleObject getProtobufObject(AccessContext context,Access fieldAccess, byte[] value, int offset, int len) {
 			return null;
 		}
 		
@@ -451,5 +286,9 @@ public class ProtobufCodingScheme extends AbstractCodingScheme implements Coding
 		private Builder(ProtobufCodingScheme scheme) {
 			super(scheme);
 		}
+	}
+	
+	public interface BufferWriter {
+		public void write(ProtobufBuffer buffer,int field);
 	}
 }

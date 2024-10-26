@@ -47,9 +47,9 @@ public class EnumConstant {
 		this.value=value;
 	}
 	
-	public AccessibleObject makeAccessible(Access access) throws BaseException {
+	public AccessibleObject makeAccessible(AccessContext context,Access access) throws BaseException {
 		Class<?> clazz=access.getType().getJavaClassType().asLinkedLocal(access.getAccessLoader()).asClass();
-		return access.makeAccessible(Enum.valueOf(clazz.asSubclass(Enum.class), value));
+		return access.makeAccessible(context,Enum.valueOf(clazz.asSubclass(Enum.class), value));
 	}
 	
 	public boolean represents(Object o) {
@@ -71,7 +71,7 @@ public class EnumConstant {
 		}
 		
 		@Override
-		public Object getField(Object o, int index) throws BaseException {
+		public Object getField(AccessContext context,Object o, int index) throws BaseException {
 			EnumConstant enumConstant=(EnumConstant)o;
 			switch(index) {
 				case 0: return enumConstant.value;
@@ -80,7 +80,7 @@ public class EnumConstant {
 		}
 
 		@Override
-		public void setField(Object o, int index, Object v) throws BaseException {
+		public void setField(AccessContext context,Object o, int index, Object v) throws BaseException {
 			EnumConstant enumConstant=(EnumConstant)o;
 			switch(index) {
 				case 0:enumConstant.value=(String)v;

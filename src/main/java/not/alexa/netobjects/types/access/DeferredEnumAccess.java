@@ -44,7 +44,7 @@ public class DeferredEnumAccess extends DeferredAccess {
 	}
 
 	@Override
-	public AccessibleObject makeAccessible(Object o) throws BaseException {
+	public AccessibleObject makeAccessible(AccessContext context,Object o) throws BaseException {
 		if(values.contains(o)) {
 			return new DefaultAccessibleObject(this, o);
 		} else {

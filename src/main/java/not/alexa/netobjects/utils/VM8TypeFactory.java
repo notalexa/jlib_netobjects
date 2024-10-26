@@ -20,6 +20,8 @@ import java.lang.reflect.AnnotatedParameterizedType;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.AnnotatedWildcardType;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 
 import not.alexa.netobjects.utils.TypeUtils.AType;
 import not.alexa.netobjects.utils.TypeUtils.ATypeFactory;
@@ -53,6 +55,11 @@ class VM8TypeFactory implements ATypeFactory {
 	public AType getAnnotatedType(Field f) {
 		return new AType(f.getGenericType(),f.getAnnotatedType(),f);
 	}
+	
+	@Override
+	public AType getAnnotatedReturnType(Method m) {
+		return new AType(m.getGenericReturnType(),m.getAnnotatedReturnType(),m);
+	}
 
 	@Override
 	public AType getAnnotatedSuperclass(Class<?> c) {
@@ -75,4 +82,8 @@ class VM8TypeFactory implements ATypeFactory {
 		return new AType(type.getType(),type);
 	}
 
+	@Override
+	public AType getAnnotatedType(Parameter p) {
+		return new AType(p.getParameterizedType(),p.getAnnotatedType(),p);
+	}
 }

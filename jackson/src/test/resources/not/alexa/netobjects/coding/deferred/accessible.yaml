@@ -1,0 +1,11 @@
+class: not.alexa.netobjects.jackson.ClassLoaderTest$TestClass
+s1: s1
+s2: s2
+s3: s3
+testClass:
+  s1: a1
+  s2: a2
+  s3: a3
+data:
+  class: not.alexa.netobjects.coding.deferred.DeferredAccessibleTest$Data
+  s: test

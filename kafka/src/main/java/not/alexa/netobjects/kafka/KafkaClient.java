@@ -52,15 +52,9 @@ import not.alexa.netobjects.Executable;
 import not.alexa.netobjects.kafka.Message.Resumer;
 import not.alexa.netobjects.types.ArrayTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition;
-import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.InterfaceTypeDefinition;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
-import not.alexa.netobjects.types.access.AbstractClassAccess;
-import not.alexa.netobjects.types.access.Access;
-import not.alexa.netobjects.types.access.AccessFactory;
-import not.alexa.netobjects.types.access.ArrayTypeAccess;
-import not.alexa.netobjects.types.access.Constructor;
 
 public class KafkaClient implements ConsumerRebalanceListener, AutoCloseable, Executable {
     private static final Map<String,String> CONSUMER_DEFAULTS=new HashMap<String, String>();

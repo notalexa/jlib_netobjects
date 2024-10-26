@@ -30,7 +30,7 @@ import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.AccessContext;
-import not.alexa.netobjects.types.access.Constructor;
+import not.alexa.netobjects.types.access.RuntimeInfo;
 
 /**
  * Decoder class of the {@link ProtobufCodingScheme}
@@ -45,7 +45,8 @@ class ProtobufDecoder extends DefaultCodingSupport implements Decoder {
 		}
 	}
 	private boolean read;
-	private final InputStream stream;
+	private ProtobufBuffer buffer;
+	private InputStream stream;
 	private final ProtobufCodingScheme scheme;
 	private final Context context;
 
@@ -57,32 +58,30 @@ class ProtobufDecoder extends DefaultCodingSupport implements Decoder {
 
 	@Override
 	public void close() throws BaseException {
-		try {
-			stream.close();
-		} catch(IOException e) {
-			BaseException.throwException(e);
-		}
+		stream=null;
 	}
 	
-	ProtobufBuffer getBuffer() throws BaseException {
-		if(!read) try(ByteArrayOutputStream out=new ByteArrayOutputStream()) {
+	protected ProtobufBuffer getBuffer() throws BaseException {
+		if(!read) if(stream!=null) try(ByteArrayOutputStream out=new ByteArrayOutputStream()) {
 			read=true;
 			byte[] buffer=new byte[8192];
 			int n;
 			while((n=stream.read(buffer))>=0) {
 				out.write(buffer,0,n);
 			}
-			
 			return new ProtobufBuffer(out.toByteArray());
 		} catch(IOException e) {
 			return BaseException.throwException(e);
+		} else {
+			read=true;
+			return buffer;
 		}
 		throw new BaseException();
 	}
 
 	@Override
 	public <T> T decode(Class<T> clazz) throws BaseException {
-		TypeDefinition def=scheme.getRootType();
+		TypeDefinition def=scheme.getRootType(context,clazz);
 		ProtobufBuffer buffer=getBuffer();
 		if(def!=null) {
 			AbstractCodec codec=scheme.getClassCodec(context, def);
@@ -207,11 +206,11 @@ class ProtobufDecoder extends DefaultCodingSupport implements Decoder {
 			if(first!=null) {
 				throw first;
 			}
-			return finalized().getAssignable();
+			return finalized().getAssignable(this);
 		}
 		
 		public AccessibleObject finalized() throws BaseException {
-			return codec.finalize(currentObject(), arrays,mask);
+			return codec.finalize(this,currentObject(), arrays,mask);
 		}
 		
 		public AccessibleObject currentObject() throws BaseException {
@@ -227,7 +226,7 @@ class ProtobufDecoder extends DefaultCodingSupport implements Decoder {
 		}
 
 		@Override
-		public Constructor resolve(Context context, Type type) {
+		public RuntimeInfo resolve(Context context, Type type) {
 			return scheme.getFactory().resolve(context, type);
 		}
 
@@ -302,6 +301,10 @@ class ProtobufDecoder extends DefaultCodingSupport implements Decoder {
 
 		public void consume(ClassDefListener listener, int field, AccessibleObject obj) throws BaseException {
 			codec.consume(listener, field, obj);
+		}
+
+		public ProtobufCodingScheme getCodingScheme() {
+			return scheme;
 		}
 	}
 	

@@ -21,11 +21,14 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 
+import not.alexa.netobjects.Context;
+
 /**
  * The interface extends {@code InvocationHandler} and provides default implementation for
  * the invoke method:
  * <ul>
- * <li>It calls methods on the implementor if the declaring class is a assignable from the implementor.
+ * <li>It calls methods on the implementor if the declaring class is an assignable from the implementor.
+ * <li>It calls the method on the {@link #resolveObject(Context, Method)} if the first argument is a context and the resolved object is not {@code null}
  * <li>It calls default methods.
  * <li>It calls {@link #handleUncallableMethod(Object, Method, Object[])} in all other cases.
  * </ul>
@@ -38,11 +41,31 @@ public interface InvocationSupport extends InvocationHandler {
 	public default Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 		if(method.getDeclaringClass().isAssignableFrom(getClass())) {
 			return method.invoke(this, args);
-		} else if(method.isDefault()) {
-			return callDefault(proxy, method, args);
 		} else {
-			return handleUncallableMethod(proxy, method, args);
+			if(args!=null&&args.length>0&&args[0] instanceof Context) {
+				Object o=resolveObject((Context)args[0],method);
+				if(o!=null) {
+					return method.invoke(o, args);
+				}
+			}
+			if(method.isDefault()) {
+				return callDefault(proxy, method, args);
+			} else {
+				return handleUncallableMethod(proxy, method, args);
+			}
 		}
+	}
+	
+	/**
+	 * Resolve the calling object of this invocation. The default return value can be {@code null} in which case either the default implementation (if any) is called
+	 * or {@link #handleUncallableMethod(Object, Method, Object[]) is invoked.
+	 *  
+	 * @param context the context in which the object should be resolved (that's the first argument of the method call)
+	 * @param m the method for which the calling object should be resolved (typically an object of the declaring class of {@code m})
+	 * @return the calling object or {@code null} if unknown.
+	 */
+	public default Object resolveObject(Context context,Method m) {
+		return null;
 	}
 	
 	/**

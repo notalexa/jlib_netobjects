@@ -17,7 +17,7 @@ package not.alexa.netobjects.utils;
 
 import java.util.Map;
 
-import not.alexa.netobjects.types.access.Constructor.FieldMapper;
+import not.alexa.netobjects.types.access.RuntimeInfo.FieldMapper;
 
 /**
  * Simple implementation of the {@link FieldMapper} interface. The map should

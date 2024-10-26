@@ -30,7 +30,7 @@ import not.alexa.netobjects.coding.Encoder;
  *
  */
 public class ByteArrayCodec implements Codec {
-	public static final ByteArrayCodec INSTANCE=new ByteArrayCodec(Base64.getMimeEncoder(),Base64.getMimeDecoder());
+	public static final ByteArrayCodec INSTANCE=new ByteArrayCodec(Base64.getEncoder(),Base64.getDecoder());
 	private Base64.Decoder decoder;
 	private Base64.Encoder encoder;
 	

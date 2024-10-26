@@ -38,7 +38,7 @@ import not.alexa.netobjects.utils.Sequence;
  * @author notalexa
  *
  */
-public class ArrayTypeAccess implements Access {
+public class ArrayTypeAccess extends Access.AbstractAccess implements Access {
 	
 	/**
 	 * Canonicalize an array which is assigned to an arry type. Currently, the
@@ -116,7 +116,7 @@ public class ArrayTypeAccess implements Access {
 	 */
 	@Override
 	public AccessibleObject newAccessible(AccessContext context) throws BaseException {
-		return new AccessibleArray();
+		return new AccessibleArray(context);
 	}
 	
 	/**
@@ -124,16 +124,16 @@ public class ArrayTypeAccess implements Access {
 	 *  
 	 */
 	@Override
-	public AccessibleObject makeAccessible(Object o) throws BaseException {
-		return new AccessibleArray(o);
+	public AccessibleObject makeAccessible(AccessContext context,Object o) throws BaseException {
+		return new AccessibleArray(context,o);
 	}
 
 	@Override
-	public AccessibleObject makeDefault(Object o) throws BaseException {
+	public AccessibleObject makeDefault(AccessContext context,Object o) throws BaseException {
 		if(o instanceof EmptyArray) {
-			return ((EmptyArray)o).makeAccessible(this);
+			return ((EmptyArray)o).makeAccessible(context,this);
 		} else {
-			return Access.super.makeDefault(o);
+			return Access.super.makeDefault(context,o);
 		}
 	}
 
@@ -145,14 +145,15 @@ public class ArrayTypeAccess implements Access {
 
 	private class AccessibleArray implements AccessibleObject {
 		private List<AccessibleObject> data;
-		public AccessibleArray() {
+		private AccessContext context;
+		public AccessibleArray(AccessContext context) {
 			this.data=new ArrayList<AccessibleObject>();
 		}
 		
-		public AccessibleArray(Object data) throws BaseException {
-			this();
+		public AccessibleArray(AccessContext context,Object data) throws BaseException {
+			this(context);
 			for(Object o:canonicalize(data)) {
-				this.data.add(componentAccess.makeAccessible(o));
+				this.data.add(componentAccess.makeAccessible(context,o));
 			}
 		}
 
@@ -168,7 +169,7 @@ public class ArrayTypeAccess implements Access {
 					int n=data.size();
 					Object val=Array.newInstance(targetClass.getComponentType(),data.size());
 					for(int i=0;i<n;i++) {
-						Array.set(val,i, componentAccess.getObject(data.get(i)));
+						Array.set(val,i, componentAccess.getObject(context,data.get(i)));
 					}
 					return val;
 				} else if(List.class.isAssignableFrom(targetClass)) {
@@ -181,7 +182,7 @@ public class ArrayTypeAccess implements Access {
 						return data;
 					}
 					for(AccessibleObject d:data) {
-						list.add(componentAccess.getObject(d));
+						list.add(componentAccess.getObject(context,d));
 					}
 					return list;
 				} else if(Set.class.isAssignableFrom(targetClass)) {
@@ -194,7 +195,7 @@ public class ArrayTypeAccess implements Access {
 						return data;
 					}
 					for(AccessibleObject d:data) {
-						set.add(componentAccess.getObject(d));
+						set.add(componentAccess.getObject(context,d));
 					}
 					return set;
 				} else if(Map.class.isAssignableFrom(targetClass)) {
@@ -207,7 +208,7 @@ public class ArrayTypeAccess implements Access {
 						map=new HashMap<Object, Object>();
 					}
 					for(AccessibleObject d:data) {
-						Map.Entry<Object,Object> entry=(Map.Entry<Object, Object>)componentAccess.getObject(d);
+						Map.Entry<Object,Object> entry=(Map.Entry<Object, Object>)componentAccess.getObject(context,d);
 						map.put(entry.getKey(),entry.getValue());
 					}
 					return map;

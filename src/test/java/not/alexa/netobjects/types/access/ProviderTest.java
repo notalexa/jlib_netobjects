@@ -34,8 +34,8 @@ import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.TypeLoader.LinkedLocal;
-import not.alexa.netobjects.types.access.Constructor.FieldMapper;
-import not.alexa.netobjects.types.access.Constructor.Provider;
+import not.alexa.netobjects.types.access.RuntimeInfo.FieldMapper;
+import not.alexa.netobjects.types.access.RuntimeInfo.Provider;
 import not.alexa.netobjects.utils.Sequence;
 import not.alexa.netobjects.utils.SimpleFieldMapper;
 
@@ -46,15 +46,15 @@ public class ProviderTest {
 	
 	@Test
 	public void defaultProviderTest1() {
-		Provider provider=new Constructor.DefaultProvider(T1.class, FieldMapper.IDENTITY);
-		Constructor.addProvider(provider);
+		Provider provider=new RuntimeInfo.DefaultProvider(T1.class, null, FieldMapper.IDENTITY);
+		RuntimeInfo.addProvider(provider);
 		LinkedLocal linkedLocal=ObjectType.createClassType(T1.class).asLinkedLocal(T1.class.getClassLoader());
-		Constructor constructor=provider.resolve(linkedLocal, linkedLocal);
+		RuntimeInfo runtimeInfo=provider.resolve(linkedLocal, linkedLocal);
 	}
 	
 	@Test
 	public void defaultProviderTest2() {
-		Provider provider=new Constructor.DeferredProvider(T2.class, Collections.emptyList(),FieldMapper.IDENTITY) {
+		Provider provider=new RuntimeInfo.DeferredProvider(T2.class, Collections.emptyList(),null,FieldMapper.IDENTITY) {
 
 			@Override
 			protected java.lang.reflect.Constructor<?> findConstructor(Class<?> enclosingClass, Class<?> clazz) throws Throwable {
@@ -63,12 +63,12 @@ public class ProviderTest {
 			
 		};
 		LinkedLocal linkedLocal=ObjectType.createClassType(T2.class).asLinkedLocal(T2.class.getClassLoader());
-		Constructor constructor=provider.resolve(linkedLocal, linkedLocal);
+		RuntimeInfo runtimeInfo=provider.resolve(linkedLocal, linkedLocal);
 	}
 
 	@Test
 	public void defaultProviderTest3() {
-		Provider provider=new Constructor.DeferredProvider(T3.class, Collections.singletonList("property"),FieldMapper.IDENTITY) {
+		Provider provider=new RuntimeInfo.DeferredProvider(T3.class, Collections.singletonList("property"),null,FieldMapper.IDENTITY) {
 
 			@Override
 			protected java.lang.reflect.Constructor<?> findConstructor(Class<?> enclosingClass, Class<?> clazz) throws Throwable {
@@ -77,7 +77,7 @@ public class ProviderTest {
 			
 		};
 		LinkedLocal linkedLocal=ObjectType.createClassType(T3.class).asLinkedLocal(T3.class.getClassLoader());
-		Constructor constructor=provider.resolve(linkedLocal, linkedLocal);
+		RuntimeInfo runtimeInfo=provider.resolve(linkedLocal, linkedLocal);
         Context context=Context.createRootContext(new DefaultTypeLoader());
         try(Sequence<Object> seq=YamlCodingScheme.DEFAULT_SCHEME.createDecoder(context, "class: not.alexa.netobjects.types.access.ProviderTest$T3\nproperty: Test".getBytes()).decodeAll(Object.class)) {
         	for(Object o:seq) {
@@ -90,24 +90,24 @@ public class ProviderTest {
 
 	@Test
 	public void defaultProviderTest4() {
-		Provider provider=new Constructor.DeferredProvider(T4.class, Collections.singletonList("property"),FieldMapper.IDENTITY) {
+		Provider provider=new RuntimeInfo.DeferredProvider(T4.class, Collections.singletonList("property"),null,FieldMapper.IDENTITY) {
 
 			@Override
 			protected java.lang.reflect.Constructor<?> findConstructor(Class<?> enclosingClass, Class<?> clazz) throws Throwable {
 				return clazz.getConstructor(String.class);
 			}
 		};
-		Constructor.addProvider(provider);
-		provider=new Constructor.DeferredProvider(T4.Inner.class,Arrays.asList("property","count"),new SimpleFieldMapper(Collections.singletonMap(T4.Inner.class.getName()+"#property", "prop1"))) {
+		RuntimeInfo.addProvider(provider);
+		provider=new RuntimeInfo.DeferredProvider(T4.Inner.class,Arrays.asList("property","count"),null,new SimpleFieldMapper(Collections.singletonMap(T4.Inner.class.getName()+"#property", "prop1"))) {
 			@Override
 			protected java.lang.reflect.Constructor<?> findConstructor(Class<?> enclosingClass, Class<?> clazz)
 					throws Throwable {
 				return T4.Inner.class.getConstructor(enclosingClass,String.class,Integer.TYPE);
 			}
 		};
-		Constructor.addProvider(provider);
+		RuntimeInfo.addProvider(provider);
 		LinkedLocal linkedLocal=ObjectType.createClassType(T4.class).asLinkedLocal(T4.class.getClassLoader());
-		Constructor constructor=provider.resolve(linkedLocal, linkedLocal);
+		RuntimeInfo runtimeInfo=provider.resolve(linkedLocal, linkedLocal);
 		CodingScheme scheme=YamlCodingScheme.DEFAULT_SCHEME;
         Context context=Context.createRootContext(new DefaultTypeLoader());
         Context upcastContext1=Context.createRootContext(context.getTypeLoader().overlay(T4Overlay.class));
@@ -130,24 +130,24 @@ public class ProviderTest {
 
 	@Test
 	public void defaultProviderTest5() {
-		Provider provider=new Constructor.DeferredProvider(T4.class, Collections.singletonList("property"),FieldMapper.IDENTITY) {
+		Provider provider=new RuntimeInfo.DeferredProvider(T4.class, Collections.singletonList("property"),null,FieldMapper.IDENTITY) {
 
 			@Override
 			protected java.lang.reflect.Constructor<?> findConstructor(Class<?> enclosingClass, Class<?> clazz) throws Throwable {
 				return clazz.getConstructor(String.class);
 			}
 		};
-		Constructor.addProvider(provider);
-		provider=new Constructor.DeferredProvider(T4.Inner.class,Arrays.asList("property","count"),new SimpleFieldMapper(Collections.singletonMap(T4.Inner.class.getName()+"#property", "prop1"))) {
+		RuntimeInfo.addProvider(provider);
+		provider=new RuntimeInfo.DeferredProvider(T4.Inner.class,Arrays.asList("property","count"),null,new SimpleFieldMapper(Collections.singletonMap(T4.Inner.class.getName()+"#property", "prop1"))) {
 			@Override
 			protected java.lang.reflect.Constructor<?> findConstructor(Class<?> enclosingClass, Class<?> clazz)
 					throws Throwable {
 				return T4.Inner.class.getConstructor(enclosingClass,String.class,Integer.TYPE);
 			}
 		};
-		Constructor.addProvider(provider);
+		RuntimeInfo.addProvider(provider);
 		LinkedLocal linkedLocal=ObjectType.createClassType(T4.class).asLinkedLocal(T4.class.getClassLoader());
-		Constructor constructor=provider.resolve(linkedLocal, linkedLocal);
+		RuntimeInfo runtimeInfo=provider.resolve(linkedLocal, linkedLocal);
 		CodingScheme scheme=YamlCodingScheme.DEFAULT_SCHEME;
         Context context=Context.createRootContext(new DefaultTypeLoader().overlay(T4Overlay.class));
         try(Sequence<Object> seq=scheme.createDecoder(context, "class: not.alexa.netobjects.types.access.ProviderTest$T4\nproperty: Test\ninner:\n  deferred: Deferred\n  property: Test\n  count: 100".getBytes()).decodeAll(Object.class)) {

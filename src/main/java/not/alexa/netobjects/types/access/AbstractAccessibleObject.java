@@ -45,8 +45,8 @@ public abstract class AbstractAccessibleObject implements AccessibleObject,Seque
 	}
 	
 	@Override
-	public void setField(Field f,AccessibleObject v) throws BaseException {
-		access.setField(getObject(),f,access.getObject(v));
+	public void setField(AccessContext context,Field f,AccessibleObject v) throws BaseException {
+		access.setField(context,getObject(),f,access.getFieldAccess(f).getObject(context,v));
 	}
 
 	@Override
@@ -55,12 +55,12 @@ public abstract class AbstractAccessibleObject implements AccessibleObject,Seque
 	}
 
 	@Override
-	public AccessibleObject getField(Field f) throws BaseException {
-		return access.getFieldAccess(f).makeAccessible(access.getField(getObject(),f));
+	public AccessibleObject getField(AccessContext context,Field f) throws BaseException {
+		return access.getFieldAccess(f).makeAccessible(context,access.getField(context,getObject(),f));
 	}
 	
 	@Override
-	public Object getAssignable() throws BaseException {
+	public Object getAssignable(AccessContext context) throws BaseException {
 		return access.finish(getObject());
 	}
 
@@ -80,8 +80,8 @@ public abstract class AbstractAccessibleObject implements AccessibleObject,Seque
 	}
 
 	@Override
-	public Object getPrimitiveOrEnumField(Field f) throws BaseException {
-		return access.getField(getObject(), f);
+	public Object getPrimitiveOrEnumField(AccessContext context,Field f) throws BaseException {
+		return access.getField(context,getObject(), f);
 	}
 
 	@Override
@@ -131,7 +131,7 @@ public abstract class AbstractAccessibleObject implements AccessibleObject,Seque
                         return new AccessibleObject[0];
                     }
                     Access resultAccess=access.getFactory().resolve(context,returnTypes[0]);
-                    return new AccessibleObject[] { resultAccess.makeAccessible(result) };
+                    return new AccessibleObject[] { resultAccess.makeAccessible(resultAccess.createContext(context),result) };
                 } else {
                     throw new BaseException(BaseException.BAD_REQUEST,"Unsupported: Methods with return more than one return values");
                 }

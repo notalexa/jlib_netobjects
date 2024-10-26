@@ -6,21 +6,18 @@ import java.util.Map;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.api.NetworkObject;
-import not.alexa.netobjects.coding.Decoder.Buffer;
-import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ArrayTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
+import not.alexa.netobjects.types.EnumTypeDefinition;
+import not.alexa.netobjects.types.PrimitiveTypeDefinition;
+import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.AccessContext;
 import not.alexa.netobjects.types.access.AccessFactory;
-import not.alexa.netobjects.types.access.DefaultAccessibleObject;
-import not.alexa.netobjects.types.access.Constructor;
+import not.alexa.netobjects.types.access.RuntimeInfo;
 import not.alexa.netobjects.utils.ArrayUtils;
-import not.alexa.netobjects.types.EnumTypeDefinition;
-import not.alexa.netobjects.types.PrimitiveTypeDefinition;
-import not.alexa.netobjects.types.TypeDefinition;
 
 public class Data2 {
 	private static ClassTypeDefinition DESCR=new ClassTypeDefinition(Data2.class);
@@ -70,12 +67,12 @@ public class Data2 {
 	}
 	
 	public static class ClassAccess extends AbstractClassAccess implements Access {
-		public ClassAccess(AccessFactory factory,Constructor constructor) {
+		public ClassAccess(AccessFactory factory,RuntimeInfo constructor) {
 			super(factory,DESCR,constructor);
 		}
 
 		@Override
-		public Object getField(Object o, int index) throws BaseException {
+		public Object getField(AccessContext context,Object o, int index) throws BaseException {
 			Data2 d=(Data2)o;
 			switch(index) {
 				case 0:return d.text;
@@ -102,7 +99,7 @@ public class Data2 {
 		}
 
 		@Override
-		public void setField(Object o,int index, Object v) throws BaseException {
+		public void setField(AccessContext context,Object o,int index, Object v) throws BaseException {
 			Data2 d=(Data2)o;
 			switch(index) {
 				case 0:d.text=(String)v;

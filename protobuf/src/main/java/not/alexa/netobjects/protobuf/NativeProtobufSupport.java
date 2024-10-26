@@ -22,6 +22,7 @@ import com.google.protobuf.GeneratedMessageV3;
 import not.alexa.netobjects.coding.protobuf.ProtobufCodingScheme;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.access.Access;
+import not.alexa.netobjects.types.access.AccessContext;
 
 /**
  * Support for native protobuf encoding in {@link ProtobufCodingScheme}.
@@ -38,10 +39,10 @@ public class NativeProtobufSupport
 		return o instanceof GeneratedMessageV3?((GeneratedMessageV3)o).toByteArray():null;
 	}
 
-	public AccessibleObject getProtobufObject(Access fieldAccess, byte[] value, int offset, int len) {
+	public AccessibleObject getProtobufObject(AccessContext context,Access fieldAccess,byte[] value, int offset, int len) {
 		Class<?> clazz=fieldAccess.getType().asClass(fieldAccess.getAccessLoader());
 		if(GeneratedMessageV3.class.isAssignableFrom(clazz)) try {
-			return fieldAccess.makeAccessible(clazz.getMethod("parseFrom",ByteBuffer.class).invoke(null, ByteBuffer.wrap(value, offset,len)));
+			return fieldAccess.makeAccessible(context,clazz.getMethod("parseFrom",ByteBuffer.class).invoke(null, ByteBuffer.wrap(value, offset,len)));
 		} catch(Throwable t) {
 		}
 		return null;

@@ -22,6 +22,8 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import not.alexa.netobjects.Context;
+import not.alexa.netobjects.coding.deferred.DeferredInterfaceTest.Content;
 import not.alexa.netobjects.types.DefaultTypeLoader;
 import not.alexa.netobjects.types.TypeDefinition;
 
@@ -40,15 +42,24 @@ public class ClassLoaderTest {
 
 	}
 
-	public static class TestClass {
+	public static class TestClass implements Content {
 		@JsonProperty String s1;
 		@JsonProperty String s2;
 		@JsonProperty String s3;
+		@JsonProperty TestClass testClass;
+		@JsonProperty List<TestClass> list;
+		@JsonProperty Object data;
+		
 		@JsonCreator
 		public TestClass(@JsonProperty("s1") String s1,@JsonProperty("s2") String s2) {
 			this.s1=s1;
 			this.s2=s2;
 			this.s3=s2;
+		}
+		
+		@Override
+		public String displayContent(Context context) {
+			return "Display content of TestClass: "+s1;
 		}
 	}
 }

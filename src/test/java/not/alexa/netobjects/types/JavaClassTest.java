@@ -2,6 +2,10 @@ package not.alexa.netobjects.types;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 
 import org.junit.Test;
 
@@ -10,6 +14,7 @@ import not.alexa.netobjects.api.Overlay;
 import not.alexa.netobjects.types.JavaClass.Type;
 
 public class JavaClassTest {
+	private static ClassTypeDefinition TEST=new ClassTypeDefinition().createBuilder().build();
 
     public JavaClassTest() {
     }
@@ -63,6 +68,23 @@ public class JavaClassTest {
         assertNotEquals(t1,t2);
         assertEquals(A1.class,t1.asLinkedLocal(A1.class.getClassLoader()).asClass());
         assertEquals(A1.class,t2.asLinkedLocal(A1.class.getClassLoader()).asClass());
+    }
+    
+    @Test
+    public void testClassDefType1() {
+    	ClassTypeDefinition def=ClassTypeDefinition.getTypeDescription();
+    	ClassTypeDefinition def1=def.forType(ObjectType.createClassType("de.notalexa.Dummy"));
+    	assertSame(def,def1);
+    }
+
+    @Test
+    public void testClassDefType2() {
+    	ClassTypeDefinition def=TEST;
+    	ClassTypeDefinition def1=def.forType(ObjectType.createClassType("de.notalexa.Dummy"));
+    	assertNotSame(def,def1);
+    	assertNull(def.getJavaClassType());
+    	assertNotNull(def1.getJavaClassType());
+    	assertEquals(ObjectType.createClassType("de.notalexa.Dummy"), def1.getJavaClassType());
     }
 
     public static class A1 {}

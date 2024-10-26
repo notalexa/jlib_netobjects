@@ -23,15 +23,20 @@ import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.DefaultCodingSupport;
 import not.alexa.netobjects.coding.Encoder;
 import not.alexa.netobjects.coding.protobuf.ProtobufCodingScheme.PrimitiveTypeCodec;
+import not.alexa.netobjects.types.JavaClass.Type;
+import not.alexa.netobjects.types.TypeDefinition;
+import not.alexa.netobjects.types.access.Access;
+import not.alexa.netobjects.types.access.AccessContext;
+import not.alexa.netobjects.types.access.RuntimeInfo;
 
 /**
  * Encoder class of the {@link ProtobufCodingScheme}
  * 
  * @author notalexa
  */
-class ProtobufEncoder extends DefaultCodingSupport implements Encoder {
+class ProtobufEncoder extends DefaultCodingSupport implements Encoder, AccessContext {
 	private final ProtobufCodingScheme scheme;
-	private final OutputStream stream;
+	private OutputStream stream;
 	private final ProtobufBuffer buffer;
 	private final Context context;
 
@@ -49,11 +54,8 @@ class ProtobufEncoder extends DefaultCodingSupport implements Encoder {
 
 	@Override
 	public void close() throws BaseException {
-		try {
-			buffer.writeTo(stream).close();
-		} catch(IOException e) {
-			BaseException.throwException(e);
-		}
+		flush();
+		stream=null;
 	}
 
 	@Override
@@ -72,7 +74,7 @@ class ProtobufEncoder extends DefaultCodingSupport implements Encoder {
 	@Override
 	public Encoder encode(Object o) throws BaseException {
 		if(o!=null) {
-			AbstractCodec codec=scheme.getClassCodec(context, scheme.getRootType());
+			AbstractCodec codec=scheme.getClassCodec(context, scheme.getRootType(context,o.getClass()));
 			if(codec==null) {
 				PrimitiveTypeCodec primitiveTypeCodec=scheme.getPrimitiveTypeCodec(o.getClass());
 				if(primitiveTypeCodec!=null) {
@@ -83,7 +85,28 @@ class ProtobufEncoder extends DefaultCodingSupport implements Encoder {
 			} else {
 				codec.encode(this, buffer, o);
 			}
+			flush();
 		}
 		return this;
+	}
+
+	@Override
+	public <T> T castTo(Context context, Class<T> clazz) {
+		return clazz.isInstance(this)?(T)this:null;
+	}
+
+	@Override
+	public RuntimeInfo resolve(Context context, Type type) {
+		return getCodingScheme().getFactory().resolve(context, type);
+	}
+
+	@Override
+	public Access resolve(Context context, TypeDefinition type) {
+		return getCodingScheme().getFactory().resolve(context, type);
+	}
+
+	@Override
+	public Access resolve(Access referrer, TypeDefinition type) {
+		return getCodingScheme().getFactory().resolve(referrer, type);
 	}
 }

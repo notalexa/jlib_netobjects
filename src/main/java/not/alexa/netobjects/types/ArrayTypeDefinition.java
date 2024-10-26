@@ -136,7 +136,7 @@ public class ArrayTypeDefinition extends TypeDefinition {
 		}
 		
 		@Override
-		public Object getField(Object o, int index) throws BaseException {
+		public Object getField(AccessContext context,Object o, int index) throws BaseException {
 			ArrayTypeDefinition def=(ArrayTypeDefinition)o;
 			switch(index) {
 				case 0:List<ObjectType> types=def.getTypes();
@@ -148,7 +148,7 @@ public class ArrayTypeDefinition extends TypeDefinition {
 		}
 
 		@Override
-		public void setField(Object o, int index, Object v) throws BaseException {
+		public void setField(AccessContext context,Object o, int index, Object v) throws BaseException {
 			ArrayTypeDefinition def=(ArrayTypeDefinition)o;
 			switch(index) {
 				case 0:def.addTypes((ObjectType[])v);

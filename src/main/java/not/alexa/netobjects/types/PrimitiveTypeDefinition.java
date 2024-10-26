@@ -171,7 +171,7 @@ public final class PrimitiveTypeDefinition extends TypeDefinition {
 		}
 		
 		@Override
-		public Object getField(Object o, int index) throws BaseException {
+		public Object getField(AccessContext context,Object o, int index) throws BaseException {
 			PrimitiveTypeDefinition def=(PrimitiveTypeDefinition)o;
 			switch(index) {
 				case 0:return def.getTypes().toArray(new ObjectType[0]);
@@ -180,7 +180,7 @@ public final class PrimitiveTypeDefinition extends TypeDefinition {
 		}
 
 		@Override
-		public void setField(Object o, int index, Object v) throws BaseException {
+		public void setField(AccessContext context,Object o, int index, Object v) throws BaseException {
 			if(o instanceof DecodingInstance) {
 				DecodingInstance newInstance=(DecodingInstance)o;
 				switch(index) {
@@ -206,7 +206,7 @@ public final class PrimitiveTypeDefinition extends TypeDefinition {
 			}
 			ObjectType[] types;
 			@Override
-			public Object getAssignable() throws BaseException {
+			public Object getAssignable(AccessContext context) throws BaseException {
 				if(types!=null) for(ObjectType type:types) {
 					TypeDefinition def=TYPE_MAP.get(type);
 					if(def!=null) {

@@ -15,11 +15,15 @@
  */
 package not.alexa.netobjects.types;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.lang.ref.PhantomReference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URL;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,9 +33,10 @@ import not.alexa.netobjects.api.NetworkObject;
 import not.alexa.netobjects.api.Overlay;
 import not.alexa.netobjects.types.JavaClass.Type.InstanceSupport;
 import not.alexa.netobjects.types.TypeLoader.LinkedLocal;
-import not.alexa.netobjects.types.access.Constructor;
+import not.alexa.netobjects.types.access.RuntimeInfo;
 import not.alexa.netobjects.utils.TypeUtils;
 import not.alexa.netobjects.utils.TypeUtils.NameBuilder;
+import not.alexa.netobjects.utils.TypeUtils.ResolvedClass;
 
 /**
  * This namespace represents the java class namespace. In general, a type is represented as a java class name. 
@@ -61,8 +66,12 @@ import not.alexa.netobjects.utils.TypeUtils.NameBuilder;
  *
  */
 public final class JavaClass extends Namespace {
+	private static final Type[] NO_PARAMETER_TYPES=new Type[0];
+	static final LinkedLocal[] NO_PARAMETER_CLASSES=new LinkedLocal[0];
+	
     private static ReferenceQueue<InstanceSupport> OVERLAY_RECYCLER=new ReferenceQueue<InstanceSupport>();
 	private static Map<String,Class<?>> PRIMITIVE_TYPES=new HashMap<String, Class<?>>();
+	private static Map<String,Class<?>> INSTANCE_TYPE=new HashMap<String, Class<?>>();
 	static {
 		PRIMITIVE_TYPES.put("boolean",Boolean.TYPE);
 		PRIMITIVE_TYPES.put("char",Character.TYPE);
@@ -72,6 +81,15 @@ public final class JavaClass extends Namespace {
 		PRIMITIVE_TYPES.put("long",Long.TYPE);
 		PRIMITIVE_TYPES.put("float",Float.TYPE);
 		PRIMITIVE_TYPES.put("double",Double.TYPE);
+		
+		INSTANCE_TYPE.put("boolean",Boolean.class);
+		INSTANCE_TYPE.put("char",Character.class);
+		INSTANCE_TYPE.put("byte",Byte.class);
+		INSTANCE_TYPE.put("short",Short.class);
+		INSTANCE_TYPE.put("int",Integer.class);
+		INSTANCE_TYPE.put("long",Long.class);
+		INSTANCE_TYPE.put("float",Float.class);
+		INSTANCE_TYPE.put("double",Double.class);
 	}
 	
 	private Map<String,Type> loadedTypes=new HashMap<>();
@@ -89,6 +107,20 @@ public final class JavaClass extends Namespace {
         loadedTypes.put(Double.class.getName(),create(Double.TYPE.getName()));
 	};
 	
+	void loadResources() {
+		try {
+			for(Enumeration<URL> e=JavaClass.class.getClassLoader().getResources("META-INF/typemappers");e.hasMoreElements();) try(BufferedReader reader=new BufferedReader(new InputStreamReader(e.nextElement().openStream()))) {
+				String line;
+				while((line=reader.readLine())!=null) try {
+					JavaClassTypeMapper<?,?> mapper=((JavaClassTypeMapper<?,?>)Class.forName(line.trim(),false,JavaClass.class.getClassLoader()).newInstance());
+					add(mapper);
+				} catch(Throwable t) {
+				}
+			}
+		} catch(Throwable t) {
+		}
+	}
+	
 	/**
 	 * Classes representing an object type are special and registered while creating the 
 	 * namespace.
@@ -100,10 +132,16 @@ public final class JavaClass extends Namespace {
 	        loadedTypes.put(clazz.getName(),new Type(ObjectType.class.getName()));
 	    }
 	}
+	
+	private void add(JavaClassTypeMapper<?,?> mapper) {
+		loadedTypes.put(mapper.getSourceClass().getName(), ObjectType.createClassType(mapper.getCodingClass()));
+		mapper.install();
+	}
 		
 	public final class Type extends Namespace.AbstractType implements ObjectType {
 		
 		protected String className;
+		protected Type[] parameterTypes;
 		protected String method;
 		protected String version;
 		protected LinkedLocal preloaded;
@@ -116,6 +154,11 @@ public final class JavaClass extends Namespace {
 		 * @param className the name (plus version, colon separated) of the class
 		 */
 		public Type(String className) {
+			this(className,NO_PARAMETER_TYPES);
+		}
+		
+		private Type(String className,Type[] parameterTypes) {
+			this.parameterTypes=parameterTypes;
 			int p=className.indexOf(':');
 			method="";
 			if(p>0) {
@@ -133,6 +176,7 @@ public final class JavaClass extends Namespace {
 		}
 		
 		private Type(String className,String version) {
+			this.parameterTypes=NO_PARAMETER_TYPES;
 			this.className=className;
 			this.version=version;
 			this.method="";
@@ -140,10 +184,15 @@ public final class JavaClass extends Namespace {
 
 		
 		private void preload() {
-            if(preloaded==null&&!isMethod()) try {
-                preloaded=new InstanceSupport(defineClass(Type.class.getClassLoader(),this.className));
+            if(preloaded==null&&!isMethod()&&parameterTypes.length==0) try {
+            	Class<?> instanceClass=INSTANCE_TYPE.get(className);
+                preloaded=new InstanceSupport(instanceClass==null?defineClass(Type.class.getClassLoader(),this.className):instanceClass,NO_PARAMETER_CLASSES);
             } catch(Throwable t) {
             }
+		}
+		
+		public boolean hasParameters() {
+			return parameterTypes.length>0;
 		}
 		
 		/**
@@ -160,8 +209,14 @@ public final class JavaClass extends Namespace {
 			    if(isMethod()) {
 			      Method m=findMethod(clazz,method);
 			      return new InstanceSupport(m);  
+			    } else if(parameterTypes.length==0) {
+			        return new InstanceSupport(clazz,NO_PARAMETER_CLASSES);
 			    } else {
-			        return new InstanceSupport(clazz);
+			    	LinkedLocal[] linkedParameters=new LinkedLocal[parameterTypes.length];
+			    	for(int i=0;i<linkedParameters.length;i++) {
+			    		linkedParameters[i]=parameterTypes[i].asLinkedLocal(loader);
+			    	}
+			    	return new InstanceSupport(clazz, linkedParameters);
 			    }
 			} catch(Throwable t) {
 				return null;
@@ -180,7 +235,16 @@ public final class JavaClass extends Namespace {
 		    }
 			if(o instanceof Type) {
 				Type t=(Type)o;
-				return className.equals(t.className)&&version.equals(t.version)&&method.equals(t.method);
+				if(className.equals(t.className)&&version.equals(t.version)&&method.equals(t.method)&&t.parameterTypes.length==parameterTypes.length) {
+					if(parameterTypes.length>0) {
+						for(int i=0;i<parameterTypes.length;i++) {
+							if(!parameterTypes[i].equals(t.parameterTypes[i])) {
+								return false;
+							}
+						}
+					}
+					return true;
+				}
 			}
 			return false;
 		}
@@ -299,13 +363,15 @@ public final class JavaClass extends Namespace {
 		
         public class InstanceSupport extends LinkedLocal {
         	LinkedLocal clazz;
+        	LinkedLocal[] parameters;
         	/**
         	 * Constructor for network objects
         	 * @param clazz
         	 */
-            InstanceSupport(Class<?> clazz) {
+            public InstanceSupport(Class<?> clazz,LinkedLocal[] parameters) {
             	super(clazz);
             	this.clazz=this;
+            	this.parameters=parameters;
             }
             
             /**
@@ -317,17 +383,53 @@ public final class JavaClass extends Namespace {
             InstanceSupport(LinkedLocal clazz,Class<?> overlay) {
                 super(overlay);
                 this.clazz=clazz;
+                // Not used
+                this.parameters=NO_PARAMETER_CLASSES;
             }
             public InstanceSupport(Method m) {
                 super(m);
             }
+            
+            
             @Override
             public ObjectType getType() {
                 return Type.this;
             }
 			@Override
-			public Constructor getConstructor() {
-				return isClass()?Constructor.get(clazz,this):null;
+			public RuntimeInfo getRuntimeInfo() {
+				return isClass()?RuntimeInfo.get(clazz,this):null;
+			}
+
+			@Override
+			public ResolvedClass asResolvedClass() {
+				return clazz==this?resolveInternal():clazz.asResolvedClass();
+			}
+			
+			private ResolvedClass resolveInternal() {
+				Class<?> instanceClass=asClass();
+				if(instanceClass!=null) {
+					if(parameterTypes.length>0) {
+						ResolvedClass[] parameters=new ResolvedClass[this.parameters.length];
+						for(int i=0;i<parameters.length;i++) {
+							parameters[i]=this.parameters[i].asResolvedClass();
+						}
+						return new ResolvedClass(instanceClass, parameters);
+					} else {
+						return TypeUtils.resolveClass(instanceClass);
+					}
+				} else {
+					return null;
+				}
+			}
+
+			@Override
+			public LinkedLocal[] getParameters() {
+				return clazz==this?parameters:clazz.getParameters();
+			}
+
+			@Override
+			public boolean hasParameters() {
+				return clazz==this?parameters.length>0:clazz.hasParameters();
 			}
         }
         
@@ -438,6 +540,19 @@ public final class JavaClass extends Namespace {
         return type;
     }
 	
+	
+	public Type create(ResolvedClass clazz) {
+		if(clazz.getParameters().length==0) {
+			return create(Namespace.asString(clazz.getResolvedClass()));
+		} else {
+			Type[] parameterTypes=new Type[clazz.getParameters().length];
+			for(int i=0;i<parameterTypes.length;i++) {
+				parameterTypes[i]=create(clazz.getParameters()[i]);
+			}
+			return new Type(Namespace.asString(clazz.getResolvedClass()),parameterTypes);
+		}		
+	}
+
     private String resolveId(Method m) {
         NetworkObject objId=TypeUtils.getNetworkObject(JavaClass.this, m);
         if(objId!=null&&"jvm".equals(objId.ns())&&!"##id".contentEquals(objId.id())) {
@@ -450,5 +565,4 @@ public final class JavaClass extends Namespace {
         }
         return builder.asUUID().toString();
     }
-
 }

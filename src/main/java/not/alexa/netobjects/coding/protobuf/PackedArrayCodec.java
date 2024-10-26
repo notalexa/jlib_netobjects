@@ -18,6 +18,7 @@ package not.alexa.netobjects.coding.protobuf;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.coding.protobuf.ProtobufDecoder.ClassDefListener;
 import not.alexa.netobjects.types.AccessibleObject;
+import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.access.Access;
 
 /**
@@ -27,8 +28,8 @@ import not.alexa.netobjects.types.access.Access;
  */
 class PackedArrayCodec extends AbstractCodec {
 
-	PackedArrayCodec(ProtobufCodingScheme scheme, Access classAccess,Access fieldAccess) {
-		super(scheme, classAccess);
+	PackedArrayCodec(Access classAccess,Access fieldAccess) {
+		super(classAccess);
 	}
 
 	@Override
@@ -43,7 +44,7 @@ class PackedArrayCodec extends AbstractCodec {
 	public void consume(ClassDefListener listener, int field, byte[] value, int offset, int len) throws BaseException {
 	}
 	@Override
-	public void consumeInternal(ClassDefListener listener,int field, long value) throws BaseException {
+	public void consumeInternal(ClassDefListener listener,int field, Field f,long value) throws BaseException {
 	}
 	@Override
 	public void consume(ClassDefListener listener, int offset,AccessibleObject o) throws BaseException {

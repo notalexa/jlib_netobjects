@@ -16,26 +16,31 @@
 package not.alexa.netobjects.coding.yaml;
 
 import java.io.IOException;
+import java.lang.reflect.Proxy;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.AbstractTextCodingScheme.TextCodingItem;
 import not.alexa.netobjects.coding.Codec;
 import not.alexa.netobjects.coding.Encoder;
 import not.alexa.netobjects.coding.TextCodingSupport;
+import not.alexa.netobjects.coding.yaml.Token.SimpleToken;
 import not.alexa.netobjects.coding.yaml.Token.Type;
 import not.alexa.netobjects.coding.yaml.Yaml.OutputHandler;
 import not.alexa.netobjects.coding.yaml.YamlCodingScheme.YAMLCodingExtraInfo;
 import not.alexa.netobjects.types.ArrayTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
+import not.alexa.netobjects.types.Deferred;
 import not.alexa.netobjects.types.Flavour;
 import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.ArrayTypeAccess;
+import not.alexa.netobjects.types.access.RuntimeInfo;
 
 /**
  * Encoder implementation for YAML.
@@ -47,6 +52,7 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
     static final int SHOWTYPE_MASK=4;
 	protected OutputHandler writer;
 	private int flags;
+	private String tag;
 	protected Codec codec;
 	protected Runnable typeWriter;
 	protected Access nameAccess;
@@ -59,6 +65,22 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
 	private YamlEncoder(YamlEncoder parent) {
 		super(parent);
 		this.writer=parent.writer;
+	}
+	
+	public void encode(Token t) throws BaseException {
+		try {
+			t.asDocument(root.getCodingScheme().yaml).process(writer);
+		} catch(YamlException e) {
+			BaseException.throwException(e);
+		}
+	}
+	
+	public void write(Token t) throws BaseException {
+		try {
+			Yaml.process0(((YamlCodingScheme)getCodingScheme()).yaml, t, writer);
+		} catch(YamlException e) {
+			BaseException.throwException(e);
+		}
 	}
 	
 	@Override
@@ -155,8 +177,41 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
                 access=access.getComponentAccess();
             }
             boolean showType=showType()||type.isAbstract();
-    	    if(showType) {
-                ObjectType objectType=ObjectType.createClassType(o.getClass());
+            if(o instanceof Deferred) {
+            	Deferred<?,?> deferred=(Deferred<?,?>)o;
+            	if(deferred.isResolved()) {
+            		o=deferred.getCodingObject(this);
+            		if(o==null) {
+            			return;
+            		}
+            	} else if(o instanceof TokenHolder) {
+            		Token t=((TokenHolder)o).getToken();
+            		if(t!=null) {
+            			write(t);
+            		}
+            		return;
+            	} else {
+        			throw new BaseException(BaseException.BAD_REQUEST, "Deferred Object of type "+o.getClass().getName());
+            	}
+        		access=deferred.getCodingAccess(this,root.getFactory());
+    	        type=access==null?null:access.getType();//().getTypeLoader().resolveType(objectType);
+    	        codec=access==null?null:resolveCodec(type.getType(getCodingScheme().getNamespace()), access);
+            } else if(showType) {
+    	    	Class<?> clazz=o.getClass();
+    	    	ObjectType objectType;
+    	    	if(Proxy.isProxyClass(clazz)&&Deferred.class.isAssignableFrom(clazz)) {
+    	    		objectType=((Deferred)o).getObjectType(root.getCodingScheme().getNamespace());
+    	    		if(o instanceof TokenHolder) {
+            			Token t=((TokenHolder)o).getToken();
+            			if(t!=null) {
+            				write(t);
+            			}
+        				return;
+    	    		}
+    	    		objectType=((Deferred<?,?>)o).getObjectType(root.getCodingScheme().getNamespace());
+    	    	} else {
+    	    		objectType=ObjectType.createClassType(o.getClass());
+    	    	}
     	        type=getContext().getTypeLoader().resolveType(objectType);
     	        access=type==null?null:root.getFactory().resolve(getContext(),type);
     	        codec=access==null?null:resolveCodec(objectType, access);
@@ -166,9 +221,11 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
     	    }
     	    boolean needsDot=false;
     	    boolean jsonPrimitiv=false;
+    	    tag=null;
     	    switch(type.getFlavour()) {
-	    	    case PrimitiveType:
-	    	    case EnumType: jsonPrimitiv=!showType;
+	    	    case PrimitiveType: tag=root.getCodingScheme().getTag(o);
+	    	    case EnumType: 
+	    	    	jsonPrimitiv=!showType;
 	    	    case ArrayType: needsDot=showType;
 	    	    	break;
     	    	default:
@@ -216,7 +273,11 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
 	@Override
 	public void write(CharSequence encoded) throws BaseException {
 		try {
-			writer.scalar(0!=(flags&0x100),encoded.toString());
+			if(tag!=null&&0==(flags&0x100)) {
+				writer.scalar(false,Collections.emptyList(),new SimpleToken(Type.Scalar,tag,encoded.toString()));
+			} else {
+				writer.scalar(0!=(flags&0x100),encoded.toString());
+			}
 		} catch(Throwable t) {
 			BaseException.throwException(t);
 		}		
@@ -224,13 +285,8 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
 
 	@Override
 	public void close() throws BaseException {
-		if(writer!=null) try {
-			writer.close();
-		} catch(Throwable t) {
-			BaseException.throwException(t);
-		} finally {
-			writer=null;
-		}
+		flush();
+		writer=null;
 	}
 
 	@Override
@@ -246,7 +302,7 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
 		super.init(fieldName, access);
 		this.nameAccess=nameAccess;
 		if(parent==null&&!access.getType().isAbstract()) try {
-			this.codec=getCodingScheme().getCodec(getContext(), access.getType().getType(getCodingScheme().getNamespace()), access);
+			this.codec=getCodingScheme().getCodec(getContext(), access);
 		} catch(BaseException e) {
 			this.codec=null;
 		} else {
@@ -284,11 +340,6 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
 		    	typeWriter=null;
 		    	writer.scalar(false,Collections.emptyList(),new Token.SimpleToken(Type.Alias, null,ref.toString()));
 				return true;
-			} else if(parent!=null) {
-				ref=root.getObjectReference(o);
-				if(ref!=null) {
-				   	//writer.append("&").append(ref.toString()).append(root.getCodingScheme().getLineTerminator());
-				}
 			}
 		} catch(Throwable t) {
 			return BaseException.throwException(t);
@@ -298,4 +349,30 @@ class YamlEncoder extends TextCodingItem<YamlCodingScheme,YamlEncoder> implement
 		}
 	    return false;
 	}
+	
+
+	@Override
+	public <T> T castTo(Context context, Class<T> clazz) {
+		return clazz.isInstance(this)?(T)this:null;
+	}
+
+	@Override
+	public RuntimeInfo resolve(Context context, not.alexa.netobjects.types.JavaClass.Type type) {
+		return getCodingScheme().getFactory().resolve(context, type);
+	}
+
+	@Override
+	public Access resolve(Context context, TypeDefinition type) {
+		return getCodingScheme().getFactory().resolve(context, type);
+	}
+
+	@Override
+	public Access resolve(Access referrer, TypeDefinition type) {
+		return getCodingScheme().getFactory().resolve(referrer, type);
+	}
+	
+	public interface TokenHolder {
+		public Token getToken();
+	}
+
 }

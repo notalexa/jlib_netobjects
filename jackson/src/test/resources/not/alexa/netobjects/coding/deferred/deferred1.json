@@ -1,0 +1,16 @@
+{
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "payloads": [
+    {
+      "deviceBroadcastStatus": {
+        "timestamp": "1723275970874",
+        "broadcast_status": "BROADCAST_UNAVAILABLE",
+        "device_id": "eb8aa06860c6024606b4731a5fecb2b9c1725691"
+      }
+    }
+  ],
+  "type": "message",
+  "uri": "social-connect/v2/broadcast_status_update"
+}

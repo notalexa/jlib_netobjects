@@ -42,7 +42,7 @@ import not.alexa.netobjects.types.Flavour;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.access.Access;
-import not.alexa.netobjects.utils.WeakKeyMap;
+import not.alexa.netobjects.utils.WeakReferenceKeyMap;
 
 /**
  * Class representing a set of codecs by object type.
@@ -85,7 +85,7 @@ public class Codecs {
     }
 
     Map<Type,Codec> primitiveTypeCodecs;
-    private WeakKeyMap<Access,Codec> codecs=new WeakKeyMap<>();
+    private WeakReferenceKeyMap<Access,Codec> codecs=new WeakReferenceKeyMap<>();
 
     private Codecs() {
         primitiveTypeCodecs=new HashMap<>();
@@ -93,11 +93,6 @@ public class Codecs {
     
     private Codecs(Map<Type,Codec> primitiveTypeCodecs) {
         this.primitiveTypeCodecs=primitiveTypeCodecs;
-    }
-    
-    private Codecs(Codecs codecs,Map<Type,Codec> primitiveTypeCodecs) {
-        this.primitiveTypeCodecs=codecs.primitiveTypeCodecs;
-        this.codecs.putAll(codecs.codecs);
     }
     
     /**

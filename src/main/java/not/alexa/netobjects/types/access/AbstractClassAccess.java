@@ -23,16 +23,17 @@ import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ArrayTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
+import not.alexa.netobjects.types.Flavour;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
-import not.alexa.netobjects.types.access.Constructor.PreAccessible;
+import not.alexa.netobjects.types.access.RuntimeInfo.PreAccessible;
 import not.alexa.netobjects.utils.TypeUtils.ResolvedClass;
 
 /**
  * Abstract access implementation useful for network objects implementing it's own explicit
  * access. Extensions should either
  * <ul>
- * <li>Define a constructor with arguments {@link AccessFactory} <b>and</b> {@link Constructor}
+ * <li>Define a constructor with arguments {@link AccessFactory} <b>and</b> {@link RuntimeInfo}
  * to use the default constructor attached to the class.
  * <li>Define a constructor with argument {@link AccessFactory} and override the {@link #newInstance(AccessContext)}
  * or {@link #newAccessible(AccessContext)} method to define it's own object creation.
@@ -41,12 +42,12 @@ import not.alexa.netobjects.utils.TypeUtils.ResolvedClass;
  * @author notalexa
  *
  */
-public abstract class AbstractClassAccess implements Access {
-    protected Constructor constructor;
+public abstract class AbstractClassAccess extends Access.AbstractAccess implements Access {
+    protected RuntimeInfo constructor;
 	protected ClassTypeDefinition classType;
 	protected Access[] fieldAccess;
 	protected AccessFactory factory;
-    public AbstractClassAccess(AccessFactory factory,ClassTypeDefinition classType,Constructor constructor) {
+    public AbstractClassAccess(AccessFactory factory,ClassTypeDefinition classType,RuntimeInfo constructor) {
         this(factory,classType);
         this.constructor=constructor;
     }
@@ -88,18 +89,18 @@ public abstract class AbstractClassAccess implements Access {
 	}
 
 	@Override
-	public Object getField(Object o, Field f) throws BaseException {
-		return getField(o,f.getIndex());
+	public Object getField(AccessContext context,Object o, Field f) throws BaseException {
+		return getField(context,o,f.getIndex());
 	}
 	
-	protected abstract Object getField(Object o,int index) throws BaseException;
+	protected abstract Object getField(AccessContext context,Object o,int index) throws BaseException;
 
 	@Override
-	public void setField(Object o, Field f, Object v) throws BaseException {
-		setField(o,f.getIndex(),v);
+	public void setField(AccessContext context,Object o, Field f, Object v) throws BaseException {
+		setField(context,o,f.getIndex(),v);
 	}
 	
-	protected abstract void setField(Object o,int index,Object v) throws BaseException;
+	protected abstract void setField(AccessContext context,Object o,int index,Object v) throws BaseException;
 
 	/**
 	 * Create access for the given resolved class. This method supports (over {@link ResolvedClass}
@@ -128,6 +129,8 @@ public abstract class AbstractClassAccess implements Access {
     			return new ArrayTypeAccess(type, mapAccess,c);
     		}
         	throw new BaseException(BaseException.GENERAL,"Unsupported field access: "+type+" is not an array type (most likely, this is a known generic type parameter bug).");
+    	} else if(clazz.getParameters().length>0&&type.getJavaClassType()==null&&type.getFlavour()==Flavour.ClassType) {
+    		type=((ClassTypeDefinition)type).forType(clazz.asType());
     	}
     	return factory.resolve(this,type);
     }

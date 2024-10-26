@@ -79,7 +79,7 @@ public class UnknownTypeDefinition extends TypeDefinition {
 		}
 		
 		@Override
-		public Object getField(Object o, int index) throws BaseException {
+		public Object getField(AccessContext context,Object o, int index) throws BaseException {
 			UnknownTypeDefinition def=(UnknownTypeDefinition)o;
 			switch(index) {
 				case 0:return def.getTypes().toArray(new ObjectType[0]);
@@ -88,7 +88,7 @@ public class UnknownTypeDefinition extends TypeDefinition {
 		}
 
 		@Override
-		public void setField(Object o, int index, Object v) throws BaseException {
+		public void setField(AccessContext context,Object o, int index, Object v) throws BaseException {
 			UnknownTypeDefinition def=(UnknownTypeDefinition)o;
 			switch(index) {
 				case 0:def.addTypes((ObjectType[])v);

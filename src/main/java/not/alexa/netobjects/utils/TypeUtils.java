@@ -23,6 +23,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
@@ -37,6 +38,7 @@ import not.alexa.netobjects.api.Abstract;
 import not.alexa.netobjects.api.Final;
 import not.alexa.netobjects.api.NetworkObject;
 import not.alexa.netobjects.api.Overlay;
+import not.alexa.netobjects.types.Deferred;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.Namespace;
 import not.alexa.netobjects.types.ObjectType;
@@ -49,6 +51,9 @@ import not.alexa.netobjects.types.TypeDefinition;
  *
  */
 public class TypeUtils {
+	private static ResolvedClass[] NO_PARAMETERS=new ResolvedClass[0];
+	private static ResolvedClass RESOLVED_OBJECT_CLASS=new ResolvedClass(Object.class);
+	private static ResolvedClass RESOLVED_CLASS_CLASS=new ResolvedClass(Class.class);
 	private static Annotation[] NO_ANNOTATIONS=new Annotation[0];
 	private static AnnotatedElement NULL_ELEMENT=new AnnotatedElement() {
 		
@@ -85,6 +90,11 @@ public class TypeUtils {
 		public AType getAnnotatedType(Field f) {
 			return new AType(f.getGenericType(),f);
 		}
+		
+		@Override
+		public AType getAnnotatedReturnType(Method m) {
+			return new AType(m.getGenericReturnType(),m);
+		}
 
 		@Override
 		public AType getAnnotatedSuperclass(Class<?> c) {
@@ -105,13 +115,17 @@ public class TypeUtils {
 		public AType getAnnotatedGenericComponentType(AType annotatedType) {
 			return new AType(((GenericArrayType)annotatedType.getType()).getGenericComponentType(),NULL_ELEMENT);
 		}
+		@Override
+		public AType getAnnotatedType(Parameter p) {
+			return new AType(p.getParameterizedType(),p);
+		}
 	};
 	
 	static {
 		try {
 			FACTORY=(ATypeFactory)Class.forName("not.alexa.netobjects.utils.VM8TypeFactory").newInstance();
 		} catch(Throwable t) {
-			// Fail throw. Some features concerning annotations are not present.
+			// Fall through. Some features concerning annotations are not present.
 		}
 	}
 	
@@ -224,6 +238,10 @@ public class TypeUtils {
     public static ClassResolver createClassResolver(Class<?> type) {
         return new ClassResolver(type);
     }
+    
+    public static ResolvedClass resolveClass(Class<?> clazz) {
+    	return createClassResolver(clazz).resolve(clazz);
+    }
 
     /**
      * Resolve the (java class) type of the given object type
@@ -285,6 +303,15 @@ public class TypeUtils {
     public static final class ClassResolver {
         private Class<?> clazz;
         private Map<java.lang.reflect.Type,AType> resolvedVariables=new HashMap<>();
+        ClassResolver(ResolvedClass clazz) {
+        	this.clazz=clazz.getResolvedClass();
+        	int i=0;
+        	for(TypeVariable<?> type:this.clazz.getTypeParameters()) {
+        		resolvedVariables.put(type, clazz.getParameters()[i++].annotationSource);
+        	}
+        	init(this.clazz);
+        }
+
         ClassResolver(Class<?> clazz) {
             this.clazz=clazz;
             init(clazz);
@@ -296,6 +323,14 @@ public class TypeUtils {
          */
         public Class<?> getRootClass() {
             return clazz;
+        }
+
+        /**
+         * 
+         * @return the resolved root class
+         */
+        public ResolvedClass getResolvedRootClass() {
+        	return resolve(getRootClass());
         }
         
         private Class<?> resolve0(AType type) {
@@ -359,6 +394,9 @@ public class TypeUtils {
             } else if(type instanceof ParameterizedType) {
                 //AnnotatedParameterizedType p=(AnnotatedParameterizedType)type;
                 java.lang.reflect.Type rawType=((ParameterizedType)type).getRawType();
+                if(Class.class.equals(rawType)) {
+                	return RESOLVED_CLASS_CLASS;
+                }
                 AType[] parameters=FACTORY.getAnnotatedActualTypeArguments(annotatedType);
                 ResolvedClass[] resolvedParameters=new ResolvedClass[parameters.length];
                 for(int i=0;i<parameters.length;i++) {
@@ -373,28 +411,38 @@ public class TypeUtils {
                 return new ResolvedClass(clazz,new ResolvedClass[] { componentType});
             } else if(type instanceof WildcardType) {
                 AType[] bounds=FACTORY.getAnnotatedUpperBounds(annotatedType);
-                if(bounds.length!=1) {
+                if(bounds.length>1) {
                     throw new RuntimeException("Unsupported multiple bounds");
                 }
-                return resolve(bounds[0]);
+                return bounds.length>0?resolve(bounds[0]):RESOLVED_OBJECT_CLASS;
             } else if(type instanceof Class) {
                 Class<?> clazz=(Class<?>)type;
                 if(clazz.isArray()) {
                     return new ResolvedClass(clazz,annotatedType,new ResolvedClass[] { resolve(new AType(clazz.getComponentType(),annotatedType))});
+                } else if(clazz.equals(Class.class)) {
+                	return RESOLVED_CLASS_CLASS;
                 } else {
                     return new ResolvedClass(clazz,annotatedType,null);
                 }
             }
-            throw new RuntimeException("Unresolved type: "+type);
+            if(type!=null) {
+            	throw new RuntimeException("Unresolved type: "+type);
+            } else {
+            	return null;
+            }
         }
         
         private ResolvedClass resolve(AType current,Class<?> clazz) {
             ResolvedClass resolved=resolve(current);
-            Class<?> c=resolved.getResolvedClass();
-            if(clazz.equals(c)) {
-                return resolved;
+            if(resolved!=null) {
+	            Class<?> c=resolved.getResolvedClass();
+	            if(clazz.equals(c)) {
+	                return resolved;
+	            } else {
+	                return resolveHierachy(c, clazz);
+	            }
             } else {
-                return resolveHierachy(c, clazz);
+            	return null;
             }
         }
             
@@ -424,6 +472,14 @@ public class TypeUtils {
 		public ResolvedClass resolve(Field f) {
 			return resolve(FACTORY.getAnnotatedType(f));
 		}
+
+		public ResolvedClass resolve(Method m) {
+			return resolve(FACTORY.getAnnotatedReturnType(m));
+		}
+
+		public ResolvedClass resolve(Parameter p) {
+			return resolve(FACTORY.getAnnotatedType(p));
+		}
     }
     
     /**
@@ -443,10 +499,13 @@ public class TypeUtils {
      *
      */
     public static class ResolvedClass implements AnnotatedElement {
-        private static final ResolvedClass[] NO_PARAMETERS=new ResolvedClass[0];
         private Class<?> clazz;
         private ResolvedClass[] parameters;
-        private AnnotatedElement annotationSource;
+        private AType annotationSource;
+        
+        public ResolvedClass(Class<?> clazz) {
+            this(clazz,new AType(clazz,clazz),NO_PARAMETERS);
+        }
         
         /**
          * 
@@ -454,19 +513,55 @@ public class TypeUtils {
          * @param parameters the parameters of the class
          */
         public ResolvedClass(Class<?> clazz, ResolvedClass[] parameters) {
-            this(clazz,clazz,parameters);
+            this(clazz,new AType(clazz,clazz),parameters);
         }
-        
+                
         /**
          * 
          * @param clazz the resolved type
          * @param annotationHolder the annotation source of the resolved class
          * @param parameters the parameters of the resolved type
          */
-        public ResolvedClass(Class<?> clazz, AnnotatedElement annotationSource, ResolvedClass[] parameters) {
+        public ResolvedClass(Class<?> clazz, AType annotationSource, ResolvedClass[] parameters) {
             this.clazz=clazz;
             this.annotationSource=annotationSource;
             this.parameters=parameters==null?NO_PARAMETERS:parameters;
+        }
+        
+        /**
+         * Create a resolver for this type
+         * 
+         * @return a class resolver based on this type (that is with {@link ClassResolver#getResolvedRootClass()}{@code .equals(this)}
+         */
+        public ClassResolver asResolver() {
+        	return new ClassResolver(this);
+        }
+
+        /**
+         * @return a type representing this resolved class. If the root type has type parameters, type parameters are
+         * included in the return type representation.
+         */
+        public Type asType() {
+        	return Namespace.getJavaNamespace().create(this);
+        }
+
+        public int hashCode() {
+        	return clazz.hashCode();
+        }
+        
+        public boolean equals(Object o) {
+        	if(o instanceof ResolvedClass) {
+        		ResolvedClass other=(ResolvedClass)o;
+        		if(other.clazz.equals(clazz)&&other.parameters.length==parameters.length) {
+        			if(parameters.length>0) for(int i=0;i<parameters.length;i++) {
+        				if(!parameters[i].equals(other.parameters[i])) {
+        					return false;
+        				}
+        			}
+        			return true;
+        		}
+        	}
+        	return false;
         }
         
         /**
@@ -475,7 +570,20 @@ public class TypeUtils {
         public Class<?> getResolvedClass() {
             return clazz;
         }
-        
+
+        /**
+         * 
+         * @return the coding class of this resolved class. In case of a {@link Deferred} class,
+         * this is the (first) type argument, otherwise the class itself.
+         */
+        public Class<?> getCodingClass() {
+        	if(!hasParameters()&&Deferred.class.isAssignableFrom(clazz)) {
+        		ResolvedClass deferred=asResolver().resolve(Deferred.class);
+        		return deferred.parameters[0].getResolvedClass();
+        	}
+            return clazz;
+        }
+
         /**
          * 
          * @return {@code true} if this class has parameters
@@ -656,7 +764,11 @@ public class TypeUtils {
 
 		AType[] getAnnotatedActualTypeArguments(AType annotatedType);
 
+		AType getAnnotatedType(Parameter p);
+
 		AType getAnnotatedType(Field f);
+
+		AType getAnnotatedReturnType(Method m);
 
 		AType getAnnotatedSuperclass(Class<?> c);
 

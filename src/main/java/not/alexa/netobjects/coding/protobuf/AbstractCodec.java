@@ -22,6 +22,7 @@ import not.alexa.netobjects.coding.protobuf.ProtobufDecoder.ClassDefListener;
 import not.alexa.netobjects.coding.protobuf.ProtobufDecoder.Creator;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ClassTypeDefinition;
+import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.AccessContext;
 
@@ -38,11 +39,9 @@ abstract class AbstractCodec implements Creator {
 		}
 	}
 
-	protected ProtobufCodingScheme scheme;
 	protected Access access;
 
-	AbstractCodec(ProtobufCodingScheme scheme,Access classAccess) {
-		this.scheme=scheme;
+	AbstractCodec(Access classAccess) {
 		this.access=classAccess;
 	}
 	public boolean enableObjectRefs() {
@@ -90,10 +89,10 @@ abstract class AbstractCodec implements Creator {
 	public abstract void encode(ProtobufEncoder encoder,ProtobufBuffer buffer, Object o) throws BaseException;
 	public abstract void consume(ClassDefListener listener,int field,AccessibleObject o) throws BaseException;
 	public abstract void consume(ClassDefListener listener,int field, long value) throws BaseException;
-	public abstract void consumeInternal(ClassDefListener listener,int field, long value) throws BaseException;
+	public abstract void consumeInternal(ClassDefListener listener,int field, Field f, long value) throws BaseException;
 	public abstract void consume(ClassDefListener listener, int field, byte[] value, int offset, int len) throws BaseException;
 
-	public AccessibleObject finalize(AccessibleObject o, ProtobufDecoder.ArrayEntry arrays,int[] marker) throws BaseException {
+	public AccessibleObject finalize(AccessContext context,AccessibleObject o, ProtobufDecoder.ArrayEntry arrays,int[] marker) throws BaseException {
 		return o;
 	}
 	
@@ -112,25 +111,25 @@ abstract class AbstractCodec implements Creator {
 			this.offset=offset;
 		}
 		
-		protected void resolveArrayCodec(Access fieldAccess) {
+		protected void resolveArrayCodec(ProtobufCodingScheme scheme,Access fieldAccess) {
 			boolean isPackable=false;
-			classCodec=isPackable?new PackedArrayCodec(scheme,access,fieldAccess):new ArrayCodec(scheme,offset,fieldAccess);
+			classCodec=isPackable?new PackedArrayCodec(access,fieldAccess):new ArrayCodec(offset,fieldAccess);
 		}
 		
-		void resolveCodec(CodecType type,Access fieldAccess) throws BaseException {
+		void resolveCodec(ProtobufCodingScheme scheme,CodecType type,Access fieldAccess) throws BaseException {
 			switch(fieldAccess.getType().getFlavour()) {
 				case PrimitiveType: primitiveTypeCodec=scheme.getPrimitiveTypeCodec(type,fieldAccess.getType().asClass(access.getAccessLoader()));
 					break;
 				case EnumType:primitiveTypeCodec=scheme.getEnumCodec(fieldAccess.getType().asClass(access.getAccessLoader()));
 					break;
-				case ClassType: classCodec=scheme.getClassCodec(fieldAccess);//access, fieldAccess.getType());
+				case ClassType: classCodec=scheme.getClassCodec(fieldAccess);
 					if(classCodec==null) {
-						classCodec=new ClassCodec(scheme, fieldAccess);
+						classCodec=new ClassCodec(fieldAccess);
 					}
 					break;
-				case InterfaceType: classCodec=scheme.getAnyCodec();
+				case InterfaceType: classCodec=scheme.getAnyCodec(fieldAccess);
 					break;
-				case ArrayType: resolveArrayCodec(fieldAccess);
+				case ArrayType: resolveArrayCodec(scheme,fieldAccess);
 					break;
 				default: throw new BaseException(BaseException.FORBIDDEN, "Encoding object of type "+fieldAccess.getType().getJavaClassType());
 			}
@@ -147,5 +146,9 @@ abstract class AbstractCodec implements Creator {
 				return false;
 			}
 		}
+	}
+
+	public void consume(byte[] value, int offset, int len, ClassDefListener childListener) throws BaseException {
+		new ProtobufBuffer(value, offset,len).consume(childListener);
 	}
 }

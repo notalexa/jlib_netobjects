@@ -63,7 +63,7 @@ public interface AccessFactory {
      * @param type the type for which a constructor is needed
      * @return the constructor of the given type in the provided context
      */
-    public Constructor resolve(Context context,Type type);
+    public RuntimeInfo resolve(Context context,Type type);
 	
 	/**
 	 * Resolve access for the given type and context. In general,

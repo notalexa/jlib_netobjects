@@ -72,7 +72,7 @@ public class AbstractTextCodingSchemeCodecsTest {
 	@Test
 	public void checkAttribute1() {
 	    try {
-	        Codec codec=testCase.scheme1.getCodec(testCase.context, testCase.type,testCase.access);
+	        Codec codec=testCase.scheme1.getCodec(testCase.context, /*testCase.type,*/testCase.access);
 	        System.out.println("Test1: Codec="+codec+" for "+testCase.type);
 	    } catch(Throwable t) {
 	        if(!testCase.expectThrowable) {
@@ -84,7 +84,7 @@ public class AbstractTextCodingSchemeCodecsTest {
 	   @Test
 	    public void checkAttribute2() {
 	        try {
-	            Codec codec=testCase.scheme2.getCodec(testCase.context, testCase.type,testCase.access);
+	            Codec codec=testCase.scheme2.getCodec(testCase.context, /*testCase.type,*/testCase.access);
 	            System.out.println("Test2: Codec="+codec+" for "+testCase.type);
 	        } catch(Throwable t) {
 	            t.printStackTrace();
@@ -129,18 +129,18 @@ public class AbstractTextCodingSchemeCodecsTest {
 
         
         @Override
-        protected Codec createInterfaceCodec(Context context, ObjectType type, TypeDefinition typeDef) throws BaseException {
-            return walkThrough?null:super.createInterfaceCodec(context, type, typeDef);
+        protected Codec createInterfaceCodec(Context context, /*ObjectType type,*/ TypeDefinition typeDef) throws BaseException {
+            return walkThrough?null:super.createInterfaceCodec(context, /*type,*/ typeDef);
         }
 
         @Override
-        protected Codec createMethodCodec(Context context, ObjectType type, TypeDefinition typeDef) throws BaseException {
-            return walkThrough?null:super.createMethodCodec(context, type, typeDef);
+        protected Codec createMethodCodec(Context context, /*ObjectType type,*/ TypeDefinition typeDef) throws BaseException {
+            return walkThrough?null:super.createMethodCodec(context, /*type,*/ typeDef);
         }
 
         @Override
-        protected Codec createArrayCodec(Context context, ObjectType type, Access access) throws BaseException {
-            return walkThrough?null:super.createArrayCodec(context, type, access);
+        protected Codec createArrayCodec(Context context, /*ObjectType type,*/ Access access) throws BaseException {
+            return walkThrough?null:super.createArrayCodec(context, /*type,*/ access);
         }
 
         @Override
@@ -159,11 +159,6 @@ public class AbstractTextCodingSchemeCodecsTest {
                 super(scheme);
             }
             
-        }
-
-        @Override
-        public Codec getCodec(Context context, ObjectType type, Access access) throws BaseException {
-            return super.getCodec(context, type, access);
         }
  	}
 

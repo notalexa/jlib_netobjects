@@ -22,18 +22,23 @@ import java.io.Writer;
 import java.util.Collection;
 
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.AbstractTextCodingScheme.TextCodingItem;
 import not.alexa.netobjects.coding.Codec;
-import not.alexa.netobjects.coding.TextCodingSupport;
-import not.alexa.netobjects.coding.xml.XMLCodingScheme.XMLCodingExtraInfo;
 import not.alexa.netobjects.coding.Encoder;
+import not.alexa.netobjects.coding.TextCodingSupport;
+import not.alexa.netobjects.coding.xml.DeferredXMLObject.XMLNode;
+import not.alexa.netobjects.coding.xml.XMLCodingScheme.XMLCodingExtraInfo;
 import not.alexa.netobjects.types.ArrayTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
+import not.alexa.netobjects.types.Deferred;
 import not.alexa.netobjects.types.Flavour;
+import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.ArrayTypeAccess;
+import not.alexa.netobjects.types.access.RuntimeInfo;
 
 /**
  * Encoder implementation for XML.
@@ -129,6 +134,25 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
 		}
 	}
 	
+	protected void write(boolean startWithIndent,String indent,XMLNode node) throws IOException {
+		(startWithIndent?writer.append(indent):writer).append('<').append(node.name);
+		int n=node.attributes.length;
+		for(int i=0;i<n;i+=2) {
+			writer.append(' ').append(node.attributes[i]).append("=\"").append(XMLHelper.attribute(node.attributes[i+1])).append('"');
+		}
+		if(node.text.length()>0) {
+			writer.append('>').append(XMLHelper.text(node.text)).append("</").append(node.name).append('>');
+		} else if(node.children.size()>0) {
+			writer.append('>');
+			for(XMLNode child:node.children) {
+				write(true,indent+root.getCodingScheme().getIndent(),child);
+			}
+			writer.append(indent).append("</").append(node.name).append('>');
+		} else {
+			writer.append("/>");
+		}
+	}
+	
 	protected void encode0(Object o) throws BaseException, IOException {
         Codec stackedCodec=codec;
         Access stackedAccess=access;
@@ -140,7 +164,29 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
                 access=access.getComponentAccess();
             }
             boolean showType=showType()||type.isAbstract();
-    	    if(showType) {
+        	if(o instanceof Deferred) {
+        		Deferred<?,?> deferred=(Deferred<?, ?>)o;
+        		if(deferred.isResolved()) {
+        			o=deferred.getCodingObject(this);
+        			if(o==null) {
+        				return;
+        			}
+        		} else if(o instanceof XMLNodeHolder) {
+        			XMLNode node=((XMLNodeHolder)o).getNode();
+        			if(node!=null) {
+        				if(parent!=null) {
+        					parent.closeOpener();
+        				}
+        				write(parent!=null,indent,node);
+        			}
+        			return;
+       			} else {
+           			throw new BaseException(BaseException.BAD_REQUEST, "Deferred Object of type "+o.getClass().getName());
+       			}
+        		access=deferred.getCodingAccess(this,root.getFactory());
+    	        type=access==null?null:access.getType();
+    	        codec=access==null?null:resolveCodec(type.getType(getCodingScheme().getNamespace()), access);
+        	} else if(showType) {
                 ObjectType objectType=ObjectType.createClassType(o.getClass());
     	        type=getContext().getTypeLoader().resolveType(objectType);
     	        access=type==null?null:root.getFactory().resolve(getContext(),type);
@@ -224,13 +270,8 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
 
 	@Override
 	public void close() throws BaseException {
-		if(writer!=null) try {
-			writer.close();
-		} catch(Throwable t) {
-			BaseException.throwException(t);
-		} finally {
-			writer=null;
-		}
+		flush();
+		writer=null;
 	}
 
 	@Override
@@ -249,7 +290,7 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
 		if(parent!=null) {
 			parent.hasChildren|=!isAttribute();
 		} else if(!access.getType().isAbstract()) try {
-			this.codec=getCodingScheme().getCodec(getContext(), access.getType().getType(getCodingScheme().getNamespace()), access);
+			this.codec=getCodingScheme().getCodec(getContext(), access);
 		} catch(BaseException e) {
 		}
 		return this;
@@ -291,5 +332,29 @@ class XMLEncoder extends TextCodingItem<XMLCodingScheme,XMLEncoder> implements E
 	
 	public interface DelayedWrite {
 	    public void write() throws IOException;
+	}
+
+	@Override
+	public <T> T castTo(Context context, Class<T> clazz) {
+		return clazz.isInstance(this)?(T)this:null;
+	}
+
+	@Override
+	public RuntimeInfo resolve(Context context, Type type) {
+		return getCodingScheme().getFactory().resolve(context, type);
+	}
+
+	@Override
+	public Access resolve(Context context, TypeDefinition type) {
+		return getCodingScheme().getFactory().resolve(context, type);
+	}
+
+	@Override
+	public Access resolve(Access referrer, TypeDefinition type) {
+		return getCodingScheme().getFactory().resolve(referrer, type);
+	}
+	
+	public interface XMLNodeHolder {
+		public XMLNode getNode();
 	}
 }

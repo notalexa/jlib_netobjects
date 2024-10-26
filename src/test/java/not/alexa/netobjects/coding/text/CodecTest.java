@@ -31,7 +31,7 @@ import not.alexa.netobjects.coding.Decoder;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Access;
-import not.alexa.netobjects.types.access.Constructor;
+import not.alexa.netobjects.types.access.RuntimeInfo;
 
 @RunWith(org.junit.runners.Parameterized.class)
 public class CodecTest {
@@ -74,7 +74,7 @@ public class CodecTest {
                 }
 
                 @Override
-                public Constructor resolve(Context context, Type type) {
+                public RuntimeInfo resolve(Context context, Type type) {
                     return null;
                 }
 

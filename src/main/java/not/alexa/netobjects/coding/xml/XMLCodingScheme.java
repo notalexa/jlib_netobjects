@@ -41,18 +41,16 @@ import not.alexa.netobjects.coding.Encoder;
 import not.alexa.netobjects.coding.Encoder.Buffer;
 import not.alexa.netobjects.coding.TextCodingSupport;
 import not.alexa.netobjects.coding.text.EnumCodec;
+import not.alexa.netobjects.coding.xml.DeferredXMLObject.XMLNode;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ArrayTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Builder.FieldBuilder;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
-import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Access;
 import not.alexa.netobjects.types.access.AccessContext;
 import not.alexa.netobjects.types.access.AccessFactory;
-import not.alexa.netobjects.types.access.DefaultAccessFactory;
-import not.alexa.netobjects.types.access.MapEntryAccess;
 
 /**
  * Coding scheme for XML. In addition to the configuration defined in {@link AbstractTextCodingScheme}, this coding scheme defines the following additional configurations:
@@ -84,14 +82,23 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 	/**
 	 * Writes data without an XML header
 	 */
-    public static final XMLCodingScheme INLINE_SCHEME=new XMLCodingScheme();
+    public static final XMLCodingScheme INLINE_SCHEME=new XMLCodingScheme().newBuilder().setRootType(Object.class).build();
     
 	/**
-	 * Writes data with an XML header (but without the {@code standalone} pseudo attribute.
+	 * Writes data with an XML header (but without the {@code standalone} pseudo attribute) and no object information at root.
+	 * 
 	 * @see Builder#enableHeader()
 	 * @see Builder#setStandalone(String)
 	 */
-    public static final XMLCodingScheme DEFAULT_SCHEME=INLINE_SCHEME.newBuilder().enableHeader().build();
+    public static final XMLCodingScheme REST_SCHEME=new XMLCodingScheme().newBuilder().enableHeader().build();
+
+	/**
+	 * Writes data with an XML header (but without the {@code standalone} pseudo attribute). Root object is {@code Object}.
+	 * @see Builder#enableHeader()
+	 * @see Builder#setStandalone(String)
+	 */
+    public static final XMLCodingScheme DEFAULT_SCHEME=REST_SCHEME.newBuilder().setRootType(Object.class).build();
+
     private static final Comparator<ClassTypeDefinition.Field> ATTRIBUTE_FIRST=new Comparator<ClassTypeDefinition.Field>() {
 
         @Override
@@ -131,7 +138,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 	}
 	
 	private XMLCodingScheme() {
-		this(defaultCharset(),new DefaultAccessFactory());
+		this(defaultCharset(),AccessFactory.getDefault());
 	}
 	
 	public XMLCodingScheme(Charset charset,AccessFactory factory) {
@@ -144,13 +151,30 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 	@Override
 	public Encoder createEncoder(Context context, OutputStream stream) {
 	    TextCodingSupport<XMLCodingScheme> support=new TextCodingSupport<XMLCodingScheme>(this,context);
-		return new XMLEncoder(support,stream)
-		        .init(rootTag,rootType.isAbstract()?XMLEncoder.SHOWTYPE_MASK:0,support.getFactory().resolve(context,rootType));
+		return new XMLEncoder(support,stream) {
+			@Override
+			public Encoder encode(Object o) throws BaseException {
+				TypeDefinition rootType=getRootType(context, o.getClass());
+				init(rootTag,rootType.isAbstract()?XMLEncoder.SHOWTYPE_MASK:0,support.getFactory().resolve(context,rootType));
+				try {
+					return super.encode(o);
+				} finally {
+					try {
+						writer.flush();
+					} catch(Throwable t) {
+					}
+				}
+			}
+		};
 	}
 
 	@Override
 	public Decoder createDecoder(Context context, InputStream stream) {
 		return new XMLDecoder(new TextCodingSupport<>(this,context),stream);
+	}
+
+	public Decoder createDecoder(Context context, XMLNode node) {
+		return new XMLDecoder(new TextCodingSupport<>(this,context),node);
 	}
 
 	/**
@@ -241,9 +265,9 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
     }
     
     @Override
-    protected Codec createClassCodec(Context context, ObjectType type, Access access) throws BaseException {
+    protected Codec createClassCodec(Context context, Access access) throws BaseException {
         if(access!=null) {
-            return new AccessCodec(((ClassTypeDefinition)access.getType()).enableObjectRefs(),access,codecs);
+            return new AccessCodec(((ClassTypeDefinition)access.getType()).enableObjectRefs(),access).init(true, codecs);
         } else {
             return null;
         }
@@ -277,9 +301,9 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 	}
 
     
-    public Access getRootDecoder(TextCodingSupport<XMLCodingScheme> root) {
-        TypeDefinition anonymous=new ClassTypeDefinition().createBuilder().addField(getRootTag(), getRootType()).build();
-        return new Access() {
+    public Access getRootDecoder(TextCodingSupport<XMLCodingScheme> root,Class<?> clazz) {
+        TypeDefinition anonymous=new ClassTypeDefinition().createBuilder().addField(getRootTag(), getRootType(root.getContext(),clazz)).build();
+        return new Access.AbstractAccess() {
 
             @Override
             public AccessFactory getFactory() {
@@ -298,27 +322,23 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 
             @Override
             public Access getFieldAccess(Field f) throws BaseException {
-                return root.getFactory().resolve(root.getContext(), getRootType());
+                return root.getFactory().resolve(root.getContext(), getRootType(root.getContext(),clazz));
             }
-            
         };
     }
 
 
     static class AccessCodec implements Codec {
         Access access;
-        Codecs pool;
         boolean disableObjectRefs;
         XMLCodingExtraInfo info;
         Field[] fields;
         Codec[] fieldCodecs;
-        AccessCodec(boolean enableObjectRefs,Access access,Codecs pool) {
+        AccessCodec(boolean enableObjectRefs,Access access) {
             this.access=access;
             info=getExtraInfo(access.getType());
             disableObjectRefs=!enableObjectRefs;
             fields=sort(access.getFields());
-            fieldCodecs=new Codec[fields.length];
-            this.pool=pool;
         }
         
         @Override
@@ -333,7 +353,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         
         private void encode(Buffer buffer,Object o,Field f) throws BaseException {
             if(f!=null) {
-                Object t=access.getField(o, f);
+                Object t=access.getField(buffer,o, f);
                 if(t!=null&&!f.isDefault(t)) {
                     Encoder child=buffer.push(info,null,f);
                     child.encode(t);
@@ -348,27 +368,39 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         
         @Override
         public Codec getCodec(Field f) throws BaseException {
-            Codec codec=fieldCodecs[f.getIndex()];
-            if(codec==null) {
-                switch(f.getType().getFlavour()) {
-                    case InterfaceType:
-                    case UnknownType:
-                    case MethodType:return null;
-                    case PrimitiveType:codec=pool.get(access.getFieldAccess(f));
-                        break;
-                    default:codec=createCodec(f.getTag("XML"),f.getType(), access.getFieldAccess(f));
-                        break;
-                }
-                fieldCodecs[f.getIndex()]=codec;
-            }
-            return codec;
+            return fieldCodecs[f.getIndex()];
         }
         
-        protected Codec createCodec(String tagName,TypeDefinition type,Access access) throws BaseException {
+        private Codec init(boolean store,Codecs pool) {
+        	if(store) {
+        		pool.put(access, this);
+        	}
+        	fieldCodecs=new Codec[fields.length];
+        	for(int i=0;i<fieldCodecs.length;i++) try {
+        		Field f=fields[i];
+        		Codec codec=null;
+                switch(f.getType().getFlavour()) {
+	                case InterfaceType:
+	                case UnknownType:
+	                case MethodType:
+	                	break;
+	                case PrimitiveType:codec=pool.get(access.getFieldAccess(f));
+	                    break;
+	                default:codec=createCodec(pool,f.getTag("XML"),f.getType(), access.getFieldAccess(f));
+	                    break;
+	            } 
+	            fieldCodecs[f.getIndex()]=codec;
+        	} catch(BaseException e) {
+        		e.printStackTrace();
+        	}
+        	return this;
+        }
+        
+        protected Codec createCodec(Codecs pool,String tagName,TypeDefinition type,Access access) throws BaseException {
             switch(type.getFlavour()) {
                 case ArrayType:
                     Access componentAccess=access.getComponentAccess();
-                    Codec componentCodec=createCodec(tagName, ((ArrayTypeDefinition)type).getComponentType(), componentAccess);
+                    Codec componentCodec=createCodec(pool,tagName, ((ArrayTypeDefinition)type).getComponentType(), componentAccess);
                     return createInternal(tagName,access,componentCodec);
                 case PrimitiveType:return pool.get(access);
                 case EnumType:Codec codec=pool.get(access);
@@ -378,12 +410,11 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
                     }
                     return codec;
                 case ClassType:if(type.isAnonymous()) {
-                        return new AccessCodec(false, access, pool);
+                        return new AccessCodec(false, access).init(false, pool);
                     } else {
                         codec=pool.get(access);
                         if(codec==null) {
-                            codec=new AccessCodec(((ClassTypeDefinition)type).enableObjectRefs(),access, pool);
-                            pool.put(access, codec);
+                            codec=new AccessCodec(((ClassTypeDefinition)type).enableObjectRefs(),access).init(true, pool);
                         }
                     }
                     return codec;
@@ -569,19 +600,19 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
                 return XMLCodingExtraInfo.this.getAttributes();
             }
 
-            public void setField(String f, AccessibleObject value) throws BaseException {
-            	setField(get(f),value);
+            public void setField(AccessContext context,String f, AccessibleObject value) throws BaseException {
+            	setField(context,get(f),value);
             }
 
-            public void setField(Field f, AccessibleObject value) throws BaseException {
+            public void setField(AccessContext context,Field f, AccessibleObject value) throws BaseException {
                 if(a[f.getIndex()]!=SET) {
                     checked++;
                     a[f.getIndex()]=SET; 
                 }
-                obj.setField(f, value);
+                obj.setField(context,f, value);
             }
             
-            public AccessibleObject checked() throws BaseException {
+            public AccessibleObject checked(AccessContext context) throws BaseException {
                 if(checked<checkCount) {
                     // Not all set. Mandatory field are present but maybe a default value exist.
                     for(int i=0;i<a.length;i++) {
@@ -589,7 +620,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
                             if(a[i]==MANDATORY||access==null) {
                                 throw new BaseException(BaseException.BAD_REQUEST, "Field "+fields[i].getName()+" in "+fields[i].getClassDescription()+" is mandatory but not set.");
                             } else {
-                                obj.setField(fields[i],access.getFieldAccess(fields[i]).makeDefault(a[i]));
+                                obj.setField(context,fields[i],access.getFieldAccess(fields[i]).makeDefault(context,a[i]));
                             }
                         }
                     }

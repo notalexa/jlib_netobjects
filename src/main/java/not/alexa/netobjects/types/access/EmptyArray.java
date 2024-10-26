@@ -42,12 +42,12 @@ public class EmptyArray {
 	public EmptyArray() {
 	}
 	
-	public AccessibleObject makeAccessible(Access access) {
+	public AccessibleObject makeAccessible(AccessContext context,Access access) {
 		try {
 			switch(((ArrayTypeDefinition)access.getType()).getArrayFlavour()) {
-			case Map:return access.makeAccessible(new HashMap<Object,Object>());
+			case Map:return access.makeAccessible(context,new HashMap<Object,Object>());
 			case Array:
-				default:return access.makeAccessible(new ArrayList<Object>(0));
+				default:return access.makeAccessible(context,new ArrayList<Object>(0));
 			
 			}
 		} catch(Throwable t) {
@@ -71,7 +71,7 @@ public class EmptyArray {
 		return getClass().getSimpleName();
 	}
 	
-	public static class ClassAccess extends AbstractClassAccess implements Access {
+	public static abstract class ClassAccess extends AbstractClassAccess implements Access {
 		public ClassAccess(AccessFactory factory) {
 			super(factory,getTypeDescription());
 		}
@@ -82,12 +82,12 @@ public class EmptyArray {
 		}
 		
 		@Override
-		public Object getField(Object o, int index) throws BaseException {
+		public Object getField(AccessContext context,Object o, int index) throws BaseException {
 			return null;
 		}
 
 		@Override
-		public void setField(Object o, int index, Object v) throws BaseException {
+		public void setField(AccessContext context,Object o, int index, Object v) throws BaseException {
 		}
 	}
 }

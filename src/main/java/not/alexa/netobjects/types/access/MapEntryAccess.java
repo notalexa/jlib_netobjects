@@ -34,7 +34,7 @@ import not.alexa.netobjects.utils.Sequence;
  * @author notalexa
  *
  */
-public class MapEntryAccess implements Access {
+public class MapEntryAccess extends Access.AbstractAccess implements Access {
 	protected ClassTypeDefinition type;
 	protected AccessFactory factory;
 	protected Access[] fieldAccess;
@@ -65,17 +65,17 @@ public class MapEntryAccess implements Access {
 	}
 
 	@Override
-	public Object getField(Object o, Field f) throws BaseException {
+	public Object getField(AccessContext context,Object o, Field f) throws BaseException {
 		Map.Entry<?,?> entry=(Map.Entry<?,?>)o;
 		switch(f.getIndex()) {
 			case 0:return entry.getKey();
 			case 1:return entry.getValue();
 		}
-		return Access.super.getField(o, f);
+		return Access.super.getField(context,o, f);
 	}
 
 	@Override
-	public void setField(Object o, Field f, Object v) throws BaseException {
+	public void setField(AccessContext context,Object o, Field f, Object v) throws BaseException {
 		switch(f.getIndex()) {
 			case 0:if(o instanceof Instance) {
 					((Instance)v).key=v;
@@ -126,20 +126,20 @@ public class MapEntryAccess implements Access {
 		}
 
 		@Override
-		public void setField(Field f, AccessibleObject value) throws BaseException {
+		public void setField(AccessContext context,Field f, AccessibleObject value) throws BaseException {
 			Access fieldAccess=getFieldAccess(f);
 			switch(f.getIndex()) {
-				case 0:this.key=fieldAccess.getObject(value); break;
-				case 1:this.value=fieldAccess.getObject(value); break;
+				case 0:this.key=fieldAccess.getObject(context,value); break;
+				case 1:this.value=fieldAccess.getObject(context,value); break;
 			}
 		}
 
 		@Override
-		public AccessibleObject getField(Field f) throws BaseException {
+		public AccessibleObject getField(AccessContext context,Field f) throws BaseException {
 			Access fieldAccess=getFieldAccess(f);
 			switch(f.getIndex()) {
-				case 0:return fieldAccess.makeAccessible(key);
-				case 1:return fieldAccess.makeAccessible(value);
+				case 0:return fieldAccess.makeAccessible(context,key);
+				case 1:return fieldAccess.makeAccessible(context,value);
 			}
 			return null;
 		}

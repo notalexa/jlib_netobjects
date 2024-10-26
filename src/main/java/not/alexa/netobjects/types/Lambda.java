@@ -24,8 +24,9 @@ import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.types.JavaClass.Type;
 import not.alexa.netobjects.types.access.AbstractClassAccess;
 import not.alexa.netobjects.types.access.Access;
+import not.alexa.netobjects.types.access.AccessContext;
 import not.alexa.netobjects.types.access.AccessFactory;
-import not.alexa.netobjects.types.access.Constructor;
+import not.alexa.netobjects.types.access.RuntimeInfo;
 import not.alexa.netobjects.utils.TypeUtils;
 
 /**
@@ -263,12 +264,12 @@ public class Lambda implements Executable {
      *
      */
     public static class ClassAccess extends AbstractClassAccess implements Access {
-        public ClassAccess(AccessFactory factory,Constructor c) {
+        public ClassAccess(AccessFactory factory,RuntimeInfo c) {
             super(factory,getTypeDescription(),c);
         }
         
         @Override
-        public Object getField(Object o, int index) throws BaseException {
+        public Object getField(AccessContext context,Object o, int index) throws BaseException {
             Lambda l=(Lambda)o;
             switch(index) {
                 case 0:return l.method;
@@ -279,7 +280,7 @@ public class Lambda implements Executable {
         }
 
         @Override
-        public void setField(Object o, int index, Object v) throws BaseException {
+        public void setField(AccessContext context,Object o, int index, Object v) throws BaseException {
             Lambda l=(Lambda)o;
             switch(index) {
                 case 0:l.method=(ObjectType)v;

@@ -15,6 +15,7 @@
  */
 package not.alexa.netobjects.coding;
 
+import not.alexa.netobjects.Context;
 import not.alexa.netobjects.types.DefaultTypeLoader;
 import not.alexa.netobjects.types.Namespace;
 import not.alexa.netobjects.types.TypeDefinition;
@@ -31,23 +32,25 @@ import not.alexa.netobjects.types.access.AccessFactory;
  */
 public abstract class AbstractCodingScheme implements CodingScheme, Cloneable {
     protected AccessFactory factory;
-    protected TypeDefinition rootType;
+    TypeDefinition rootType;
     protected Namespace namespace=Namespace.getJavaNamespace();
     protected String mimeType;
     protected String fileExtension;
 
-	protected AbstractCodingScheme(AccessFactory factory,TypeDefinition rootType) {
+	protected AbstractCodingScheme(AccessFactory factory) {
 		this.factory=factory;
-		this.rootType=rootType;
 	}
 	
-    
     public final AccessFactory getFactory() {
         return factory;
     }
 
-    public final TypeDefinition getRootType() {
-        return rootType;
+    public final TypeDefinition getRootType(Context context,Class<?> clazz) {
+    	if(rootType==null) {
+    		return context.resolveType(clazz);
+    	} else {
+    		return rootType;
+    	}
     }
     
     

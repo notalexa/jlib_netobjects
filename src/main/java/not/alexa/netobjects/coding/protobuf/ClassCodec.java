@@ -22,7 +22,9 @@ import not.alexa.netobjects.coding.protobuf.ProtobufDecoder.ClassDefListener;
 import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
+import not.alexa.netobjects.types.Deferred;
 import not.alexa.netobjects.types.access.Access;
+import not.alexa.netobjects.types.access.AccessContext;
 
 /**
  * Class used for encoding an object (a message in protobuf chargon).
@@ -38,8 +40,8 @@ class ClassCodec extends AbstractCodec {
 	protected Checker checker;
 	protected boolean enableObjectRefs;
 
-	ClassCodec(ProtobufCodingScheme scheme,Access classAccess) {
-		super(scheme,classAccess);
+	ClassCodec(Access classAccess) {
+		super(classAccess);
 		try {
 			enableObjectRefs=((ClassTypeDefinition)classAccess.getType()).enableObjectRefs();
 		} catch(Throwable t) {
@@ -47,12 +49,10 @@ class ClassCodec extends AbstractCodec {
 		Field[] fields=access.getFields();
 		mask=new int[2+(fields.length>>5)];
 		for(int i=0;i<fields.length;i++) {
-			if(!fields[i].isOptional()||fields[i].getDefaultValue()!=null) try {
+			if(!fields[i].isOptional()||fields[i].getDefaultValue()!=null) {
 				count++;
 				Object defaultValue=fields[i].getDefaultValue();
-				init(mask,i,fields[i].getNumber(),defaultValue==null?null:classAccess.getFieldAccess(fields[i]).makeDefault(defaultValue));
-			} catch(BaseException t) {
-				
+				init(mask,fields[i].getIndex(),fields[i].getNumber(),defaultValue);
 			}
 		}
 		fieldCodecs=new FieldCodec[fields.length];
@@ -89,7 +89,7 @@ class ClassCodec extends AbstractCodec {
 				}
 			}
 		}
-		smallest=start;
+		smallest=start==Integer.MAX_VALUE?-1:start;
 	}
 	
 	private void insert(FieldCodec codec) {
@@ -133,7 +133,7 @@ class ClassCodec extends AbstractCodec {
 		return parent.createChild(instance,this);
 	}	
 	
-	private void init(int[] mask,int offset,int number,AccessibleObject defaultValue) {
+	private void init(int[] mask,int offset,int number,Object defaultValue) {
 		int index=offset>>5;
 		int m=1<<(offset&31);
 		mask[index]|=m;
@@ -155,10 +155,15 @@ class ClassCodec extends AbstractCodec {
 
 	@Override
 	public void encode(ProtobufEncoder encoder,ProtobufBuffer buffer, Object o) throws BaseException {
+		if(o instanceof Deferred) {
+			Deferred<?,?> deferred=(Deferred<?, ?>)o;
+			o=deferred.getCodingObject(encoder);
+			access=deferred.getCodingAccess(encoder,access.getFactory());
+		}
 		int rover=smallest;
 		while(rover>=0) {
 			FieldCodec field=fieldCodecsMap[rover];
-			Object val=access.getField(o,field.f);
+			Object val=access.getField(encoder,o,field.f);
 			if(val!=null) {
 				field.encode(encoder,buffer, val);
 			}
@@ -171,7 +176,7 @@ class ClassCodec extends AbstractCodec {
 	}
 
 	@Override
-	public void consumeInternal(ClassDefListener listener,int field, long value) throws BaseException {
+	public void consumeInternal(ClassDefListener listener,int field, Field f,long value) throws BaseException {
 		AccessibleObject obj=listener.resolveObjectReference((int)value);
 		if(obj!=null) {
 			listener.consume(listener,field,obj);
@@ -194,7 +199,7 @@ class ClassCodec extends AbstractCodec {
 	@Override
 	public void consume(ClassDefListener listener, int field, AccessibleObject o) throws BaseException {
 		FieldCodec codec=getCodec(field);
-		listener.currentObject().setField(codec.f, o);
+		listener.currentObject().setField(listener,codec.f, o);
 		listener.mark(codec.offset);
 	}
 
@@ -208,22 +213,23 @@ class ClassCodec extends AbstractCodec {
 			this.f=f;
 		}
 		
-		private void resolveCodec() throws BaseException {
+		private void resolveCodec(ProtobufCodingScheme scheme) throws BaseException {
 			CodecType type=CodecType.Default;
 			if(f.hasHint("protobuf:fixed")) {
 				type=CodecType.Fixed;
 			} else if(f.hasHint("protobuf:signed")) {
 				type=CodecType.Signed;
 			}
-			resolveCodec(type,access.getFieldAccess(f));
+			resolveCodec(scheme,type,access.getFieldAccess(f));
 		}
 		
 		public boolean encode(ProtobufEncoder encoder,ProtobufBuffer buffer,Object o) throws BaseException {
 			if(!f.isDefault(o)) {
 				if(!super.encode(encoder, buffer, f.getNumber(),o)) {
+					ProtobufCodingScheme scheme=encoder.getCodingScheme();
 					byte[] content=scheme.getProtobufContent(o);
 					if(content==null) {
-						resolveCodec();
+						resolveCodec(scheme);
 						// Recursion of maximum one
 						encode(encoder,buffer,o);
 					} else {
@@ -237,11 +243,11 @@ class ClassCodec extends AbstractCodec {
 		public void consume(ClassDefListener listener, int field,long value) throws BaseException {
 			if(primitiveTypeCodec!=null) {
 				listener.mark(offset);
-				listener.currentObject().setField(f, access.getFieldAccess(f).makeAccessible(primitiveTypeCodec.decode(value)));
+				listener.currentObject().setField(listener,f, access.getFieldAccess(f).makeAccessible(listener,primitiveTypeCodec.decode(value)));
 			} else if(classCodec!=null) {
-				classCodec.consumeInternal(listener,field, value);
+				classCodec.consumeInternal(listener,field, f,value);
 			} else {
-				resolveCodec();
+				resolveCodec(listener.getCodingScheme());
 				// Recursion of maximum one
 				consume(listener,field,value);
 			}
@@ -250,23 +256,24 @@ class ClassCodec extends AbstractCodec {
 		public void consume(ClassDefListener listener, int field,byte[] value, int offset, int len) throws BaseException {
 			if(primitiveTypeCodec!=null) {
 				listener.mark(this.offset);
-				listener.currentObject().setField(f, access.getFieldAccess(f).makeAccessible(primitiveTypeCodec.decode(value,offset,len)));
+				listener.currentObject().setField(listener,f, access.getFieldAccess(f).makeAccessible(listener,primitiveTypeCodec.decode(value,offset,len)));
 			} else if(classCodec!=null) {
 				if(classCodec.isArrayCodec()) {
 					classCodec.consume(listener, field, value, offset, len);
 				} else {
-					ClassDefListener childListener=classCodec.createListener(listener);//   listener.createChild(classCodec);
-					new ProtobufBuffer(value, offset,len).consume(childListener);
+					ClassDefListener childListener=classCodec.createListener(listener);
+					classCodec.consume(value, offset, len,childListener);
 					listener.mark(this.offset);
-					listener.currentObject().setField(f, childListener.finalized());
+					listener.currentObject().setField(listener,f, childListener.finalized());
 				}
 			} else {
-				AccessibleObject fieldValue=scheme.getProtobufObject(access.getFieldAccess(f),value,offset,len);
+				ProtobufCodingScheme scheme=listener.getCodingScheme();
+				AccessibleObject fieldValue=scheme.getProtobufObject(listener,access.getFieldAccess(f),value,offset,len);
 				if(fieldValue!=null) {
 					listener.mark(this.offset);
-					listener.currentObject().setField(f, fieldValue);
+					listener.currentObject().setField(listener,f, fieldValue);
 				} else {
-					resolveCodec();
+					resolveCodec(scheme);
 					// Recursion of maximum one
 					consume(listener,field,value,offset,len);
 				}
@@ -275,10 +282,10 @@ class ClassCodec extends AbstractCodec {
 	}
 	
 	@Override
-	public AccessibleObject finalize(AccessibleObject o, ArrayEntry arrays, int[] marker) throws BaseException {
+	public AccessibleObject finalize(AccessContext context,AccessibleObject o, ArrayEntry arrays, int[] marker) throws BaseException {
 		while(arrays!=null) {
 			mark(marker, arrays.offset);
-			o.setField(fieldCodecs[arrays.offset].f, arrays.val);
+			o.setField(context,fieldCodecs[arrays.offset].f, arrays.val);
 			arrays=arrays.next;
 		}
 		if(marker[marker.length-1]<count) {
@@ -287,7 +294,7 @@ class ClassCodec extends AbstractCodec {
 			while(rover!=null&&offset>0) {
 				if(isMarked(marker,rover.offset)) {
 					if(rover.defaultValue!=null) {
-						o.setField(getCodec(rover.number).f/*    fieldCodecs[rover.offset].f*/, rover.defaultValue);
+						o.setField(context,getCodec(rover.number).f, rover.getDefault(context));
 						offset--;
 					} else {
 						throw new BaseException(BaseException.BAD_REQUEST, "Missing required value");
@@ -305,15 +312,18 @@ class ClassCodec extends AbstractCodec {
 	private class Checker {
 		int offset;
 		int number;
-		AccessibleObject defaultValue;
+		Object defaultValue;
 		Checker next;
-		public Checker(Checker next, int offset, int number,AccessibleObject defaultValue) {
+		public Checker(Checker next, int offset, int number,Object defaultValue) {
 			super();
 			this.number=number;
 			this.next = next;
 			this.offset = offset;
 			this.defaultValue = defaultValue;
-		}	
+		}
 		
+		public AccessibleObject getDefault(AccessContext context) throws BaseException {
+			return defaultValue==null?null:access.getFieldAccess(access.getFields()[offset]).makeDefault(context,defaultValue);
+		}		
 	}
 }

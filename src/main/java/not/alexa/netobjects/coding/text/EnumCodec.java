@@ -19,6 +19,7 @@ import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.coding.Codec;
 import not.alexa.netobjects.coding.Encoder.Buffer;
 import not.alexa.netobjects.types.JavaClass;
+import not.alexa.netobjects.types.TypeLoader.LinkedLocal;
 
 /**
  * Default codec for enumeration types. This codec assumes, that the type <b>is resolvable by the context class loader</b> for decoding
@@ -42,6 +43,11 @@ public class EnumCodec implements Codec {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @Override
     public Object decode(not.alexa.netobjects.coding.Decoder.Buffer buffer) throws BaseException {
-        return Enum.valueOf((Class<Enum>)type.asLinkedLocal(buffer.getContext().getTypeLoader().getClassLoader()).asClass(),buffer.getCharContent().toString());
+    	LinkedLocal linkedLocal=type.asLinkedLocal(buffer.getContext().getTypeLoader().getClassLoader());
+    	if(linkedLocal!=null) {
+    		return Enum.valueOf((Class<Enum>)linkedLocal.asClass(),buffer.getCharContent().toString());
+    	} else {
+    		return buffer.getCharContent().toString();
+    	}
     }
 }

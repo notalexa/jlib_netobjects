@@ -18,6 +18,7 @@ package not.alexa.netobjects.coding;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
+import not.alexa.netobjects.types.access.AccessContext;
 
 /**
  * This interface represents an object which is able to encode a given (java) object. Objects of this type are
@@ -67,7 +68,7 @@ public interface Encoder extends AutoCloseable {
 	 * @author notalexa
 	 *
 	 */
-	public interface Buffer {
+	public interface Buffer extends AccessContext {
 	    /**
 	     * Push a field and return an encoder for the given {@link Field#getType()}.
 	     * 

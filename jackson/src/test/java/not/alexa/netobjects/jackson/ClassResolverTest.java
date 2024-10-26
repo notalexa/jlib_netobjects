@@ -24,8 +24,12 @@ import java.util.Map;
 
 import org.junit.Test;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
@@ -35,6 +39,7 @@ import not.alexa.netobjects.api.ResolvableBy;
 import not.alexa.netobjects.coding.CodingScheme;
 import not.alexa.netobjects.coding.xml.XMLCodingScheme;
 import not.alexa.netobjects.types.TypeDefinition;
+import not.alexa.netobjects.types.access.AccessContext;
 import not.alexa.netobjects.utils.Sequence;
 
 public class ClassResolverTest {
@@ -56,7 +61,7 @@ public class ClassResolverTest {
     
     @Test
     public void writeOut() {
-    	A a=new A("xxx",Collections.singletonList("yyy"));
+    	A a=new A(new Date(),"xxx",Collections.singletonList("yyy"));
         Context context=Context.createRootContext();
         try {
             TypeDefinition type=context.getTypeLoader().resolveType(A.class);
@@ -66,6 +71,7 @@ public class ClassResolverTest {
             String data="<object>\r\n"
             		+ "  <property>xxx</property>\r\n"
             		+ "  <a1>yyy</a1>\r\n"
+            		+"<a2><t>Hallo</t><r>Test</r></a2>"
             		+ "</object>";
             Context overlayContext=Context.createRootContext(context.getTypeLoader().overlay(AOverlay.class));
             System.out.println(overlayContext.getTypeLoader().getLinkedLocal(type).asClass());
@@ -145,39 +151,73 @@ public class ClassResolverTest {
     public static class A0 extends @ResolvableBy("jackson") A {
 
         public A0(String s, List<String> a1) {
-            super(s, a1);
+            super(new Date(),s, a1);
         }
     }
 
+    @JsonPropertyOrder({"a3","a2","property"})
     public static class A extends B<Date,Date[]> {
         @JsonProperty(value="property",defaultValue="test") String s;
-        @JsonProperty("a1") List<String> a1;
-        @JsonProperty("a2") List<? extends B<String,String>> a2;
+        /*@JsonProperty("a1")*/ List<String> a1;
+        //@JsonProperty("a2") List<? extends B<String,String>> a2;
+        @JsonProperty("a2") @JsonAlias({"a2_a","a2_b"}) B<String,String> a2;
         @JsonProperty("a3") Map<@Field(name="key-word") String,@Field(name="v") Map<@Field(name="k") String,Object>> a3;
         @JsonProperty A[] alternatives;
         
         @JsonCreator
-        public A(@JsonProperty("property") String s,@JsonProperty("a1") List<String> a1) {
+        public A(@JsonProperty("t") Date date,@JsonProperty("property") String s,@JsonProperty(value="a1",index=1000) List<String> a1) {
+        	super(date);
             this.s=s;
             this.a1=a1;
-            t=new Date();
-            r=new Date[] {t,t};
+            r=new Date[] {date,date};
+        }
+        
+        public List<String> getA1() {
+        	return a1;
         }
         
     }
     
+    @JsonAutoDetect(creatorVisibility = Visibility.NON_PRIVATE)
     public static class B<T,R> {
-        @JsonProperty("t") T t;
+        /*@JsonProperty("t")*/ T t0;
         @JsonProperty("r") R r;
         @JsonProperty("t1") T[] t1;
         @JsonProperty("s1") String[] s1;
+        B() {}
+        @JsonCreator B(@JsonProperty("t") T t) {
+        	this.t0=t;
+        }
+        
+        public T getT() {
+        	return t0;
+        }
+        
+        public R getR() {
+        	return r;
+        }
+
+        public R getR(AccessContext context) {
+        	return r;
+        }
+
+        public void setR(R r) {
+        	this.r=r;
+        }
+        
+        public void setR(AccessContext context,R r) {
+        	this.r=r;
+        }
+        
+        public void setR(String r) {
+        }
     }
     
     @Overlay
     public static class AOverlay extends A {
     	
-        public AOverlay(@JsonProperty("property") String s,@JsonProperty("a1") List<String> a1) {
-        	super(s,a1);
+        public AOverlay(Date date,String s,List<String> a1) {
+        	super(date,s,a1);
         }
     }
     

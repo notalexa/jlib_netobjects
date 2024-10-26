@@ -69,7 +69,7 @@ public abstract class AbstractTextCodingScheme extends AbstractCodingScheme impl
     protected String resourceBranch;
     protected Codecs codecs;
     protected AbstractTextCodingScheme(Charset charset,AccessFactory factory) {
-    	super(factory,PrimitiveTypeDefinition.getTypeDescription(Object.class));
+    	super(factory);
         this.charset=charset;
         codecs=Codecs.defaultTextCodecs();
     }
@@ -95,21 +95,21 @@ public abstract class AbstractTextCodingScheme extends AbstractCodingScheme impl
         return typeRef;
     }
     
-    public Codec getCodec(Context context,ObjectType type,Access access) throws BaseException {
+    public Codec getCodec(Context context, Access access) throws BaseException {
         if(access!=null) {
             Codec codec=codecs.get(access);
             if(codec==null) {
                 switch(access.getType().getFlavour()) {
                     case PrimitiveType:throw new BaseException(BaseException.NOT_FOUND,"Primitive type "+access.getType()+" has no predefined codec.");
-                    case InterfaceType:codec=createInterfaceCodec(context, type, access.getType());
+                    case InterfaceType:codec=createInterfaceCodec(context, access.getType());
                         break;
-                    case ArrayType:codec=createArrayCodec(context, type, access);
+                    case ArrayType:codec=createArrayCodec(context, access);
                         break;
-                    case MethodType:codec=createMethodCodec(context, type, access.getType());
+                    case MethodType:codec=createMethodCodec(context, access.getType());
                         break;
-                    case EnumType:codec=createEnumCodec(context, type, access.getType());
+                    case EnumType:codec=createEnumCodec(context, access.getType());
                         break;
-                    case ClassType:codec=createClassCodec(context,type,access);
+                    case ClassType:codec=createClassCodec(context, access);
                         break;
                     case UnknownType:return null;
                 }
@@ -122,29 +122,29 @@ public abstract class AbstractTextCodingScheme extends AbstractCodingScheme impl
         return null;
     }
 
-    protected Codec createInterfaceCodec(Context context,ObjectType type,TypeDefinition typeDef) throws BaseException {
+    protected Codec createInterfaceCodec(Context context, TypeDefinition typeDef) throws BaseException {
     	return null;
     }
     
-    protected Codec createMethodCodec(Context context,ObjectType type,TypeDefinition typeDef) throws BaseException {
+    protected Codec createMethodCodec(Context context, TypeDefinition typeDef) throws BaseException {
         throw new BaseException(BaseException.NOT_FOUND,"Codecs for method types are not defined.");
     }
 
-	protected Codec createArrayCodec(Context context, ObjectType type, Access access) throws BaseException {
+	protected Codec createArrayCodec(Context context, Access access) throws BaseException {
 		Access componentAccess=access.getComponentAccess();
-		Codec componentCodec=getCodec(context, componentAccess.getType().getType(getNamespace()), componentAccess);
+		Codec componentCodec=getCodec(context, componentAccess);
 		return createArrayCodec(access,componentCodec);
 	}	
 		
-	protected Codec createArrayCodec(Access access,Codec componentCodec) throws BaseException {
+	protected Codec createArrayCodec(Access access, Codec componentCodec) throws BaseException {
         throw new BaseException(BaseException.NOT_FOUND,"Codecs for array types are not defined.");
     }
     
-    protected Codec createEnumCodec(Context context,ObjectType type,TypeDefinition typeDef) throws BaseException {
+    protected Codec createEnumCodec(Context context, TypeDefinition typeDef) throws BaseException {
         return typeDef.getJavaClassType()==null?null:new EnumCodec(typeDef.getJavaClassType());
     }
     
-    protected Codec createClassCodec(Context context,ObjectType type,Access access) throws BaseException {
+    protected Codec createClassCodec(Context context, Access access) throws BaseException {
         return null;
     }
     
@@ -311,7 +311,7 @@ public abstract class AbstractTextCodingScheme extends AbstractCodingScheme impl
         protected abstract T createChild();
         
         protected Codec resolveCodec(ObjectType type,Access access) throws BaseException {
-           Codec codec=root.getCodingScheme().getCodec(getContext(), type, access);
+           Codec codec=root.getCodingScheme().getCodec(getContext(), access);
            if(codec==null) {
                   throw new BaseException(BaseException.NOT_FOUND,"Codec for "+type);
            }

@@ -6,7 +6,7 @@ import java.io.InputStream;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.coding.xml.XMLCodingScheme;
-import not.alexa.netobjects.types.access.Constructor.Provider;
+import not.alexa.netobjects.types.access.RuntimeInfo.Provider;
 
 /**
  * Interface for type resolution extensions. Typical examples are resolvers for namespaces different from the normal java namespace or

@@ -51,6 +51,10 @@ class ProtobufBuffer {
 		this.len=offset+len;
 	}
 	
+	public ProtobufBuffer getOutputBuffer() {
+		return new ProtobufBuffer(currentBuffer,0, offset);
+	}
+	
 	public <T extends ProtobufListener> T consume(T listener) {
 		try {
 			while(offset<len) {
@@ -204,6 +208,9 @@ class ProtobufBuffer {
 			out.write(bufferBytes[i],0,bufferLength[i]);
 		}
 		out.write(currentBuffer,0,offset);
+		offset=tagLength=0;
+		used=-1;
+		bufferBytes=null;
 		return out;
 	}
 	

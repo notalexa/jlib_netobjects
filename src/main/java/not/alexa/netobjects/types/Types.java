@@ -29,6 +29,10 @@ import not.alexa.netobjects.types.EnumTypeDefinition.Value;
  */
 class Types {
 	static TypeDefinition TYPE=new InterfaceTypeDefinition(TypeDefinition.class);
+	
+	static final ClassTypeDefinition DEFERRED_TYPE=new ClassTypeDefinition(DeferredObject.class)
+			.createBuilder()
+			.build();
 
 	static final ClassTypeDefinition UNKNOWN_TYPE=new ClassTypeDefinition(UnknownTypeDefinition.class)
 			.createBuilder()

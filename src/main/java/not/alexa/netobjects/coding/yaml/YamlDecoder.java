@@ -36,15 +36,16 @@ import not.alexa.netobjects.types.ArrayTypeDefinition;
 import not.alexa.netobjects.types.ArrayTypeDefinition.ArrayFlavour;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
-import not.alexa.netobjects.types.Flavour;
-import not.alexa.netobjects.types.ObjectType;
+import not.alexa.netobjects.types.DeferredObject;
+import not.alexa.netobjects.types.DeferredObject.ClassAccess;
 import not.alexa.netobjects.types.JavaClass.Type;
+import not.alexa.netobjects.types.ObjectType;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.Access;
-import not.alexa.netobjects.types.access.Access.SimpleTypeAccess;
-import not.alexa.netobjects.types.access.Constructor;
-import not.alexa.netobjects.types.access.MapEntryAccess;
+import not.alexa.netobjects.types.access.AccessContext;
+import not.alexa.netobjects.types.access.DefaultAccessibleObject;
+import not.alexa.netobjects.types.access.RuntimeInfo;
 
 /**
  * Decoder implementation for YAML.
@@ -53,7 +54,6 @@ import not.alexa.netobjects.types.access.MapEntryAccess;
  *
  */
 class YamlDecoder implements Decoder {
-	private InputStream stream;
 	private TextCodingSupport<YamlCodingScheme> root;
 	private Iterator<Document> documents;
 
@@ -64,7 +64,6 @@ class YamlDecoder implements Decoder {
 
 	YamlDecoder(TextCodingSupport<YamlCodingScheme> root,InputStream stream) {
 	    this.root=root;
-		this.stream=stream;
 		documents=root.getCodingScheme().yaml.parse(stream).iterator();
 	}
 
@@ -72,7 +71,7 @@ class YamlDecoder implements Decoder {
 	public <T> T decode(Class<T> clazz) throws BaseException {
 		try {
 			YAMLContentHandler top=new YAMLContentHandler(this, root.getContext())
-					.init("",root.getCodingScheme().getRootDecoder(root));
+					.init("",root.getCodingScheme().getRootDecoder(root,clazz));
 			if(documents.hasNext()) {
 				documents.next().process(new Yaml.DefaultHandler(false,top::decode));
 				return root.getContext().cast(clazz,top.getResult());
@@ -85,11 +84,6 @@ class YamlDecoder implements Decoder {
 
 	@Override
 	public void close() throws BaseException {
-		if(stream!=null) try {
-			stream.close();
-		} catch(Throwable t) {
-			BaseException.throwException(t);
-		}
 	}
 	
 
@@ -121,7 +115,7 @@ class YamlDecoder implements Decoder {
 						return e;
 					}
 					@Override
-					public Object getAssignable() throws BaseException {
+					public Object getAssignable(AccessContext context) throws BaseException {
 						return BaseException.throwException(e);
 					}
 				};
@@ -140,7 +134,7 @@ class YamlDecoder implements Decoder {
 						return e0;
 					}
 					@Override
-					public Object getAssignable() throws BaseException {
+					public Object getAssignable(AccessContext context) throws BaseException {
 						throw e0;
 					}
 				};
@@ -149,7 +143,7 @@ class YamlDecoder implements Decoder {
 	    }
 	    
 	    private Object getResult() throws BaseException {
-	    	return current.getAssignable();
+	    	return current.getAssignable(this);
 	    }
 	    
 	    private void addObjects(Token t) throws BaseException {
@@ -160,6 +154,8 @@ class YamlDecoder implements Decoder {
 		    	case Sequence:for(Token child:t.getArray()) {
 			    		addObjects(child);
 			    	}
+		    		break;
+		    	default:
 		    		break;
 	    	}
 	    }
@@ -182,7 +178,11 @@ class YamlDecoder implements Decoder {
                 	for(String modifier:modifiers) {
             			root.addObjectReference(false, modifier, v);
                 	}
-        			return v;
+	    	    	if(access instanceof DeferredObject.ClassAccess) {
+	    	    		return new DefaultAccessibleObject(access, new DeferredTokenizedObject(v.getAssignable(this)));
+	    	    	} else {
+	    	    		return v;
+	    	    	}
         		} else {
     				throw new BaseException(BaseException.NOT_FOUND,"Undefined reference: "+e.getValue());
         		}
@@ -195,8 +195,14 @@ class YamlDecoder implements Decoder {
 	    			o=e.getMap();
                     Token clazz=o.get(root.getCodingScheme().getTypeRef());
                     if(clazz!=null&&clazz.getType()==not.alexa.netobjects.coding.yaml.Token.Type.Scalar) try {
-                        fieldType=getContext().getTypeLoader().resolveType(getCodingScheme().getNamespace().create(clazz.getValue()));
-                        tagAccess=root.getFactory().resolve(getContext(),fieldType);
+                    	ObjectType objectType=getCodingScheme().getNamespace().create(clazz.getValue());
+                        fieldType=getContext().getTypeLoader().resolveType(objectType);
+                        if(fieldType==null) {
+                        	// Unknown.
+                        	return new DefaultAccessibleObject(tagAccess, new DeferredTokenizedObject(getContext(),getCodingScheme(),objectType,e).makeProxy(tagAccess));
+                        } else {
+                        	tagAccess=root.getFactory().resolve(getContext(),fieldType);
+                        }
                     } catch(Throwable t) {
                         return BaseException.throwException(t);
                     } else {
@@ -216,6 +222,9 @@ class YamlDecoder implements Decoder {
 	    	}
 	    	switch(fieldType.getFlavour()) {
 	    	    case ClassType:
+	    	    	if(tagAccess instanceof DeferredObject.ClassAccess) {
+	    	    		return new DefaultAccessibleObject(tagAccess, new DeferredTokenizedObject(getContext(),getCodingScheme(),null,e));
+	    	    	}
 	    	    	ClassTypeDefinition classType=(ClassTypeDefinition)fieldType;
 	                boolean objRefs=classType.enableObjectRefs();
 	                YAMLCodingExtraInfo extraInfo=YamlCodingScheme.getExtraInfo(classType);
@@ -237,9 +246,9 @@ class YamlDecoder implements Decoder {
 	                		Token field=o.get(name);
 	                		if(field!=null) {
 	                			AccessibleObject v=getChild().init(name,f,tagAccess.getFieldAccess(f)).decode(field);
-	                			current.setField(f, v);
+	                			current.setField(this,f, v);
 	                		} else if(f.getDefaultValue()!=null) {
-	                			current.setField(f, tagAccess.getFieldAccess(f).makeDefault(f.getDefaultValue()));
+	                			current.setField(this,f, tagAccess.getFieldAccess(f).makeDefault(this,f.getDefaultValue()));
 	                		} else if(!f.isOptional()) {
                                 throw new BaseException(BaseException.BAD_REQUEST, "Field "+name+" in "+tagAccess.getType()+" is mandatory but not set.");
 	                		}
@@ -247,6 +256,12 @@ class YamlDecoder implements Decoder {
 	                	return current;
 	                } catch(YamlException ex) {
 	                	return BaseException.throwException(ex);
+	                } else {
+	                	if(access instanceof ClassAccess) {
+	                		if(e.getType()==not.alexa.netobjects.coding.yaml.Token.Type.Scalar) {
+	                			return new DefaultAccessibleObject(getCodingScheme().getFactory().resolve(tagAccess, PrimitiveTypeDefinition.getTypeDescription(String.class)), e.getValue());
+	                		}
+	                	}
 	                }
 	                break;
 	    	    case ArrayType:
@@ -266,9 +281,9 @@ class YamlDecoder implements Decoder {
 	    	    		for(Map.Entry<Token,Token> entry:e.getMapArray()) {
 	    	    			AccessibleObject inlineObject=componentAccess.newAccessible(this);
                 			v=getChild().init("key",componentAccess.getFieldAccess(fields[0])).decode(entry.getKey());
-                			inlineObject.setField(fields[0], v);
+                			inlineObject.setField(this,fields[0], v);
                 			v=getChild().init("value",componentAccess.getFieldAccess(fields[1])).decode(entry.getValue());
-                			inlineObject.setField(fields[1], v);
+                			inlineObject.setField(this,fields[1], v);
 	    	    			array.add(inlineObject);
 	    	    		}
 	    	    	} else for(Token c:e.getArray()) {
@@ -279,7 +294,7 @@ class YamlDecoder implements Decoder {
 	    	    case EnumType:
 	            	Codec codec=resolveCodec(fieldType.getJavaClassType(),tagAccess);
 	            	content=e.getValue();
-	            	AccessibleObject simpleType=tagAccess.makeAccessible(codec.decode(this));
+	            	AccessibleObject simpleType=tagAccess.makeAccessible(this,codec.decode(this));
 	            	if(modifiers.size()>0) for(String modifier:modifiers) {
             			root.addObjectReference(false, modifier, simpleType);
                 	}
@@ -339,7 +354,7 @@ class YamlDecoder implements Decoder {
         }
 
         @Override
-        public Constructor resolve(Context context, Type type) {
+        public RuntimeInfo resolve(Context context, Type type) {
             return root.getFactory().resolve(context, type);
         }
 

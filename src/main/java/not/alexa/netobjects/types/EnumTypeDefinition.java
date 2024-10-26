@@ -202,7 +202,7 @@ public class EnumTypeDefinition extends TypeDefinition {
 			}
 			
 			@Override
-			public Object getField(Object o, int index) throws BaseException {
+			public Object getField(AccessContext context,Object o, int index) throws BaseException {
 				Value def=(Value)o;
 				switch(index) {
 					case 0:return def.index;
@@ -212,7 +212,7 @@ public class EnumTypeDefinition extends TypeDefinition {
 			}
 
 			@Override
-			public void setField(Object o, int index, Object v) throws BaseException {
+			public void setField(AccessContext context,Object o, int index, Object v) throws BaseException {
 				Value def=(Value)o;
 				switch(index) {
 					case 0:def.index=(Integer)v;
@@ -241,7 +241,7 @@ public class EnumTypeDefinition extends TypeDefinition {
 		}
 		
 		@Override
-		public Object getField(Object o, int index) throws BaseException {
+		public Object getField(AccessContext context,Object o, int index) throws BaseException {
 			EnumTypeDefinition def=(EnumTypeDefinition)o;
 			switch(index) {
 				case 0:List<ObjectType> types=def.getTypes();
@@ -252,7 +252,7 @@ public class EnumTypeDefinition extends TypeDefinition {
 		}
 
 		@Override
-		public void setField(Object o, int index, Object v) throws BaseException {
+		public void setField(AccessContext context,Object o, int index, Object v) throws BaseException {
 			EnumTypeDefinition def=(EnumTypeDefinition)o;
 			switch(index) {
 				case 0:def.addTypes((ObjectType[])v);

@@ -15,7 +15,11 @@
  */
 package not.alexa.netobjects.types.access;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+
 import not.alexa.netobjects.BaseException;
+import not.alexa.netobjects.types.AccessibleObject;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.ClassTypeDefinition.Field;
 import not.alexa.netobjects.utils.TypeUtils;
@@ -23,68 +27,114 @@ import not.alexa.netobjects.utils.TypeUtils.ClassResolver;
 import not.alexa.netobjects.utils.TypeUtils.ResolvedClass;
 
 /**
- * Standard class access using reflection ({@link NField}. The field is resolved as follows:
+ * Standard class access using reflection ({@link FieldAccessor}. The field is resolved as follows:
  * Beginning at the class, the field is resolved using the {@code getDeclaredField} method on
  * {@code java.lang.reflect.Field}.
  * 
  * @author notalexa
  *
  */
-class ReflectionClassAccess extends AbstractClassAccess {
-    private NField[] fields;
-    ReflectionClassAccess(AccessFactory factory, Class<?> clazz,ClassTypeDefinition classType, Constructor constructor) {
+public class ReflectionClassAccess extends AbstractClassAccess {
+	private ClassLoader classLoader;
+	private Class<?> clazz;
+    private FieldAccessor[] fields;
+    ReflectionClassAccess(AccessFactory factory, ClassLoader classLoader,ResolvedClass clazz,ClassTypeDefinition classType, RuntimeInfo constructor) {
         super(factory, classType, constructor);
+        this.classLoader=classLoader;
+        this.clazz=clazz.getCodingClass();
         Field[] classFields=classType.getFields();
-        fields=new NField[classFields.length];
+        fields=new FieldAccessor[classFields.length];
         for(int i=0;i<fields.length;i++) {
-            fields[i]=createFieldAccess(new Resolver(clazz),clazz,classFields[i]);
+            fields[i]=createFieldAccess(new Resolver(clazz),clazz.getCodingClass(),classFields[i]);
         }
     }
     
-    protected NField createFieldAccess(Resolver resolver,Class<?> clazz,Field f) {
-        if(clazz!=null) {
-            try {
-                java.lang.reflect.Field classField=clazz.getDeclaredField(constructor.mapField(clazz,f.getName()));
-                classField.setAccessible(true);
-                return new NField.FieldImpl(resolver.resolve(classField),classField);
-            } catch(Throwable t) {
-                
-            }
-            return createFieldAccess(resolver,clazz.getSuperclass(),f);
-        } else {
-            return new NField.UnknownField(resolver.getName(),f.getName());
-        }
+
+	@Override
+	public ClassLoader getAccessLoader() {
+		return classLoader;
+	}
+    
+    protected FieldAccessor createFieldAccess(Resolver resolver,Class<?> clazz,Field f) {
+       	FieldAccessor field=constructor.createFieldAccess(resolver, clazz, f);
+        return field==null?FieldAccessor.createUnknown(resolver.getName(),f.getName()):field;
+    }
+    
+    @Override
+    public Object getObject(AccessContext context,AccessibleObject o) throws BaseException {
+    	Object result=super.getObject(context, o);
+    	if(!clazz.isInstance(result)) {
+    		result=context.getContext().cast(clazz, o);
+    	}
+    	return result;
+    }
+    
+    @Override
+    protected Object getField(AccessContext context,Object o, int index) throws BaseException {
+        return fields[index].get(context,o);
     }
 
     @Override
-    protected Object getField(Object o, int index) throws BaseException {
-        return fields[index].get(o);
-    }
-
-    @Override
-    protected void setField(Object o, int index, Object v) throws BaseException {
-        fields[index].set(o, v);
+    protected void setField(AccessContext context,Object o, int index, Object v) throws BaseException {
+        fields[index].set(context,o, v);
     }
     
     @Override
     public Access createFieldAccess(Field f) throws BaseException {
-    	return createAccess(f.getType(),fields[f.getIndex()].getFieldType());
+    	ResolvedClass fieldClass=fields[f.getIndex()].getFieldType();
+    	Access access=createAccess(f.getType(),fields[f.getIndex()].getFieldType());
+    	if(!fieldClass.getResolvedClass().equals(fieldClass.getCodingClass()) ) {
+    		return makeCodingAccess(access);
+    	}
+    	return access;
     }
     
-    private class Resolver {
+    private static Access makeCodingAccess(Access access) {
+		return new DelegatingAccess(access) {
+			public Object getObject(AccessContext context, AccessibleObject o) throws BaseException {
+				return o.getAssignable(context);
+			}
+		};
+    }
+    
+    public class Resolver {
     	Class<?> clazz;
     	ClassResolver resolver;
-    	private Resolver(Class<?> clazz) {
-    		this.clazz=clazz;
-    		resolver=TypeUtils.createClassResolver(clazz);
+    	private Resolver(ResolvedClass resolvedClass) {
+    		this.clazz=resolvedClass.getResolvedClass();
+    		resolver=resolvedClass==null?TypeUtils.createClassResolver(clazz):resolvedClass.asResolver();
     	}
     	
-    	ResolvedClass resolve(java.lang.reflect.Field f) {
+    	public Class<?> getResolverClass() {
+    		return clazz;
+    	}
+    	
+    	public String mapField(Class<?> clazz, String name) {
+    		return constructor.mapField(clazz, name);
+    	}
+    	
+    	public ResolvedClass resolve(java.lang.reflect.Field f) {
     		return resolver.resolve(f);
+    	}
+    	
+    	public ResolvedClass resolve(Method m) {
+    		return resolver.resolve(m);
+    	}
+
+    	public ResolvedClass resolve(Parameter p) {
+    		return resolver.resolve(p);
+    	}
+
+    	public ResolvedClass resolve(Class<?> clazz) {
+    		return resolver.resolve(clazz);
     	}
     	
     	public String getName() {
     		return clazz.getName();
     	}
+
+		public CodingFilter getFilter(Class<?> codingClass) {
+			return RuntimeInfoHelper.getFilter(codingClass);
+		}
     }
 }
