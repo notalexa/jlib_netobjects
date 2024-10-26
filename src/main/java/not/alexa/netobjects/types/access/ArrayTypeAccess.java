@@ -133,7 +133,7 @@ public class ArrayTypeAccess extends Access.AbstractAccess implements Access {
 		if(o instanceof EmptyArray) {
 			return ((EmptyArray)o).makeAccessible(context,this);
 		} else {
-			return Access.super.makeDefault(context,o);
+			return super.makeDefault(context,o);
 		}
 	}
 

@@ -71,7 +71,7 @@ public class MapEntryAccess extends Access.AbstractAccess implements Access {
 			case 0:return entry.getKey();
 			case 1:return entry.getValue();
 		}
-		return Access.super.getField(context,o, f);
+		return super.getField(context,o, f);
 	}
 
 	@Override
