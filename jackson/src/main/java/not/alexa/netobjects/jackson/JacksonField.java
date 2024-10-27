@@ -63,6 +63,10 @@ class JacksonField implements Comparable<JacksonField> {
 		}
 	}
 	
+	public boolean isReadOnly() {
+		return prio<Integer.MAX_VALUE&&(access==null||access.isReadOnly());
+	}
+	
 	public void add(ClassAccessInfo.FieldAccessInfo access) {
 		this.access=access.merge(this.access);
 	}

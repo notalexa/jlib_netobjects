@@ -72,14 +72,14 @@ public final class FieldAccessor {
 					}
     			};
     			break;
-    			case 2: this.getter=new Getter() {
+    			case 2+0x200: this.getter=new Getter() {
 					@Override
 					public Object invoke(AccessContext context, Object o) throws Throwable {
 						return getter.invoke(o,context.getContext());
 					}
     			};
     			break;
-    			case 3: this.getter=new Getter() {
+    			case 3+0x200: this.getter=new Getter() {
 					@Override
 					public Object invoke(AccessContext context, Object o) throws Throwable {
 						return getter.invoke(o,context);
@@ -115,14 +115,14 @@ public final class FieldAccessor {
 					}
     			};
     			break;
-			case 2: this.setter=new Setter() {
+			case 2+0x200: this.setter=new Setter() {
 					@Override
 					public void invoke(AccessContext context, Object o,Object v) throws Throwable {
 						setter.invoke(o,context.getContext(),v);
 					}
     			};
     			break;
-			case 3: this.setter=new Setter() {
+			case 3+0x200: this.setter=new Setter() {
 					@Override
 					public void invoke(AccessContext context, Object o,Object v) throws Throwable {
 						setter.invoke(o,context,v);

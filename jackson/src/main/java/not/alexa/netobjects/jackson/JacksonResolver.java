@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
@@ -234,7 +235,7 @@ public class JacksonResolver implements TypeResolver {
         }
         defineFromClazz0(loader,classResolver,classResolver.getRootClass(),infos);
         if(explicitlyDefined||infos.annotationSeen) {
-	        List<JacksonField> fields=infos.fields;
+	        List<JacksonField> fields=infos.fields.stream().filter(f->!f.isReadOnly()).collect(Collectors.toList());
 	        String[] order=classResolver.getRootClass().isAnnotationPresent(JsonPropertyOrder.class)?classResolver.getRootClass().getAnnotation(JsonPropertyOrder.class).value():null;
 	        if(order!=null) {
 	        	Map<String,Integer> orderMap=new HashMap<String, Integer>();
@@ -270,20 +271,28 @@ public class JacksonResolver implements TypeResolver {
         if(prop!=null) {
         	infos.annotationSeen=true;
            	name=prop.value().length()>0?prop.value():name;
+           	prio=Math.max(prio, prio+0x100);
         }
         if(name!=null) { 
         	if(infos.declaredFields.containsKey(name)) {
         		JacksonField f=infos.fields.get(infos.declaredFields.get(name));
-        		if(f.fieldClass.equals(fieldClass)) {
-            		if(f.prio<prio) {
-            			FieldAccessInfo accessInfo=f.access;
-        	            f=new JacksonField(name,fieldName==null?name:fieldName, f.id, clazz, prio,e, fieldClass, f.type);
-        	            f.access=accessInfo;
-            			infos.fields.set(f.id, f);
-            		}
+        		if(f.prio<prio) {
+           			FieldAccessInfo accessInfo=null;
+           			TypeDefinition type=f.type;
+           			if(f.fieldClass.equals(fieldClass)) {
+           				accessInfo=f.access;
+           			} else {
+           				type=resolveType(loader,resolver,fieldClass,infos);
+           				if(type==null) {
+           					return null;
+           				}
+           			}
+       	            f=new JacksonField(name,fieldName==null?name:fieldName, f.id, clazz, prio,e, fieldClass, type);
+       	            f.access=accessInfo;
+           			infos.fields.set(f.id, f);
         			return f;
         		} else {
-        			return null;
+        			return f;
         		}
         	}
 	        TypeDefinition type=resolveType(loader,resolver,fieldClass,infos);
@@ -355,7 +364,7 @@ public class JacksonResolver implements TypeResolver {
 	}
     
     private void defineFromClazz0(LoaderIntermediate loader,ClassResolver resolver,Class<?> clazz,RuntimeInfos infos) {
-        if(Object.class.equals(clazz)) {
+        if(clazz==null||Object.class.equals(clazz)) {
             return;
         }
         defineFromClazz0(loader,resolver,clazz.getSuperclass(),infos);
@@ -389,7 +398,8 @@ public class JacksonResolver implements TypeResolver {
 	            JacksonField field=add(loader,resolver,infos,f.getName(),clazz,resolver.resolve(f),0,f);
 	            if(field!=null) {
 	            	Method setter=resolveSetter(field.name,f.getGenericType(), infos);
-	    			field.add(new ClassAccessInfo.FieldAccessInfo(new ClassAccessInfo.AccessRef(f),setter==null?null:new ClassAccessInfo.AccessRef(setter)));
+	            	ClassAccessInfo.AccessRef fieldRef=new ClassAccessInfo.AccessRef(f);
+	    			field.add(new ClassAccessInfo.FieldAccessInfo(fieldRef,setter==null?fieldRef:new ClassAccessInfo.AccessRef(setter)));
 	            }
             }
         }

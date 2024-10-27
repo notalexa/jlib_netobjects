@@ -50,7 +50,7 @@ public class StrongRefPoolSupport implements StrongRefPool {
 	 * @param o the object removed from the pool.
 	 */
 	protected void finalize(Object o) {
-		System.out.println("Finalize "+o);
+		//System.out.println("Finalize "+o);
 	}
 
 	/**

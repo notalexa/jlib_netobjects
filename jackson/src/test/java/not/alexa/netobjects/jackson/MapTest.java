@@ -15,6 +15,8 @@
  */
 package not.alexa.netobjects.jackson;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +35,8 @@ import not.alexa.netobjects.coding.CodingScheme;
 import not.alexa.netobjects.coding.Decoder;
 import not.alexa.netobjects.coding.json.JsonCodingScheme;
 import not.alexa.netobjects.coding.yaml.YamlCodingScheme;
+import not.alexa.netobjects.types.ClassTypeDefinition;
+import not.alexa.netobjects.types.TypeDefinition;
 
 @RunWith(org.junit.runners.Parameterized.class)
 public class MapTest {
@@ -51,7 +55,13 @@ public class MapTest {
     
     @Parameter
     public CodingScheme scheme;
-	
+
+	@Test public void testData() {
+		Context context=Context.createRootContext();
+		TypeDefinition def=context.resolveType(Data.class);
+		assertEquals(2,((ClassTypeDefinition)def).getFields().length);
+	}
+
 	@Test public void testA() {
 		Context context=Context.createRootContext();
 		try {
@@ -124,6 +134,14 @@ public class MapTest {
 		Data(String a,String b) {
 			this.a=a;
 			this.b=b;
+		}
+		
+		public String getA() {
+			return a;
+		}
+		
+		public String getA0() {
+			return a;
 		}
 		
 		public String toString() {

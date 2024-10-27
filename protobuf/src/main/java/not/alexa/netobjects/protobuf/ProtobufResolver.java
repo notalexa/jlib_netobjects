@@ -157,7 +157,9 @@ public class ProtobufResolver implements TypeResolver {
     }
     
     private TypeDefinition resolveMessageType(LoaderIntermediate loader, Class<?> clazz,ObjectType type,Descriptor descriptor) {
-		ClassTypeDefinition.Builder classType=new ClassTypeDefinition(type).createBuilder();
+    	ClassTypeDefinition typeDef=new ClassTypeDefinition(type);
+    	loader.register(type, typeDef);
+		ClassTypeDefinition.Builder classType=typeDef.createBuilder();
 		List<FieldDescriptor> fields=new ArrayList<>(descriptor.getFields());
 		Collections.sort(fields, new Comparator<FieldDescriptor>() {
 			@Override

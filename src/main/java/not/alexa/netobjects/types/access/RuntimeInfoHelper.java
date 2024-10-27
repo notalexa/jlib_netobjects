@@ -211,9 +211,9 @@ class RuntimeInfoHelper {
 			return 1;
 		} else if(m.getParameterCount()==type+1) {
 			if(Context.class.isAssignableFrom(m.getParameterTypes()[0])) {
-				return 2;
+				return 2+0x200;
 			} else if(AccessContext.class.isAssignableFrom(m.getParameterTypes()[0])) {
-				return 3;
+				return 3+0x200;
 			}
 		}
 		return -1;
@@ -345,7 +345,7 @@ class RuntimeInfoHelper {
 					infos[i]=injectorInfos==null?null:injectorInfos.getParameterInfo(i-offset);
 				}
 			}
-			public Object[] initialize(AccessContext context,Access access,Map<String,Value> values) throws BaseException {
+			public Object[] initialize(AccessContext context,Access access,Set<String> optional,Map<String,Value> values) throws BaseException {
 				Object[] args=new Object[infos.length];
 				int offset=enclosingClass==null?0:1;
 				int fieldIndex=0;
@@ -434,7 +434,7 @@ class RuntimeInfoHelper {
 							}
 							
 							private void create(Set<String> optional) throws Throwable {
-								Object[] args=initializer.initialize(context, access,values);
+								Object[] args=initializer.initialize(context, access,optional,values);
 								if(args!=null) {
 									o=DeferredRuntimeInfo.this.constructor.newInstance(args);
 									if(injectors!=null) for(Injector injector:injectors) {

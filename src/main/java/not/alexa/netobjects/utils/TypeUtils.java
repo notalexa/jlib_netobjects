@@ -499,6 +499,9 @@ public class TypeUtils {
      *
      */
     public static class ResolvedClass implements AnnotatedElement {
+    	private static final ResolvedClass[] LIST_PARAMETERS=new ResolvedClass[] { new ResolvedClass(Object.class) };
+    	private static final ResolvedClass[] MAP_PARAMETERS=new ResolvedClass[] { LIST_PARAMETERS[0], LIST_PARAMETERS[0] };
+    	
         private Class<?> clazz;
         private ResolvedClass[] parameters;
         private AType annotationSource;
@@ -526,6 +529,9 @@ public class TypeUtils {
             this.clazz=clazz;
             this.annotationSource=annotationSource;
             this.parameters=parameters==null?NO_PARAMETERS:parameters;
+            if(this.parameters.length==0&&isArray()) {
+            	this.parameters=Map.class.isAssignableFrom(clazz)?MAP_PARAMETERS:LIST_PARAMETERS;
+            }
         }
         
         /**

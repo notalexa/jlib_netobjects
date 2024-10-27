@@ -175,6 +175,10 @@ public class ClassAccessInfo {
     		}
     	}
     	
+    	public boolean isField() {
+    		return no<=0;
+    	}
+    	
     	public Field getField(Class<?> clazz) {
     		if(no<=0&&clazz!=null) {
     			if(clazz.getName().equals(className)) {
@@ -208,13 +212,25 @@ public class ClassAccessInfo {
     		this.setter=setter;
     	}
     	
+    	public boolean isReadOnly() {
+    		return setter==null&&(getter==null||!getter.isField());
+    	}
+    	
     	public FieldAccessor create(Resolver resolver, Class<?> clazz,not.alexa.netobjects.types.ClassTypeDefinition.Field f) {
     		Field getterField=getter==null?null:getter.getField(clazz);
+    		Field setterField=setter==null?null:setter.getField(clazz);
     		Method getterMethod=getter==null?null:getter.getMethod(clazz);
     		Method setterMethod=setter==null?null:setter.getMethod(clazz);
     		if(getterField==null&&getterMethod==null) {
     			return null;
     		} else {
+    			if(getterField!=null) {
+    				if(setterField!=null&&!setterField.equals(getterField)) {
+    					throw new RuntimeException("Field mismatch");
+    				}
+    			} else {
+    				getterField=setterField;
+    			}
     			ResolvedClass fieldType=getterMethod!=null?resolver.resolve(getterMethod):resolver.resolve(getterField);
     			FieldAccessor field=new FieldAccessor(clazz.getName()+"."+f.getName(),fieldType,getterField,getterMethod,setterMethod);
     			if(f.getType().getFlavour()==Flavour.PrimitiveType) {
