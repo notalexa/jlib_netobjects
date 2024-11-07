@@ -57,11 +57,15 @@ enum VisibilityType {
 		switch(this) {
 			case Setter:
 			case Getter: if(n.length()>3) {
-					return Character.toLowerCase(n.charAt(3))+n.substring(4);
+					if(n.startsWith(this==Setter?"set":"get")) {
+						return Character.toLowerCase(n.charAt(3))+n.substring(4);
+					}
 				}
 				break;
 			case IsGetter:if(n.length()>2) {
-					return Character.toLowerCase(n.charAt(2))+n.substring(3);
+					if(n.startsWith("is")) {
+						return Character.toLowerCase(n.charAt(2))+n.substring(3);
+					}
 				}
 				break;
 			default:
