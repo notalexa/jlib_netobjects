@@ -1,2 +1,3 @@
 not.alexa.netobjects.types.filters.FileFilter
+not.alexa.netobjects.types.filters.PatternFilter
 not.alexa.netobjects.types.filters.ClassFilter
