@@ -547,6 +547,9 @@ public class JacksonResolver implements TypeResolver {
     	}
     	
 		public boolean isVisible(Field f) {
+			if(f.getName().indexOf('$')>=0) {
+				return false;
+			}
 			if(f.getAnnotation(JsonProperty.class)==null) {
 				if(f.getAnnotation(JacksonInject.class)!=null) {
 					annotationSeen=true;
@@ -571,6 +574,9 @@ public class JacksonResolver implements TypeResolver {
 		}
 		
 		public boolean isVisible(VisibilityType type,Method m) {
+			if(m.getName().indexOf('$')>=0) {
+				return false;
+			}
 			if(m.getAnnotation(JsonProperty.class)==null) {
 				if(m.getAnnotation(JsonIgnore.class)!=null||m.getReturnType().getAnnotation(JsonIgnoreType.class)!=null) {
 					annotationSeen=true;
