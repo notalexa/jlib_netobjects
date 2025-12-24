@@ -107,6 +107,22 @@ public interface TypeLoader {
 	public default Context createContext() {
 		return Context.createRootContext(this);
 	}
+	
+	/**
+	 * Create a context with this class loader.
+	 * 
+	 * @param parent the parent context
+	 * @return a new context using this class loader
+	 */
+	public default Context createContext(Context parent) {
+		return parent==null?createContext():new Context.Default(parent) {
+			@Override
+			public TypeLoader getTypeLoader() {
+				return TypeLoader.this;
+			}
+		};
+	}
+
 
 	/**
 	 * This method is the core method for linking network objects to java types. Whenever a server provides some functionality implementing
