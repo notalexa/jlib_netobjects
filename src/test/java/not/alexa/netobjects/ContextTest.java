@@ -53,11 +53,11 @@ public class ContextTest {
         assertEquals(context,context.cast(context.getClass(),context));
         assertEquals(a1,context.getAdapter(A1.class));
         try {
-            assertEquals(a1,context.fallibleCastTo(context,A1.class));
-            assertEquals(a1,context.fallibleCastTo(A1.class));
-            assertEquals(a1,context.fallibleCast(A1.class,context));
-            assertEquals(context,context.fallibleCastTo(context,context.getClass()));
-            assertEquals(context,context.fallibleCast(context.getClass(),context));
+            assertEquals(a1,context.failableCastTo(context,A1.class));
+            assertEquals(a1,context.failableCastTo(A1.class));
+            assertEquals(a1,context.failableCast(A1.class,context));
+            assertEquals(context,context.failableCastTo(context,context.getClass()));
+            assertEquals(context,context.failableCast(context.getClass(),context));
         } catch(BaseException e) {
             fail(e.getMessage());
         }
@@ -77,12 +77,12 @@ public class ContextTest {
         assertEquals(a1,context.cast(A1.class,a1));
         assertNull(context.cast(Context.class, a1));
         try {
-            assertEquals(a1,context.fallibleCast(A1.class, a1));
+            assertEquals(a1,context.failableCast(A1.class, a1));
         } catch(BaseException e) {
             fail(e.getMessage());
         }
         try {
-            context.fallibleCast(Context.class,a1);
+            context.failableCast(Context.class,a1);
             fail();
         } catch(BaseException e) {
         }

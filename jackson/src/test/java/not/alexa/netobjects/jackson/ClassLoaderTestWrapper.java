@@ -20,7 +20,6 @@ import static org.junit.Assert.fail;
 import java.io.File;
 import java.lang.ref.ReferenceQueue;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 

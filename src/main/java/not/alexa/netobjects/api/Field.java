@@ -37,7 +37,7 @@ import java.lang.annotation.Target;
  */
 @Documented
 @Retention(RUNTIME)
-@Target({ElementType.ANNOTATION_TYPE, ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER})
+@Target({ElementType.ANNOTATION_TYPE, ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER,ElementType.TYPE_PARAMETER,ElementType.TYPE,ElementType.TYPE_USE})
 @Repeatable(Fields.class)
 public @interface Field {
 	/**

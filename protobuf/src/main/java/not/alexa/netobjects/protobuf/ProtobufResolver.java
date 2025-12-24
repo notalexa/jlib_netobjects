@@ -23,6 +23,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
@@ -61,6 +64,7 @@ import not.alexa.netobjects.types.access.MapEntryAccess;
  * @author notalexa
  */
 public class ProtobufResolver implements TypeResolver {
+	private static Logger LOGGER=LoggerFactory.getLogger(ProtobufResolver.class);
 	Codecs codecs;
 	static {
 		DefaultAccessFactory.addAccessResolver(new ProtobufAccessResolver());
@@ -215,10 +219,10 @@ public class ProtobufResolver implements TypeResolver {
 				addHints(protobufFieldType, fieldBuilder);
 				fieldBuilder.build();
 			} else {
-				System.out.println("Unsupported.");
+				LOGGER.warn("Unsupported protobuf field type in {}: {}.",clazz,protobufFieldType);
 			}
 		} catch(Throwable t) {
-			t.printStackTrace();
+			LOGGER.error("Error processing {}",clazz,t);
 		}
     	return classType.build();
     }
@@ -229,12 +233,12 @@ public class ProtobufResolver implements TypeResolver {
             Type t=(Type)type;
             LinkedLocal linkedClass=t.asLinkedLocal(loader.getClassLoader());
             Class<?> clazz=linkedClass.asClass();
-            if(GeneratedMessageV3.class.isAssignableFrom(clazz)) {
+            if(clazz!=null&&GeneratedMessageV3.class.isAssignableFrom(clazz)) {
         		Descriptor descriptor=(Descriptor)clazz.getMethod("getDescriptor").invoke(null);
         		return resolveMessageType(loader,clazz,type, descriptor);
             }
         } catch(Throwable t) {
-        	t.printStackTrace();
+			LOGGER.error("Error processing {}",type,t);
         }
 		return null;
 	}
@@ -269,7 +273,7 @@ public class ProtobufResolver implements TypeResolver {
         			descriptors.put(field.getName(), new RuntimeInfo(field,accessor));
         		}
 			} catch(Throwable t) {
-				t.printStackTrace();
+				LOGGER.error("Error creating access for {}",clazz,t);
 			}
 		}
 

@@ -124,12 +124,12 @@ public interface Context extends Adaptable {
 	 * @return an object of the given type.
 	 * @throws BaseException if the object cannot be cast to the requested class
 	 * 
-	 * @see Castable#fallibleCastTo(Context, Class)
+	 * @see Castable#failableCast(Context, Class)
 	 */
 	@SuppressWarnings("unchecked")
-	public default <T> T fallibleCast(Class<T> clazz,Object o) throws BaseException {
+	public default <T> T failableCast(Class<T> clazz,Object o) throws BaseException {
 		if(o instanceof Castable) {
-			return ((Castable)o).fallibleCastTo(this,clazz);
+			return ((Castable)o).failableCastTo(this,clazz);
 		} else if(clazz.isInstance(o)) {
 			return (T)o;
 		} else {
@@ -174,8 +174,8 @@ public interface Context extends Adaptable {
      * @return this context casted to the requested class if possible
      * @throws BaseException if this context is not castable
      */
-    public default <T> T fallibleCastTo(Class<T> clazz) throws BaseException {
-        return fallibleCastTo(this,clazz);
+    public default <T> T failableCastTo(Class<T> clazz) throws BaseException {
+        return failableCastTo(this,clazz);
     }
     
     public default <T> T upcast(T o) {

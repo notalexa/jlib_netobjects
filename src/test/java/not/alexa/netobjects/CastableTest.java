@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2025 Not Alexa
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package not.alexa.netobjects;
 
 import static org.junit.Assert.assertNotNull;
@@ -20,7 +35,7 @@ public class CastableTest {
         A1 a1=context.cast(A1.class, o);
         assertNotNull(a1);
         try {
-            a1=context.fallibleCast(A1.class, o);
+            a1=context.failableCast(A1.class, o);
             assertNotNull(a1);
         } catch(Throwable t) {
             fail(t.getMessage());
@@ -33,7 +48,7 @@ public class CastableTest {
         A2 a2=context.cast(A2.class, o);
         assertNull(a2);
         try {
-            a2=context.fallibleCast(A2.class, o);
+            a2=context.failableCast(A2.class, o);
             fail();
         } catch(Throwable t) {
         }

@@ -62,6 +62,7 @@ public class ClassResolverTest {
     @Test
     public void writeOut() {
     	A a=new A(new Date(),"xxx",Collections.singletonList("yyy"));
+    	a.a3=Collections.singletonMap("test",Collections.singletonMap("a","b"));
         Context context=Context.createRootContext();
         try {
             TypeDefinition type=context.getTypeLoader().resolveType(A.class);
@@ -161,7 +162,7 @@ public class ClassResolverTest {
         /*@JsonProperty("a1")*/ List<String> a1;
         //@JsonProperty("a2") List<? extends B<String,String>> a2;
         @JsonProperty("a2") @JsonAlias({"a2_a","a2_b"}) B<String,String> a2;
-        @JsonProperty("a3") Map<@Field(name="key-word") String,@Field(name="v") Map<@Field(name="k") String,Object>> a3;
+        @JsonProperty("a3") Map<@Field(type = "xml",name="@key-word") @Field(name="key-word") String,@Field(name="v") Map<@Field(name="k") String,Object>> a3;
         @JsonProperty A[] alternatives;
         
         @JsonCreator

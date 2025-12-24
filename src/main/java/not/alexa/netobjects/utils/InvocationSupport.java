@@ -108,7 +108,7 @@ public interface InvocationSupport extends InvocationHandler {
                     .findSpecial(
                             m.getDeclaringClass(),
                             m.getName(),
-                            MethodType.methodType(m.getReturnType(), new Class[0]),
+                            MethodType.methodType(m.getReturnType(), m.getParameterTypes()),
                             m.getDeclaringClass()
                     ).bindTo(proxy)
                     .invokeWithArguments(args);

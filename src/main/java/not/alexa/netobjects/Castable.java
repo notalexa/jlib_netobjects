@@ -65,7 +65,7 @@ public interface Castable {
 	 * @return <code>this</code> casted to <code>T</code>.
 	 * @throws BaseException if the object cannot be cast to the requested class
 	 */
-	public default <T> T fallibleCastTo(Context context,Class<T> clazz) throws BaseException {
+	public default <T> T failableCastTo(Context context,Class<T> clazz) throws BaseException {
 		T t=castTo(context,clazz);
 		if(t==null) {
 			throw new BaseException(424,"Cannot cast "+this+" to "+clazz.getName());
