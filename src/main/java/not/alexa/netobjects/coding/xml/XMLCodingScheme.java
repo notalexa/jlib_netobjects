@@ -65,6 +65,8 @@ import not.alexa.netobjects.types.access.AccessFactory;
  * These attributes can be overridden using {@link Builder#setReservedAttributes(ReservedAttributes)} and retrieved using {@link #getReservedAttributes()}.
  * <li>An additional attribute <code>rootTag</code> configurable in the builder with {@link Builder#setRootTag(String)} and retrievable via {@link XMLCodingScheme#getRootTag()}
  * describes the XML root tag used for encoding. The default value is <code>object</code>.
+ * <li>The scheme accepts all root tags (instead of just <code>rootTag</code>), if the attribute <code>acceptAllRootTags</code> is set to <code>true</code> via {@link Builder#setAcceptAllRootTags(boolean)}.
+ * This is convenient for RESTful API's and set in {@link #REST_SCHEME}.
  * <li>The XML header will be written out if enabled by {@link Builder#enableHeader()} or {@link Builder#enableHeader(boolean)} (or setting a non null value for
  * the standalone pseudo attribute)
  * <li>The standalone pseudo attribute in the XML header can be set using the {@link Builder#setStandalone(String)} builder method. A non nul value will automatically enable
@@ -90,14 +92,14 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 	 * @see Builder#enableHeader()
 	 * @see Builder#setStandalone(String)
 	 */
-    public static final XMLCodingScheme REST_SCHEME=new XMLCodingScheme().newBuilder().enableHeader().build();
+    public static final XMLCodingScheme REST_SCHEME=new XMLCodingScheme().newBuilder().setAcceptAllRootTags(true).enableHeader().build();
 
 	/**
 	 * Writes data with an XML header (but without the {@code standalone} pseudo attribute). Root object is {@code Object}.
 	 * @see Builder#enableHeader()
 	 * @see Builder#setStandalone(String)
 	 */
-    public static final XMLCodingScheme DEFAULT_SCHEME=REST_SCHEME.newBuilder().setRootType(Object.class).build();
+    public static final XMLCodingScheme DEFAULT_SCHEME=REST_SCHEME.newBuilder().setAcceptAllRootTags(false).setRootType(Object.class).build();
 
     private static final Comparator<ClassTypeDefinition.Field> ATTRIBUTE_FIRST=new Comparator<ClassTypeDefinition.Field>() {
 
@@ -124,6 +126,7 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         return fields;
     }
 
+    private boolean acceptAllRootTags;
     private String rootTag="object";
     private boolean enableHeader;
     private String standalone;
@@ -167,6 +170,10 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 			}
 		};
 	}
+	
+	public boolean doAcceptAllRootTags() {
+		return acceptAllRootTags;
+	}
 
 	@Override
 	public Decoder createDecoder(Context context, InputStream stream) {
@@ -209,6 +216,11 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
         public Builder setRootTag(String rootTag) {
             scheme.rootTag=rootTag;
             return this;
+        }
+        
+        public Builder setAcceptAllRootTags(boolean acceptAllRootTags) {
+            scheme.acceptAllRootTags=acceptAllRootTags;
+        	return this;
         }
                 
         public Builder setReservedAttributes(ReservedAttributes attributes) {
@@ -322,7 +334,12 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
 
             @Override
             public Access getFieldAccess(Field f) throws BaseException {
-                return root.getFactory().resolve(root.getContext(), getRootType(root.getContext(),clazz));
+            	TypeDefinition rootType=getRootType(root.getContext(),clazz);
+            	if(rootType!=null) {
+                    return root.getFactory().resolve(root.getContext(), rootType);
+				} else {
+					throw new BaseException(BaseException.BAD_REQUEST, "Access for "+clazz.getName()+" cannot be resolved.");
+				}
             }
         };
     }
@@ -628,6 +645,9 @@ public class XMLCodingScheme extends AbstractTextCodingScheme implements CodingS
                 }
                 return obj;
             }
+			public void putField(String qName, Field f) {
+				fieldMap.put(qName, f);
+			}
         }
     }
 

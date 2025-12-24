@@ -60,6 +60,15 @@ import not.alexa.netobjects.utils.Sequence;
  */
 class XMLDecoder extends DefaultHandler implements Decoder {
 	private static final SAXParserFactory FACTORY=SAXParserFactory.newInstance();
+	static {
+		FACTORY.setNamespaceAware(false);
+		FACTORY.setValidating(false);
+		try {
+			FACTORY.setFeature("http://xml.org/sax/features/namespaces", false);
+			FACTORY.setFeature("http://xml.org/sax/features/namespace-prefixes", false);
+		} catch(Throwable t) {
+		}
+	}
 	protected Node node;
 	protected XMLNode xmlNode;
 	protected InputStream stream;
@@ -149,13 +158,15 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 
 	@Override
 	public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
-		top=top.startElement(uri, localName, qName, attributes);
+		int p=qName.indexOf(':');
+		top=top.startElement(uri, localName, qName.substring(p+1), attributes);
 	}
 
 	@Override
 	public void endElement(String uri, String localName, String qName) throws SAXException {
 		try {
-			top=top.endElement(uri, localName, qName);
+			int p=qName.indexOf(':');
+			top=top.endElement(uri, localName, qName.substring(p+1));
 		} catch(BaseException e) {
 			throw new SAXException(e);
 		}
@@ -288,6 +299,12 @@ class XMLDecoder extends DefaultHandler implements Decoder {
 	    public XMLContentHandler startElement(String uri, String localName, String qName, Attributes atts) throws SAXException {
 	        if(current!=null) try {
 	            Field f=current.get(qName);
+	            if(f==null&&parent==null&&root.getCodingScheme().doAcceptAllRootTags()) {
+	            	f=current.get(root.getCodingScheme().getRootTag());
+	            	if(f!=null) {
+	            		current.putField(qName,f);
+	            	}
+	            }
 	            if(f!=null) {
                     Access fieldAccess=access.getFieldAccess(f);
                     if(fieldAccess==null) {
