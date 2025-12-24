@@ -70,13 +70,18 @@ class YamlDecoder implements Decoder {
 	@Override
 	public <T> T decode(Class<T> clazz) throws BaseException {
 		try {
-			YAMLContentHandler top=new YAMLContentHandler(this, root.getContext())
-					.init("",root.getCodingScheme().getRootDecoder(root,clazz));
-			if(documents.hasNext()) {
-				documents.next().process(new Yaml.DefaultHandler(false,top::decode));
-				return root.getContext().cast(clazz,top.getResult());
+			Access rootAccess=root.getCodingScheme().getRootDecoder(root,clazz);
+			if(rootAccess!=null) {
+				YAMLContentHandler top=new YAMLContentHandler(this, root.getContext())
+						.init("",rootAccess);
+				if(documents.hasNext()) {
+					documents.next().process(new Yaml.DefaultHandler(false,top::decode));
+					return root.getContext().cast(clazz,top.getResult());
+				}
+				return null;
+			} else {
+				throw new BaseException(BaseException.BAD_REQUEST, "Access for "+clazz.getName()+" cannot be resolved.");
 			}
-			return null;
 		} catch(Throwable t) {
 			return BaseException.throwException(t);
 		}
