@@ -117,9 +117,11 @@ public class ClassLoaderTest {
             }
         }
         for(int i=0;i<3;i++) {
-            factory.update();
+            if(factory.update()==0) {
+            	break;
+            }
             System.gc();
-            Thread.sleep(100);
+            Thread.sleep(100+i*500);
         }
         // All type maps should be garbage collected
         assertEquals(0,factory.update());
