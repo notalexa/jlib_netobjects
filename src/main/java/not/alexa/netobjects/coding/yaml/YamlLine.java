@@ -189,7 +189,7 @@ class YamlLine {
 								isArray=true;
 								lookahead=Integer.MAX_VALUE;
 							} else {
-								lookahead+=entries[rover].length;
+								lookahead+=entries[rover].length+entries[rover].arrayOffset;
 							}
 							result.set(rover,entries[rover]);
 							rover++;
@@ -201,23 +201,36 @@ class YamlLine {
 				case '-':if(i<input.length-1&&input.content[i+1]!=' ') {
 						// Non space, plain style
 					} else {
+						if(i<lookahead&&lookahead<Integer.MAX_VALUE) {
+							// Special case: sequence indicator with leading spaces (continued). Already opened via leading space
+							// Just update the entry.
+							IndentationEntry arrayEntry=result.entries[rover-1];
+							if(!arrayEntry.array) {
+								throw new YamlException("Unexpected sequence indicator -.");
+							}
+							if(arrayEntry.arrayOffset!=i-start) {
+								throw new YamlException("Misplaced -. The sequence indicator was expected at position "+(start+arrayEntry.arrayOffset)+".");
+							}
+							arrayEntry.open();
+							if(!isArray) {
+								result.firstArray=rover-1;
+							}
+							isArray=true;
+							start=i;
+							break;
+						}
 						IndentationEntry parent=result.entries[rover-1];
 						if(isArray) {
 							// Was array. Create new instances
 							parent.fix(i-start);
 							lookahead=Integer.MAX_VALUE;
+							start=i;
 						} else {
 							result.firstArray=rover;
 						}
 						if(lookahead==Integer.MAX_VALUE) {
-							if(!isArray) {
-								throw new IOException();
-							}
-							result.set(rover,new IndentationEntry(parent,1,true,true));
+							result.set(rover,new IndentationEntry(parent,1,true,true,i-start));
 							rover++;
-						} else if(i<lookahead) {
-							// - in between
-							throw new YamlException("Bad indentation: An indentation of length "+lookahead+" was expected.");
 						} else {
 							if(rover<length) {
 								if(!entries[rover].array) {
@@ -357,6 +370,7 @@ class YamlLine {
 		private IndentationEntry parent;
 		private final boolean array;
 		private int length;
+		private int arrayOffset;
 		private boolean open;
 		private int lineMode=0;
 		private int eventMask;
@@ -364,10 +378,14 @@ class YamlLine {
 		private List<Token> modifier;
 		private Token token;
 		private IndentationEntry(IndentationEntry parent,int length,boolean array,boolean open) {
+			this(parent,length,array,open,0);
+		}
+		private IndentationEntry(IndentationEntry parent,int length,boolean array,boolean open,int arrayOffset) {
 			this.parent=parent;
 			this.length=open?1:length;
 			this.array=array;
 			this.open=open;
+			this.arrayOffset=arrayOffset;
 		}
 		
 		private void updateModifiers(List<Token> modifier) {

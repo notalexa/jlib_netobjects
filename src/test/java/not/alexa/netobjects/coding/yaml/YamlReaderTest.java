@@ -50,7 +50,8 @@ public class YamlReaderTest {
     			new FileSpec("file1.yaml",true,5),
     			new FileSpec("file2.yaml",true,2),
     			new FileSpec("file3.yaml",true,3),
-    			new FileSpec("file4.yaml",true,11)
+    			new FileSpec("file4.yaml",true,11),
+    			new FileSpec("file5.yaml",true,1)
     			);
     }
     
