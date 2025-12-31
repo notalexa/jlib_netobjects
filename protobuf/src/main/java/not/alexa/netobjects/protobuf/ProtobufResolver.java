@@ -214,7 +214,7 @@ public class ProtobufResolver implements TypeResolver {
 				    .setNumber(field.getNumber())
 				    .setDefaultValue(defaultValue);
 				if(!field.getName().equals(field.getJsonName())) {
-					fieldBuilder.addTag("json:alt",field.getJsonName());
+					fieldBuilder.addTag("json",field.getJsonName());
 				}
 				addHints(protobufFieldType, fieldBuilder);
 				fieldBuilder.build();
@@ -232,7 +232,7 @@ public class ProtobufResolver implements TypeResolver {
 		if(type instanceof Type) try {
             Type t=(Type)type;
             LinkedLocal linkedClass=t.asLinkedLocal(loader.getClassLoader());
-            Class<?> clazz=linkedClass.asClass();
+            Class<?> clazz=linkedClass==null?null:linkedClass.asClass();
             if(clazz!=null&&GeneratedMessageV3.class.isAssignableFrom(clazz)) {
         		Descriptor descriptor=(Descriptor)clazz.getMethod("getDescriptor").invoke(null);
         		return resolveMessageType(loader,clazz,type, descriptor);
