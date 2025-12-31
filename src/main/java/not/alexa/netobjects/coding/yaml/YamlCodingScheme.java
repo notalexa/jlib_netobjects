@@ -505,11 +505,6 @@ public class YamlCodingScheme extends AbstractTextCodingScheme implements Coding
                     } else {
                         t.add(name);
                         fieldMap.put(name, f);
-                        name=f.getAnnotation("json:alt", null);
-                        if(name!=null) {
-                        	// Alternative name. Used to resolve.
-                        	fieldMap.put(name, f);
-                        }
                     }                    
                 }
                 tags=t.size()==0?NO_FIELDS:t.toArray(new String[t.size()]);
