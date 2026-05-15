@@ -23,6 +23,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URL;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -413,7 +414,7 @@ public final class JavaClass extends Namespace {
 						for(int i=0;i<parameters.length;i++) {
 							parameters[i]=this.parameters[i].asResolvedClass();
 						}
-						return new ResolvedClass(instanceClass, parameters);
+						return new ResolvedClass(instanceClass, Collections.emptyMap(), parameters);
 					} else {
 						return TypeUtils.resolveClass(instanceClass);
 					}

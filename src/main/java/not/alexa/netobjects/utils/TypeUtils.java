@@ -27,11 +27,7 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.api.Abstract;
@@ -52,8 +48,8 @@ import not.alexa.netobjects.types.TypeDefinition;
  */
 public class TypeUtils {
 	private static ResolvedClass[] NO_PARAMETERS=new ResolvedClass[0];
-	private static ResolvedClass RESOLVED_OBJECT_CLASS=new ResolvedClass(Object.class);
-	private static ResolvedClass RESOLVED_CLASS_CLASS=new ResolvedClass(Class.class);
+	private static ResolvedClass RESOLVED_OBJECT_CLASS=new ResolvedClass(Object.class,Collections.emptyMap());
+	private static ResolvedClass RESOLVED_CLASS_CLASS=new ResolvedClass(Class.class,Collections.emptyMap());
 	private static Annotation[] NO_ANNOTATIONS=new Annotation[0];
 	private static AnnotatedElement NULL_ELEMENT=new AnnotatedElement() {
 		
@@ -293,7 +289,7 @@ public class TypeUtils {
     
     /**
      * Class Resolver for a given class. Types referenced in the class can be resolved (that is type variables are replaced by there type for example)
-     * using {@link #resolve(AnnotatedType)}. Outcome is always a {@link ResolvedClass} with a Java class as main type and parameters (empty if no
+     * using {@link #resolve(AType)}. Outcome is always a {@link ResolvedClass} with a Java class as main type and parameters (empty if no
      * parameteres are present) of type {@link ResolvedClass}. Since {@code ResolvedClass} implements {@code AnnotatedElement} annotations for parameter
      * types can be resolved via the outcome.
      * 
@@ -305,6 +301,7 @@ public class TypeUtils {
         private Map<java.lang.reflect.Type,AType> resolvedVariables=new HashMap<>();
         ClassResolver(ResolvedClass clazz) {
         	this.clazz=clazz.getResolvedClass();
+            resolvedVariables.putAll(clazz.getOuterVariables());
         	int i=0;
         	for(TypeVariable<?> type:this.clazz.getTypeParameters()) {
         		resolvedVariables.put(type, clazz.getParameters()[i++].annotationSource);
@@ -403,12 +400,14 @@ public class TypeUtils {
                     resolvedParameters[i]=resolve(parameters[i]);
                 }
                 if(rawType instanceof Class) {
-                    return new ResolvedClass((Class<?>)rawType,annotatedType,resolvedParameters);
+                    Class<?> clazz=(Class<?>)rawType;
+                    boolean needsOuter=clazz.isMemberClass();
+                    return new ResolvedClass(clazz,annotatedType,needsOuter?resolvedVariables:Collections.emptyMap(),resolvedParameters);
                 }
             } else if(type instanceof GenericArrayType) {
             	ResolvedClass componentType=resolve(FACTORY.getAnnotatedGenericComponentType(annotatedType));
             	Class<?> clazz=Array.newInstance(componentType.getResolvedClass(), 0).getClass();
-                return new ResolvedClass(clazz,new ResolvedClass[] { componentType});
+                return new ResolvedClass(clazz,Collections.emptyMap(),new ResolvedClass[] { componentType});
             } else if(type instanceof WildcardType) {
                 AType[] bounds=FACTORY.getAnnotatedUpperBounds(annotatedType);
                 if(bounds.length>1) {
@@ -418,11 +417,11 @@ public class TypeUtils {
             } else if(type instanceof Class) {
                 Class<?> clazz=(Class<?>)type;
                 if(clazz.isArray()) {
-                    return new ResolvedClass(clazz,annotatedType,new ResolvedClass[] { resolve(new AType(clazz.getComponentType(),annotatedType))});
+                    return new ResolvedClass(clazz,annotatedType,Collections.emptyMap(),new ResolvedClass[] { resolve(new AType(clazz.getComponentType(),annotatedType))});
                 } else if(clazz.equals(Class.class)) {
                 	return RESOLVED_CLASS_CLASS;
                 } else {
-                    return new ResolvedClass(clazz,annotatedType,null);
+                    return new ResolvedClass(clazz,annotatedType,Collections.emptyMap(),new ResolvedClass[0]);
                 }
             }
             if(type!=null) {
@@ -453,7 +452,7 @@ public class TypeUtils {
                     return resolved;
                 }
             }
-            return c.getAnnotatedInterfaces()==null?null:resolve(FACTORY.getAnnotatedSuperclass(c),clazz);                
+            return resolve(FACTORY.getAnnotatedSuperclass(c),clazz);
         }
         
         /**
@@ -463,7 +462,7 @@ public class TypeUtils {
          */
         public ResolvedClass resolve(Class<?> clazz) {
             if(clazz.equals(getRootClass())) {
-                return new ResolvedClass(getRootClass(),new ResolvedClass[0]);
+                return new ResolvedClass(getRootClass(),resolvedVariables,new ResolvedClass[0]);
             } else {
                 return resolveHierachy(getRootClass(), clazz);
             }
@@ -499,15 +498,16 @@ public class TypeUtils {
      *
      */
     public static class ResolvedClass implements AnnotatedElement {
-    	private static final ResolvedClass[] LIST_PARAMETERS=new ResolvedClass[] { new ResolvedClass(Object.class) };
+    	private static final ResolvedClass[] LIST_PARAMETERS=new ResolvedClass[] { new ResolvedClass(Object.class,Collections.emptyMap()) };
     	private static final ResolvedClass[] MAP_PARAMETERS=new ResolvedClass[] { LIST_PARAMETERS[0], LIST_PARAMETERS[0] };
     	
         private Class<?> clazz;
+        private Map<java.lang.reflect.Type,AType> outerVariables;
         private ResolvedClass[] parameters;
         private AType annotationSource;
         
-        public ResolvedClass(Class<?> clazz) {
-            this(clazz,new AType(clazz,clazz),NO_PARAMETERS);
+        public ResolvedClass(Class<?> clazz,Map<java.lang.reflect.Type,AType> outerVariables) {
+            this(clazz,new AType(clazz,clazz),outerVariables,NO_PARAMETERS);
         }
         
         /**
@@ -515,18 +515,19 @@ public class TypeUtils {
          * @param clazz the resolved type (also used as the source of annotations)
          * @param parameters the parameters of the class
          */
-        public ResolvedClass(Class<?> clazz, ResolvedClass[] parameters) {
-            this(clazz,new AType(clazz,clazz),parameters);
+        public ResolvedClass(Class<?> clazz, Map<java.lang.reflect.Type,AType> outerVariables,ResolvedClass[] parameters) {
+            this(clazz,new AType(clazz,clazz), outerVariables,parameters);
         }
                 
         /**
          * 
          * @param clazz the resolved type
-         * @param annotationHolder the annotation source of the resolved class
+         * @param annotationSource the annotation source of the resolved class
          * @param parameters the parameters of the resolved type
          */
-        public ResolvedClass(Class<?> clazz, AType annotationSource, ResolvedClass[] parameters) {
+        public ResolvedClass(Class<?> clazz, AType annotationSource, Map<java.lang.reflect.Type,AType> outerVariables,ResolvedClass[] parameters) {
             this.clazz=clazz;
+            this.outerVariables=outerVariables;
             this.annotationSource=annotationSource;
             this.parameters=parameters==null?NO_PARAMETERS:parameters;
             if(this.parameters.length==0&&isArray()) {
@@ -638,6 +639,10 @@ public class TypeUtils {
         @Override
         public Annotation[] getDeclaredAnnotations() {
             return annotationSource.getDeclaredAnnotations();
+        }
+
+        public Map<? extends java.lang.reflect.Type,? extends AType> getOuterVariables() {
+            return outerVariables;
         }
     }
     

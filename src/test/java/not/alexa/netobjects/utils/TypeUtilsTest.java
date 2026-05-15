@@ -79,6 +79,18 @@ public class TypeUtilsTest {
         assertNotNull(TypeUtils.getNetworkObject(JavaClass.getJavaNamespace(),m2));
     }
 
+    @Test
+    public void innerGenericTest() {
+        TypeUtils.ClassResolver resolver=TypeUtils.createClassResolver(InnerTest.class);
+        try {
+            TypeUtils.ResolvedClass clazz=resolver.resolve(InnerTest.class.getField("inner"));
+            clazz=clazz.asResolver().resolve(InnerGeneric.Inner.class.getField("v"));
+            assertEquals(String.class,clazz.getResolvedClass());
+        } catch(Throwable t) {
+            fail(t.getMessage());
+        }
+    }
+
     public static interface I1 {}
     public static class A1 implements I1 {
         public Object f() {
@@ -107,4 +119,15 @@ public class TypeUtilsTest {
     public static class O5 extends A2 {}
     @Overlay
     public static class O6 extends A3 {}
+
+    public static class InnerGeneric<V> {
+        public Inner inner;
+        public class Inner {
+            public V v;
+        }
+    }
+
+    public static class InnerTest extends InnerGeneric<String> {
+
+    }
 }
