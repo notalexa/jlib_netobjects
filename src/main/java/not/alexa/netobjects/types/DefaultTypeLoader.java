@@ -15,6 +15,7 @@
  */
 package not.alexa.netobjects.types;
 
+import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -56,13 +57,13 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
     };
     static final TypeLoader BASE_LOADER;
     
-    private Map<Type,LinkedLocal> linkedLocals=new HashMap<>();
-	private Map<ObjectType,TypeDefinition> resolved=new HashMap<>();
+    private final Map<Type,LinkedLocal> linkedLocals=new HashMap<>();
+	private final Map<ObjectType,TypeDefinition> resolved=new HashMap<>();
 	protected ClassLoader loader;
 	protected TypeLoader parent;
-	private TypeResolver[] resolvers;
+	private final TypeResolver[] resolvers;
 	// Used in synchronized blocks only!!
-	private Intermediate intermediate=new Intermediate();
+	private final Intermediate intermediate=new Intermediate();
 	
 	/**
 	 * Add a resolver to the list of default resolvers. Resolvers already contained in the list (with respect to {@link Object#equals(Object)}) are ignored.
@@ -72,7 +73,7 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 	 */
 	public static synchronized void addTypeResolver(TypeResolver resolver) {
 	    if(defaultResolvers==null) {
-	        defaultResolvers=new ArrayList<TypeResolver>();
+	        defaultResolvers=new ArrayList<>();
 	    }
 	    if(!defaultResolvers.contains(resolver)) {
 	        defaultResolvers.add(resolver);
@@ -102,7 +103,7 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 	public DefaultTypeLoader(TypeLoader parent,ClassLoader loader,List<TypeResolver> resolvers) {
 	    this.parent=parent;
 	    this.loader=loader==null?getClass().getClassLoader():loader;
-	    this.resolvers=resolvers!=null&&resolvers.size()>0?resolvers.toArray(new TypeResolver[resolvers.size()]):null;
+	    this.resolvers=resolvers!=null&& !resolvers.isEmpty() ?resolvers.toArray(new TypeResolver[resolvers.size()]):null;
 	}
 	
 	@Override
@@ -184,7 +185,7 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 						}
 
 						@Override
-						public LinkedLocal[] getParameters() {
+						public Map<TypeVariable<?>,LinkedLocal> getParameters() {
 							return JavaClass.NO_PARAMETER_CLASSES;
 						}
                     };
@@ -197,9 +198,9 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 
 	
 	private class Intermediate implements LoaderIntermediate {
-		private Map<ObjectType,TypeDefinition> map=new HashMap<>();
-		private Map<ObjectType,List<Provider>> providerMap=new HashMap<>();
-		private Stack<Set<ObjectType>> registered=new Stack<>();
+		private final Map<ObjectType,TypeDefinition> map=new HashMap<>();
+		private final Map<ObjectType,List<Provider>> providerMap=new HashMap<>();
+		private final Stack<Set<ObjectType>> registered=new Stack<>();
 
 		@Override
 		public ClassLoader getClassLoader() {
@@ -226,18 +227,15 @@ public class DefaultTypeLoader extends Adaptable.Default implements TypeLoader {
 			for(ObjectType type:registered.pop()) {
 				map.remove(type);
 			}
-			if(registered.size()==0) {
+			if(registered.isEmpty()) {
 				map.clear();
 			}
 		}
 
 		@Override
 		public void addProvider(ObjectType type, Provider provider) {
-			List<Provider> l=providerMap.get(type);
-			if(l==null) {
-				providerMap.put(type, l=new ArrayList<>());
-			}
-			l.add(provider);
+            List<Provider> l = providerMap.computeIfAbsent(type, k -> new ArrayList<>());
+            l.add(provider);
 		}
 	}
 }

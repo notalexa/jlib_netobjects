@@ -36,8 +36,8 @@ public class ResolverTest {
 			Method testList=getClass().getMethod("getTestList");
 			Method testMap=getClass().getMethod("getTestMap");
 			ResolvedClass resolved=TypeUtils.resolveClass(ResolverTest.class);
-			assertEquals(1, resolved.asResolver().resolve(testList).getParameters().length);
-			assertEquals(2, resolved.asResolver().resolve(testMap).getParameters().length);
+			assertEquals(1, resolved.asResolver().resolve(testList).getTypeParameters().size());
+			assertEquals(2, resolved.asResolver().resolve(testMap).getTypeParameters().size());
 		} catch(Throwable t) {
 			t.printStackTrace();
 			fail();

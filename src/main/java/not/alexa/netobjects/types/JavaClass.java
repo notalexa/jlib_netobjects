@@ -22,6 +22,7 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.TypeVariable;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -67,12 +68,12 @@ import not.alexa.netobjects.utils.TypeUtils.ResolvedClass;
  *
  */
 public final class JavaClass extends Namespace {
-	private static final Type[] NO_PARAMETER_TYPES=new Type[0];
-	static final LinkedLocal[] NO_PARAMETER_CLASSES=new LinkedLocal[0];
+	private static final Map<TypeVariable<?>,Type> NO_PARAMETER_TYPES=Collections.emptyMap();
+	static final Map<TypeVariable<?>,LinkedLocal> NO_PARAMETER_CLASSES=Collections.emptyMap();
 	
-    private static ReferenceQueue<InstanceSupport> OVERLAY_RECYCLER=new ReferenceQueue<InstanceSupport>();
-	private static Map<String,Class<?>> PRIMITIVE_TYPES=new HashMap<String, Class<?>>();
-	private static Map<String,Class<?>> INSTANCE_TYPE=new HashMap<String, Class<?>>();
+    private static final ReferenceQueue<InstanceSupport> OVERLAY_RECYCLER=new ReferenceQueue<>();
+	private static final Map<String,Class<?>> PRIMITIVE_TYPES=new HashMap<>();
+	private static final Map<String,Class<?>> INSTANCE_TYPE=new HashMap<>();
 	static {
 		PRIMITIVE_TYPES.put("boolean",Boolean.TYPE);
 		PRIMITIVE_TYPES.put("char",Character.TYPE);
@@ -93,7 +94,7 @@ public final class JavaClass extends Namespace {
 		INSTANCE_TYPE.put("double",Double.class);
 	}
 	
-	private Map<String,Type> loadedTypes=new HashMap<>();
+	private final Map<String,Type> loadedTypes=new HashMap<>();
 	JavaClass() {
 		super(Type.class);
 		register(this);
@@ -106,7 +107,7 @@ public final class JavaClass extends Namespace {
         loadedTypes.put(Long.class.getName(),create(Long.TYPE.getName()));
         loadedTypes.put(Float.class.getName(),create(Float.TYPE.getName()));
         loadedTypes.put(Double.class.getName(),create(Double.TYPE.getName()));
-	};
+	}
 	
 	void loadResources() {
 		try {
@@ -141,12 +142,12 @@ public final class JavaClass extends Namespace {
 		
 	public final class Type extends Namespace.AbstractType implements ObjectType {
 		
-		protected String className;
-		protected Type[] parameterTypes;
-		protected String method;
-		protected String version;
-		protected LinkedLocal preloaded;
-		protected OverlayRef overlayRefs;
+		private final String className;
+		private final Map<TypeVariable<?>, Type> parameterTypes;
+		private String method;
+		private String version;
+		private LinkedLocal preloaded;
+		private OverlayRef overlayRefs;
 		
 		
 		/**
@@ -158,7 +159,7 @@ public final class JavaClass extends Namespace {
 			this(className,NO_PARAMETER_TYPES);
 		}
 		
-		private Type(String className,Type[] parameterTypes) {
+		private Type(String className,Map<TypeVariable<?>, Type> parameterTypes) {
 			this.parameterTypes=parameterTypes;
 			int p=className.indexOf(':');
 			method="";
@@ -185,15 +186,15 @@ public final class JavaClass extends Namespace {
 
 		
 		private void preload() {
-            if(preloaded==null&&!isMethod()&&parameterTypes.length==0) try {
+            if(preloaded==null&&!isMethod()&& parameterTypes.isEmpty()) try {
             	Class<?> instanceClass=INSTANCE_TYPE.get(className);
                 preloaded=new InstanceSupport(instanceClass==null?defineClass(Type.class.getClassLoader(),this.className):instanceClass,NO_PARAMETER_CLASSES);
-            } catch(Throwable t) {
+            } catch(Throwable ignored) {
             }
 		}
 		
 		public boolean hasParameters() {
-			return parameterTypes.length>0;
+			return !parameterTypes.isEmpty();
 		}
 		
 		/**
@@ -210,14 +211,10 @@ public final class JavaClass extends Namespace {
 			    if(isMethod()) {
 			      Method m=findMethod(clazz,method);
 			      return new InstanceSupport(m);  
-			    } else if(parameterTypes.length==0) {
+			    } else if(parameterTypes.isEmpty()) {
 			        return new InstanceSupport(clazz,NO_PARAMETER_CLASSES);
 			    } else {
-			    	LinkedLocal[] linkedParameters=new LinkedLocal[parameterTypes.length];
-			    	for(int i=0;i<linkedParameters.length;i++) {
-			    		linkedParameters[i]=parameterTypes[i].asLinkedLocal(loader);
-			    	}
-			    	return new InstanceSupport(clazz, linkedParameters);
+			    	return new InstanceSupport(clazz, TypeUtils.mapToLinkedLocal(loader,parameterTypes));
 			    }
 			} catch(Throwable t) {
 				return null;
@@ -236,13 +233,9 @@ public final class JavaClass extends Namespace {
 		    }
 			if(o instanceof Type) {
 				Type t=(Type)o;
-				if(className.equals(t.className)&&version.equals(t.version)&&method.equals(t.method)&&t.parameterTypes.length==parameterTypes.length) {
-					if(parameterTypes.length>0) {
-						for(int i=0;i<parameterTypes.length;i++) {
-							if(!parameterTypes[i].equals(t.parameterTypes[i])) {
-								return false;
-							}
-						}
+				if(className.equals(t.className)&&version.equals(t.version)&&method.equals(t.method)&&t.parameterTypes.size()==parameterTypes.size()) {
+					if(!parameterTypes.isEmpty()) {
+						return parameterTypes.equals(t.parameterTypes);
 					}
 					return true;
 				}
@@ -255,10 +248,10 @@ public final class JavaClass extends Namespace {
 		}
 
 		public String getName() {
-			if(version.length()>0) {
-				return className+":"+version+(method.length()>0?":"+method:"");
+			if(!version.isEmpty()) {
+				return className+":"+version+(!method.isEmpty() ?":"+method:"");
 			} else {
-				return className+(method.length()>0?"::"+method:"");
+				return className+(!method.isEmpty() ?"::"+method:"");
 			}
 		}
 		
@@ -287,7 +280,7 @@ public final class JavaClass extends Namespace {
 		}
 		
 		public boolean isMethod() {
-		    return method.length()>0;
+		    return !method.isEmpty();
 		}
 		
 		/**
@@ -298,7 +291,7 @@ public final class JavaClass extends Namespace {
 		 * @return a class representing this 
 		 * @throws BaseException
 		 */
-		protected Class<?> defineClass(ClassLoader loader,String s) throws BaseException {
+        private Class<?> defineClass(ClassLoader loader, String s) throws BaseException {
 			if(s.endsWith("[]")) {
 				Class<?> componentClass=defineClass(loader,s.substring(0,s.length()-2));
 				return Array.newInstance(componentClass,0).getClass();
@@ -364,12 +357,12 @@ public final class JavaClass extends Namespace {
 		
         public class InstanceSupport extends LinkedLocal {
         	LinkedLocal clazz;
-        	LinkedLocal[] parameters;
+			Map<TypeVariable<?>,LinkedLocal> parameters;
         	/**
         	 * Constructor for network objects
         	 * @param clazz
         	 */
-            public InstanceSupport(Class<?> clazz,LinkedLocal[] parameters) {
+            public InstanceSupport(Class<?> clazz,Map<TypeVariable<?>,LinkedLocal> parameters) {
             	super(clazz);
             	this.clazz=this;
             	this.parameters=parameters;
@@ -409,12 +402,8 @@ public final class JavaClass extends Namespace {
 			private ResolvedClass resolveInternal() {
 				Class<?> instanceClass=asClass();
 				if(instanceClass!=null) {
-					if(parameterTypes.length>0) {
-						ResolvedClass[] parameters=new ResolvedClass[this.parameters.length];
-						for(int i=0;i<parameters.length;i++) {
-							parameters[i]=this.parameters[i].asResolvedClass();
-						}
-						return new ResolvedClass(instanceClass, Collections.emptyMap(), parameters);
+					if(!parameterTypes.isEmpty()) {
+						return new ResolvedClass(instanceClass, TypeUtils.mapToResolvedClass(this.parameters));
 					} else {
 						return TypeUtils.resolveClass(instanceClass);
 					}
@@ -424,13 +413,13 @@ public final class JavaClass extends Namespace {
 			}
 
 			@Override
-			public LinkedLocal[] getParameters() {
+			public Map<TypeVariable<?>,LinkedLocal> getParameters() {
 				return clazz==this?parameters:clazz.getParameters();
 			}
 
 			@Override
 			public boolean hasParameters() {
-				return clazz==this?parameters.length>0:clazz.hasParameters();
+				return clazz==this? !parameters.isEmpty() :clazz.hasParameters();
 			}
         }
         
@@ -477,7 +466,7 @@ public final class JavaClass extends Namespace {
                     	return new InterfaceTypeDefinition(clazz);
                     } else try {
                         return (TypeDefinition)clazz.getMethod("getTypeDescription").invoke(null);
-                    } catch(Throwable t) {
+                    } catch(Throwable ignored) {
                     }
                 }
             }
@@ -543,14 +532,10 @@ public final class JavaClass extends Namespace {
 	
 	
 	public Type create(ResolvedClass clazz) {
-		if(clazz.getParameters().length==0) {
+		if(!clazz.hasParameters()) {
 			return create(Namespace.asString(clazz.getResolvedClass()));
 		} else {
-			Type[] parameterTypes=new Type[clazz.getParameters().length];
-			for(int i=0;i<parameterTypes.length;i++) {
-				parameterTypes[i]=create(clazz.getParameters()[i]);
-			}
-			return new Type(Namespace.asString(clazz.getResolvedClass()),parameterTypes);
+			return new Type(Namespace.asString(clazz.getResolvedClass()),TypeUtils.mapToType(clazz.getTypeParameters()));
 		}		
 	}
 

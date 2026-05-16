@@ -15,13 +15,14 @@
  */
 package not.alexa.netobjects.jackson;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+import not.alexa.netobjects.coding.ByteEncoder;
+import not.alexa.netobjects.types.ClassTypeDefinition;
+import not.alexa.netobjects.types.Flavour;
 import org.junit.Test;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
@@ -149,6 +150,29 @@ public class ClassResolverTest {
     	
     }
 
+    @Test
+    public void innerClassTest() {
+        Context context=Context.createRootContext();
+        try(ByteEncoder encoder=XMLCodingScheme.DEFAULT_SCHEME.newBuilder().setIndent("  ","\n").build().createEncoder(context)) {
+            TypeDefinition type=context.resolveType(H.class);
+            assertEquals(Flavour.ClassType,type.getFlavour());
+            assertEquals(4,((ClassTypeDefinition)type).getFields().length);
+        } catch(Throwable t) {
+            fail(t.getMessage());
+        }
+    }
+
+    @Test
+    public void cycleTest() {
+        Context context=Context.createRootContext();
+        try(ByteEncoder encoder=XMLCodingScheme.DEFAULT_SCHEME.newBuilder().setIndent("  ","\n").build().createEncoder(context)) {
+            TypeDefinition type=context.resolveType(Z1.class);
+        } catch(Throwable t) {
+            fail(t.getMessage());
+        }
+
+    }
+
     public static class A0 extends @ResolvableBy("jackson") A {
 
         public A0(String s, List<String> a1) {
@@ -224,5 +248,43 @@ public class ClassResolverTest {
     
     public static class F {
     	@JsonProperty Object o;
+    }
+
+    public static class G<V> {
+        @JsonProperty V[] list;
+        @JsonProperty Inner inner;
+        public class Inner {
+            @JsonProperty V v;
+            public Inner(V v) {
+                this.v=v;
+            }
+
+            public G<V> getG() {
+                return G.this;
+            }
+        }
+    }
+
+    public static class H extends G<String> {
+        @JsonProperty G<Integer> g0;
+        public H() {
+            inner=new Inner("abc");
+            outer=new Upper();
+        }
+        @JsonProperty Upper outer;
+        public class Upper {
+            Upper() {
+                uuid= UUID.nameUUIDFromBytes("test".getBytes());
+            }
+            @JsonProperty UUID uuid;
+        }
+    }
+
+    public static class Z1 {
+        @JsonProperty Z2 b;
+    }
+
+    public static class Z2 {
+        @JsonProperty Z1 a;
     }
 }

@@ -18,6 +18,7 @@ package not.alexa.netobjects.utils;
 import not.alexa.netobjects.BaseException;
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.Executable;
+import not.alexa.netobjects.coding.ByteEncoder;
 import not.alexa.netobjects.coding.CodingScheme;
 import not.alexa.netobjects.types.ClassTypeDefinition;
 import not.alexa.netobjects.types.Lambda;
@@ -74,7 +75,6 @@ public abstract class Scheduler {
     /**
      * Schedule the provided entry.
      * 
-     * @param id the id of the entry if the entry should be scheduled cancellable and {@code null} otherwise.
      * @param entry the entry to schedule
      * @throws BaseException if the entry cannot be scheduled. If the entry should be scheduled cancelable and the underlying scheduler doesn't provide
      * the functionality, 
@@ -111,8 +111,9 @@ public abstract class Scheduler {
      * @throws BaseException if an error occurs (for example the object is not a network object and can't be serialized).
      */
     protected ScheduledEntry createEntry(long delay,Object o) throws BaseException {
-        byte[] payload=CodingScheme.getSystemScheme().createEncoder(context).encode(o).asBytes();
-        return new ScheduledEntry(System.currentTimeMillis()+delay,payload);
+        try(ByteEncoder encoder=CodingScheme.getSystemScheme().createEncoder(context)) {
+            return new ScheduledEntry(System.currentTimeMillis()+delay,encoder.encode(o).asBytes());
+        }
     }
 
     /**
@@ -130,7 +131,7 @@ public abstract class Scheduler {
          * @return the type of the callback
          */
         public static Class<?> getParameterClass(Callback<?> callback) {
-            return TypeUtils.createClassResolver(callback.getClass()).resolve(Callback.class).getParameters()[0].getResolvedClass();
+            return TypeUtils.createClassResolver(callback.getClass()).resolve(Callback.class).getParameter(0).getResolvedClass();
         }
         /**
          * 
@@ -154,8 +155,8 @@ public abstract class Scheduler {
      *
      */
     public static class ScheduledEntry {
-        private long when;
-        private byte[] payload;
+        private final long when;
+        private final byte[] payload;
         protected ScheduledEntry(long when,byte[] payload) {
             this.when=when;
             this.payload=payload;
@@ -185,11 +186,11 @@ public abstract class Scheduler {
      *
      */
     public static class Executor implements Callback<Executable> {
-        private static ClassTypeDefinition TYPE=new ClassTypeDefinition(Executor.class);
+        private final static ClassTypeDefinition TYPE=new ClassTypeDefinition(Executor.class);
         public static ClassTypeDefinition getTypeDescription() {
             return TYPE;
         }
-        private Context context;
+        private final Context context;
         public Executor(Context context) {
             this.context=context;
         }

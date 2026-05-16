@@ -15,11 +15,7 @@
  */
 package not.alexa.netobjects.jackson;
 
-import java.lang.reflect.AnnotatedElement;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
+import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -164,13 +160,13 @@ public class JacksonResolver implements TypeResolver {
 	            explicitlyDefined|=(hint!=null&&hint.value().equals("jackson"))||loader.getClassLoader().getResource(clazz.getName().replace('.','/')+".jackson")!=null;
 	            if(!explicitlyDefined) try {
 	            	hint=clazz.getAnnotatedSuperclass().getAnnotation(ResolvableBy.class);
-	                explicitlyDefined|=(hint!=null&&hint.value().equals("jackson"));
+	                explicitlyDefined = (hint != null && hint.value().equals("jackson"));
 	                if(explicitlyDefined) {
 	                	constructorClazz=clazz.getSuperclass();
 	                }
-	            } catch(Throwable t0) {
+	            } catch(Throwable ignored) {
 	            }
-	            RuntimeInfos infos=new RuntimeInfos(type,constructorClazz);
+	            RuntimeInfos infos=new RuntimeInfos(type,constructorClazz,new HashMap<>());
 	            ClassTypeDefinition def=new ClassTypeDefinition(clazz);
 	            loader.register(type,def);
 	            return defineFromClazz(loader,TypeUtils.createClassResolver(clazz),explicitlyDefined,def,infos);
@@ -201,7 +197,7 @@ public class JacksonResolver implements TypeResolver {
     					injectorInfos.addParameter(clazz, parameterIndex,inject.value());
     				} else {
 	    				JsonProperty props=p.getAnnotation(JsonProperty.class);
-	    				if(props==null||props.value().length()==0) {
+	    				if(props==null|| props.value().isEmpty()) {
 	    					continue outerloop;
 	    				} else {
 	    					infos.annotationSeen=true;
@@ -219,6 +215,11 @@ public class JacksonResolver implements TypeResolver {
 	}
 
 	private ClassTypeDefinition defineFromClazz(LoaderIntermediate loader, ClassResolver classResolver,boolean explicitlyDefined,ClassTypeDefinition def,RuntimeInfos infos) {
+		ResolvedClass rootClass= classResolver.getResolvedRootClass();
+		if(infos.definedClasses.containsKey(rootClass)) {
+			return infos.definedClasses.get(rootClass);
+		}
+		infos.definedClasses.put(rootClass,def);
         Class<?> enclosingClass=RuntimeInfo.getEnclosingClass(infos.topClass);
         List<String> constructorFields=new ArrayList<>();
         ClassAccessInfo constructor=defineConstructorFields(enclosingClass,infos.topClass,infos);
@@ -238,7 +239,7 @@ public class JacksonResolver implements TypeResolver {
 	        List<JacksonField> fields=infos.fields.stream().filter(f->!f.isReadOnly()).collect(Collectors.toList());
 	        String[] order=classResolver.getRootClass().isAnnotationPresent(JsonPropertyOrder.class)?classResolver.getRootClass().getAnnotation(JsonPropertyOrder.class).value():null;
 	        if(order!=null) {
-	        	Map<String,Integer> orderMap=new HashMap<String, Integer>();
+	        	Map<String,Integer> orderMap=new HashMap<>();
 	        	for(int i=0;i<order.length;i++) {
 	        		orderMap.put(order[i],i);
 	        	}
@@ -258,7 +259,7 @@ public class JacksonResolver implements TypeResolver {
 	        	fieldAccess[c++]=field.access;
 	        }
 	        ClassTypeDefinition typeDefinition=builder.build();
-        	loader.addProvider(infos.type,constructor.forFieldAccess(fieldAccess).getProvider(classResolver.getRootClass(),constructorFields,infos.injectorInfos,  infos.fieldMap.size()>0?new SimpleFieldMapper(infos.fieldMap):RuntimeInfo.FieldMapper.IDENTITY));
+        	loader.addProvider(infos.type,constructor.forFieldAccess(fieldAccess).getProvider(classResolver.getRootClass(),constructorFields,infos.injectorInfos, !infos.fieldMap.isEmpty() ?new SimpleFieldMapper(infos.fieldMap):RuntimeInfo.FieldMapper.IDENTITY));
 	        return typeDefinition;
         } else {
         	return null;
@@ -270,7 +271,7 @@ public class JacksonResolver implements TypeResolver {
         JsonProperty prop=e.getAnnotation(JsonProperty.class);
         if(prop!=null) {
         	infos.annotationSeen=true;
-           	name=prop.value().length()>0?prop.value():name;
+           	name= !prop.value().isEmpty() ?prop.value():name;
            	prio=Math.max(prio, prio+0x100);
         }
         if(name!=null) { 
@@ -309,11 +310,11 @@ public class JacksonResolver implements TypeResolver {
 	private String resolveGetter(Method m,RuntimeInfos infos) {
 		if(RuntimeInfo.methodPrio(0,m)>0) {
 			JsonGetter getter=m.getAnnotation(JsonGetter.class);
-			if(getter!=null&&getter.value().length()>0) {
+			if(getter!=null&& !getter.value().isEmpty()) {
 				return getter.value();
 			} else {
 				JsonProperty prop=m.getAnnotation(JsonProperty.class);
-				if(prop!=null&&prop.value().length()>0) {
+				if(prop!=null&& !prop.value().isEmpty()) {
 					return prop.value();
 				}
 			}
@@ -376,13 +377,19 @@ public class JacksonResolver implements TypeResolver {
             	infos.injectorInfos.addMethod(clazz, j, inject.value());
             } else {
 	        	String name=resolveGetter(m,infos);
-	        	if(name!=null) {
-	        		JacksonField field=add(loader, resolver, infos, name, clazz, resolver.resolve(m),RuntimeInfo.methodPrio(0,m),m);
+				ResolvedClass returnType=null;
+	        	if(name!=null) try {
+	        		JacksonField field=add(loader, resolver, infos, name, clazz, returnType=resolver.resolve(m),RuntimeInfo.methodPrio(0,m),m);
 	        		if(field!=null) {
 	        			Method setter=resolveSetter(name,m.getGenericReturnType(), infos);
 	        			field.add(new ClassAccessInfo.FieldAccessInfo(new ClassAccessInfo.AccessRef(m),setter==null?null:new ClassAccessInfo.AccessRef(setter)));
 	        		}
-	        	}
+	        	} catch(Throwable t) {
+					// Ignore errors while handling anonymous fields. This may happen if we have a cycle.
+					if(returnType==null||infos.definedClasses.get(returnType)==null||!infos.definedClasses.get(returnType).isAnonymous()) {
+						throw t;
+					}
+				}
             }
         }
         int i=-1;
@@ -407,7 +414,7 @@ public class JacksonResolver implements TypeResolver {
 
     private String getName(AnnotatedElement e,String defaultValue) {
         for(not.alexa.netobjects.api.Field f:Helper.getFields(e)) {
-	        if("*".equals(f.type())&&f.name().length()>0) {
+	        if("*".equals(f.type())&& !f.name().isEmpty()) {
 	            return f.name();
 	        }
         }
@@ -416,7 +423,7 @@ public class JacksonResolver implements TypeResolver {
     
     protected FieldBuilder enrich(ResolvedClass fieldClass,FieldBuilder builder) {
         for(not.alexa.netobjects.api.Field f:Helper.getFields(fieldClass)) {
-	        if(!"*".equals(f.type())&&f.name().length()>0) {
+	        if(!"*".equals(f.type())&& !f.name().isEmpty()) {
 	            builder.addTag(f.type(),f.name());
 	        }
         }
@@ -428,22 +435,22 @@ public class JacksonResolver implements TypeResolver {
     
     private TypeDefinition resolveType(LoaderIntermediate loader,ClassResolver resolver,ResolvedClass clazz,RuntimeInfos infos) {
         if(clazz.isArray()) {
-            ResolvedClass[] parameters=clazz.getParameters();
-            if(parameters.length==1) {
+            Map<TypeVariable<?>,ResolvedClass> parameters=clazz.getTypeParameters();
+            if(parameters.size()==1) {
             	if(clazz.getResolvedClass().equals(byte[].class)) {
             		return PrimitiveTypeDefinition.getTypeDescription(byte[].class);
             	} else {
-            		TypeDefinition componentType=resolveType(loader,resolver,parameters[0],infos);
+            		TypeDefinition componentType=resolveType(loader,resolver,clazz.getParameter(0),infos);
             		return componentType==null?null:new ArrayTypeDefinition(componentType);
             	}
-            } else if(parameters.length==2) {
-                String keyName=getName(parameters[0],"key");
-                String valueName=getName(parameters[1],"value");
-                TypeDefinition key=resolveType(loader,resolver,parameters[0],infos);
-                TypeDefinition value=resolveType(loader,resolver,parameters[1],infos);
+            } else if(parameters.size()==2) {
+                String keyName=getName(clazz.getParameter(0),"key");
+                String valueName=getName(clazz.getParameter(1),"value");
+                TypeDefinition key=resolveType(loader,resolver,clazz.getParameter(0),infos);
+                TypeDefinition value=resolveType(loader,resolver,clazz.getParameter(1),infos);
                 if(key!=null&&value!=null) {
                     return new ArrayTypeDefinition(ArrayFlavour.Map,
-                    		enrich(parameters[1],enrich(parameters[0],new ClassTypeDefinition().createBuilder()
+                    		enrich(clazz.getParameter(1),enrich(clazz.getParameter(0),new ClassTypeDefinition().createBuilder()
                             .createField(keyName, key)).build().createField(valueName, value)).build().build()
                             );
                 }
@@ -452,7 +459,7 @@ public class JacksonResolver implements TypeResolver {
                 throw new RuntimeException();
             }
         } else if(clazz.hasParameters()) {
-            return defineFromClazz(loader, clazz.asResolver(), true, new ClassTypeDefinition(),new RuntimeInfos(infos.type,clazz.getResolvedClass()));
+            return defineFromClazz(loader, clazz.asResolver(), true, new ClassTypeDefinition(),new RuntimeInfos(infos.type,clazz.getResolvedClass(),infos.definedClasses));
         } else {
             return loader.resolveType(ObjectType.createClassType(clazz.getCodingClass()));
         }
@@ -460,7 +467,7 @@ public class JacksonResolver implements TypeResolver {
     
     
     public class Buffer implements Decoder.Buffer {
-    	private String text;
+    	private final String text;
 		public Buffer(String text) {
 			this.text=text;
 		}
@@ -523,12 +530,14 @@ public class JacksonResolver implements TypeResolver {
     	InjectorInfos injectorInfos=new InjectorInfos();
     	Map<String,String> fieldMap=new HashMap<>();
     	Map<String,Integer> declaredFields=new HashMap<>();
+		Map<ResolvedClass,ClassTypeDefinition> definedClasses;
     	List<JacksonField> fields=new ArrayList<>();
     	Set<String> ignoreProperties;
     	Set<String> includeProperties;
-    	RuntimeInfos(ObjectType type,Class<?> topClass) {
+    	RuntimeInfos(ObjectType type,Class<?> topClass,Map<ResolvedClass,ClassTypeDefinition> definedClasses) {
     		this.type=type;
     		this.topClass=topClass;
+			this.definedClasses=definedClasses;
     		annotationSeen=topClass.isAnnotationPresent(JsonRootName.class)
     				||topClass.isAnnotationPresent(JsonIgnoreProperties.class)
     				||topClass.isAnnotationPresent(JsonIncludeProperties.class)
@@ -543,7 +552,7 @@ public class JacksonResolver implements TypeResolver {
     	}
 
 		public int getField(String name) {
-    		return name!=null?declaredFields.containsKey(name)?declaredFields.get(name):-1:-1;
+    		return name!=null? declaredFields.getOrDefault(name, -1) :-1;
     	}
     	
 		public boolean isVisible(Field f) {

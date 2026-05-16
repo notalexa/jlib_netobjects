@@ -48,7 +48,11 @@ class VM8TypeFactory implements ATypeFactory {
 
 	@Override
 	public AType[] getAnnotatedActualTypeArguments(AType annotatedType) {
-		return decorate(((AnnotatedParameterizedType)annotatedType.annotationHolder).getAnnotatedActualTypeArguments());
+		if(annotatedType.annotationHolder instanceof AnnotatedParameterizedType) {
+			return decorate(((AnnotatedParameterizedType) annotatedType.annotationHolder).getAnnotatedActualTypeArguments());
+		} else {
+			return TypeUtils.DEFAULT_FACTORY.getAnnotatedActualTypeArguments(annotatedType);
+		}
 	}
 
 	@Override
@@ -72,14 +76,22 @@ class VM8TypeFactory implements ATypeFactory {
 	}
 
 	@Override
-	public AType[] getAnnotatedUpperBounds(AType type) {
-		return decorate(((AnnotatedWildcardType)type.annotationHolder).getAnnotatedUpperBounds());
+	public AType[] getAnnotatedUpperBounds(AType annotatedType) {
+		if(annotatedType.annotationHolder instanceof AnnotatedWildcardType) {
+			return decorate(((AnnotatedWildcardType) annotatedType.annotationHolder).getAnnotatedUpperBounds());
+		} else {
+			return TypeUtils.DEFAULT_FACTORY.getAnnotatedUpperBounds(annotatedType);
+		}
 	}
 
 	@Override
 	public AType getAnnotatedGenericComponentType(AType annotatedType) {
-		AnnotatedType type=((AnnotatedArrayType)annotatedType.annotationHolder).getAnnotatedGenericComponentType();
-		return new AType(type.getType(),type);
+		if(annotatedType.annotationHolder instanceof AnnotatedArrayType) {
+			AnnotatedType type = ((AnnotatedArrayType) annotatedType.annotationHolder).getAnnotatedGenericComponentType();
+			return new AType(type.getType(), type);
+		} else {
+			return TypeUtils.DEFAULT_FACTORY.getAnnotatedGenericComponentType(annotatedType);
+		}
 	}
 
 	@Override

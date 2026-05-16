@@ -87,6 +87,7 @@ public class TypeUtilsTest {
             clazz=clazz.asResolver().resolve(InnerGeneric.Inner.class.getField("v"));
             assertEquals(String.class,clazz.getResolvedClass());
         } catch(Throwable t) {
+            t.printStackTrace();
             fail(t.getMessage());
         }
     }
@@ -128,6 +129,5 @@ public class TypeUtilsTest {
     }
 
     public static class InnerTest extends InnerGeneric<String> {
-
     }
 }

@@ -15,6 +15,7 @@
  */
 package not.alexa.netobjects.types.access;
 
+import java.lang.reflect.TypeVariable;
 import java.util.Collection;
 import java.util.Map;
 
@@ -27,6 +28,7 @@ import not.alexa.netobjects.types.Flavour;
 import not.alexa.netobjects.types.PrimitiveTypeDefinition;
 import not.alexa.netobjects.types.TypeDefinition;
 import not.alexa.netobjects.types.access.RuntimeInfo.PreAccessible;
+import not.alexa.netobjects.utils.TypeUtils;
 import not.alexa.netobjects.utils.TypeUtils.ResolvedClass;
 
 /**
@@ -114,22 +116,25 @@ public abstract class AbstractClassAccess extends Access.AbstractAccess implemen
     protected Access createAccess(TypeDefinition type,ResolvedClass clazz) throws BaseException {
     	if(clazz.isArray()) {
     		Class<?> c=clazz.getResolvedClass();
-    		ResolvedClass[] parameters=clazz.getParameters();
-    		if(parameters.length==1) {
+    		Map<TypeVariable<?>,ResolvedClass> parameters=clazz.getTypeParameters();
+    		if(parameters.size()==1) {
     			if(c.equals(byte[].class)) {
     				return factory.resolve(this,PrimitiveTypeDefinition.getTypeDescription(byte[].class));
     			} else if(c.isArray()||Collection.class.isAssignableFrom(c)) {
-    				return new ArrayTypeAccess(type, createAccess(((ArrayTypeDefinition)type).getComponentType(),parameters[0]),c);
+					ResolvedClass componentClass=parameters.get(TypeUtils.LIST_VARIABLE);
+					if(componentClass!=null) {
+						return new ArrayTypeAccess(type, createAccess(((ArrayTypeDefinition) type).getComponentType(), componentClass), c);
+					}
 	    		}
-    		} else if(parameters.length==2&&Map.class.isAssignableFrom(c)) {
+    		} else if(parameters.size()==2&&Map.class.isAssignableFrom(c)) {
     			ClassTypeDefinition mapType=(ClassTypeDefinition)((ArrayTypeDefinition)type).getComponentType();
-    			Access keyAccess=createAccess(mapType.getFields()[0].getType(),parameters[0]);
-    			Access valueAccess=createAccess(mapType.getFields()[1].getType(), parameters[1]);
+    			Access keyAccess=createAccess(mapType.getFields()[0].getType(),parameters.get(TypeUtils.MAP_KEY_VARIABLE));
+    			Access valueAccess=createAccess(mapType.getFields()[1].getType(), parameters.get(TypeUtils.MAP_VALUE_VARIABLE));
     			Access mapAccess=new MapEntryAccess(factory,mapType,new Access[] { keyAccess,valueAccess});
     			return new ArrayTypeAccess(type, mapAccess,c);
     		}
         	throw new BaseException(BaseException.GENERAL,"Unsupported field access: "+type+" is not an array type (most likely, this is a known generic type parameter bug).");
-    	} else if(clazz.getParameters().length>0&&type.getJavaClassType()==null&&type.getFlavour()==Flavour.ClassType) {
+    	} else if(clazz.hasParameters()&&type.getJavaClassType()==null&&type.getFlavour()==Flavour.ClassType) {
     		type=((ClassTypeDefinition)type).forType(clazz.asType());
     	}
     	return factory.resolve(this,type);

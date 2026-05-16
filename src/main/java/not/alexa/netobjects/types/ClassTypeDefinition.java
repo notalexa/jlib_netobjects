@@ -177,7 +177,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition implements 
 		}
 		
 		/**
-		 * An abstract type can be added to a field if it is either not anonymous or immutable
+		 * An abstract type can be added as a field if it is either not anonymous or immutable.
 		 * 
 		 * @param name the name of the filed
 		 * @param type it's type definition
@@ -256,7 +256,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition implements 
 			 */
 			public FieldBuilder addTag(String scheme,String tag) {
 				if(tags==null) {
-					tags=new HashMap<String, String>();
+					tags=new HashMap<>();
 				}
 				tags.put(scheme.toLowerCase(), tag);
 				return this;
@@ -270,7 +270,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition implements 
 			 */
 			public FieldBuilder addHint(String hint) {
 				if(hints==null) {
-					hints=new HashSet<String>();
+					hints=new HashSet<>();
 				}
 				hints.add(hint);
 				return this;
@@ -529,7 +529,7 @@ public class ClassTypeDefinition extends AbstractClassTypeDefinition implements 
 			ClassTypeDefinition def=(ClassTypeDefinition)o;
 			switch(index) {
 				case 0:List<ObjectType> types=def.getTypes();
-                    return types.size()==0?null:types.toArray(new ObjectType[types.size()]);
+                    return types.isEmpty() ?null:types.toArray(new ObjectType[types.size()]);
 				case 1:return def.enableObjectRefs?Boolean.TRUE:null;
 				case 2:return def.extendible?Boolean.TRUE:null;
 				case 3:return def.fields.length==0?null:def.fields;

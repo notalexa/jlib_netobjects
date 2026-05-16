@@ -16,8 +16,10 @@
 package not.alexa.netobjects.types;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.TypeVariable;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Map;
 
 import not.alexa.netobjects.Context;
 import not.alexa.netobjects.api.Final;
@@ -216,7 +218,7 @@ public interface TypeLoader {
      * The method should <i>not return {@code true} if the class is an array with a component class which is overlayed.
      * The same is true if the class represents a generic type and the parameter type may be overlayed.
      * 
-     * @param class the class in question
+     * @param clazz the class in question
      * @return <code>true</code> if the class has overlays
      */
     public default boolean hasOverlays(Class<?> clazz) {
@@ -251,14 +253,14 @@ public interface TypeLoader {
 		 * 
 		 * @return the locally linked parameters of this linked local.
 		 */
-		public abstract LinkedLocal[] getParameters();
+		public abstract Map<TypeVariable<?>,LinkedLocal> getParameters();
 		
 		/**
 		 * 
 		 * @return {@code true} if this linked local is a class and has parameters
 		 */
 		public boolean hasParameters() {
-			return getParameters().length>0;
+			return !getParameters().isEmpty();
 		}
 
         /**
